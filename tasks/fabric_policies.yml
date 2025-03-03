@@ -1,0 +1,33 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  # vars:
+
+  tasks:
+
+    - name: Load in local lab file
+      ansible.builtin.include_vars:
+        file: "../files/ce2_defaultAuto-2024-08-26T00-00-08_1.json"
+        name: backup_file
+
+    # - name: Load in local prod file
+    #   ansible.builtin.include_vars:
+    #     file: "../files/ce2_Backup-4HR-NETOPSP1-2024-08-26T08-05-29_1.json"
+    #     name: backup_file
+
+    - name: Create Access Policy Files Directory
+      ansible.builtin.file:
+        path: "../files/iac-nac/{{ item }}/"
+        state: directory
+        mode: '0755'
+      loop:
+        - backup_file
+        - prod_full
+
+    - name: Output Terraform
+      ansible.builtin.template:
+        src: "../templates/fabric_access_policies.nac.j2"
+        dest: "../files/iac-nac/fabric_access_policies.yaml"

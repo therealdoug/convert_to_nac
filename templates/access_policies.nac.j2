@@ -1,0 +1,34 @@
+#jinja2: lstrip_blocks: True
+---
+apic:
+  access_policies:
+    leaf_interface_profiles:
+      - name: {{ item }}
+{% if infraAccPortP[0].attributes.descr is defined and infraAccPortP[0].attributes.descr != "" %}
+        description: {{ infraAccPortP[0].attributes.descr }}
+{% endif %}
+{% if infraAccPortP[0].children is defined %}
+        selectors:
+  {% for selector in infraAccPortP[0].children | sort(attribute='infraHPortS.attributes.name') %}
+          - name: {{ selector.infraHPortS.attributes.name }}
+            description: {{ selector.infraHPortS.attributes.descr }}
+    {% set tdn = (selector.infraHPortS.children[0].infraRsAccBaseGrp.attributes.tDn).split("/") | last  %}
+    {% set pg = (tdn).split("-")[1:] | join("-") %}
+            policy_group: {{ pg }}
+    {% if selector.infraHPortS.children[1].infraPortBlk is defined %}
+            port_blocks:
+      {% for blk in selector.infraHPortS.children %}
+        {% if blk.infraPortBlk is defined %}
+              - name: {{ blk.infraPortBlk.attributes.name }}
+                {% if blk.infraPortBlk.attributes.descr != "" %}
+                description: {{ blk.infraPortBlk.attributes.descr }}
+                {% endif %}
+                from_port: {{ blk.infraPortBlk.attributes.fromPort }}
+          {% if blk.infraPortBlk.attributes.fromPort != blk.infraPortBlk.attributes.toPort%}
+                to_port: {{ blk.infraPortBlk.attributes.toPort }}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+{% endif %}

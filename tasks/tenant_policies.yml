@@ -1,0 +1,28 @@
+---
+- hosts: lab
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+
+  tasks:
+    - name: set role_path
+      set_fact:
+        role_path: "/home/doug/dev/ansible_roles/convert_to_nac"
+
+    # - name: Output Terraform Nexus-As-Code templates for Tenant Policies
+    #   ansible.builtin.template:
+    #     src: "{{ role_path }}/templates/tenant_policies.nac.j2"
+    #     dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname}}/tenant_policies_{{ item }}.nac.yaml"
+    #   loop: "{{ backup_file.polUni.children | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') | map(attribute='attributes') | map(attribute='name') | sort }}"
+    #   vars:
+    #     - this_tenant: "{{ backup_file.polUni.children | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') | selectattr('attributes', 'defined') | selectattr('attributes.name', 'match', item) | first }}"
+
+    - name: Output Terraform Nexus-As-Code templates for Tenant Policies
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/tenant_policies.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname}}/tenant_policies_{{ item }}.nac.yaml"
+      loop: "{{ polUni.children | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') | map(attribute='attributes') | map(attribute='name') | sort }}"
+      vars:
+        - this_tenant: "{{ polUni.children | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') | selectattr('attributes', 'defined') | selectattr('attributes.name', 'match', item) | first }}"

@@ -1,0 +1,33 @@
+---
+- hosts: all
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+
+  tasks:
+
+    - name: set role_path
+      set_fact:
+        role_path: "/home/doug/dev/ansible_roles/convert_to_nac"
+
+    - name: Ensure Output Folder Exists
+      ansible.builtin.file:
+        path: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/"
+        state: directory
+        mode: '0755'
+
+    - name: Output Terraform Nexus-As-Code templates for Leaf Interface Profiles
+      ansible.builtin.template:
+        src: "../templates/access_policies.nac.j2"
+        dest: "../files/iac-nac/{{ inventory_hostname}}/access_policy_{{ item }}.nac.yaml"
+      loop: "{{ polUni | json_query('children[].infraInfra.children[].infraAccPortP.attributes.name') | sort }}"
+      vars:
+        - search_string: "children[].infraInfra.children[?infraAccPortP.attributes.name==`{{item}}`][].infraAccPortP"
+        - infraAccPortP: "{{ polUni | json_query(search_string) }}"
+
+    - name: Output Terraform Nexus-As-Code template for Leaf Interface Policy Groups
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/interface_policy_groups.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/leaf_interface_policy_groups.nac.yaml"

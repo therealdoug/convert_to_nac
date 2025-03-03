@@ -1,0 +1,80 @@
+#jinja2: lstrip_blocks: True
+{% set vrfs = this_tenant.children | selectattr('fvCtx', 'defined') | map(attribute='fvCtx') | flatten | list %}
+{% set bds = this_tenant.children | selectattr('fvBD', 'defined') | map(attribute='fvBD') | flatten | list %}
+{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp') | flatten | list %}
+{% set l3outs = this_tenant.children | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') | flatten | list %}
+---
+apic:
+  tenants:
+    - name: {{ item }}
+      {% if this_tenant.attributes.descr != "" %}
+      description: {{ this_tenant.attributes.descr }}
+      {% endif %}
+{% if vrfs | length > 0 %}
+      vrfs:
+{% for vrf in vrfs %}
+{% set vzanyprov = vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+  | selectattr('children', 'defined') | map(attribute='children')   | flatten | list
+  | selectattr('vzRsAnyToProv', 'defined') | map(attribute='vzRsAnyToProv')
+  | map(attribute='attributes') | map(attribute='tnVzBrCPName')
+  | list %}
+{% set vzanycons = vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+  | selectattr('vzRsAnyToCons', 'defined') | map(attribute='vzRsAnyToCons')
+  | map(attribute='attributes') | map(attribute='tnVzBrCPName')
+  | list %}
+{% set vzanyconsif = vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+  | selectattr('fvRsConsIf', 'defined') | map(attribute='fvRsConsIf')
+  | map(attribute='attributes') | map(attribute='tnVzBrCPName')
+  | list %}
+        - name: {{ vrf.attributes.name }}
+          {% if vrf.attributes.descr != "" %}
+          description: {{ vrf.attributes.descr }}
+          {% endif %}
+          {% if vrf.attributes.ipDataPlaneLearning != "enabled" %}
+          data_plane_learning: false
+          {% endif %}
+          {% if vrf.attributes.pcEnfDir != "ingress" %}
+          enforcement_direction: egress
+          {% endif %}
+          {% if vrf.attributes.pcEnfPref != "enforced" %}
+          enforcement_preference: unenforced
+          {% endif %}
+          {% if vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+            | selectattr('attributes', 'defined') | map(attribute='attributes')
+            | map(attribute='prefGrMemb') | first == "enabled" %}
+          preferred_group: true
+          {% endif %}
+          {% if vrf.children | selectattr('fvRsCtxToExtRouteTagPol', 'defined') | map(attribute='fvRsCtxToExtRouteTagPol') | selectattr('attributes', 'defined') | map(attribute='attributes') | map(attribute='tnL3extRouteTagPolName') | first != "" %}
+          transit_route_tag_policy: {{ vrf.children | selectattr('fvRsCtxToExtRouteTagPol', 'defined') | map(attribute='fvRsCtxToExtRouteTagPol') | selectattr('attributes', 'defined') | map(attribute='attributes') | map(attribute='tnL3extRouteTagPolName') | first }}
+          {% endif %}
+          {% if vrf.children | selectattr('fvRsCtxToExtRouteTagPol', 'defined') | map(attribute='fvRsCtxToExtRouteTagPol') | selectattr('attributes', 'defined') | map(attribute='attributes') | map(attribute='tnL3extRouteTagPolName') | first != "" %}
+          timer_policy: {{ vrf.children | selectattr('fvRsCtxToExtRouteTagPol', 'defined') | map(attribute='fvRsCtxToExtRouteTagPol') | selectattr('attributes', 'defined') | map(attribute='attributes') | map(attribute='tnL3extRouteTagPolName') | first }}
+          {% endif %}
+          {% if vzanyprov | length > 0 or vzanycons | length > 0 or vzanyconsif | length > 0  %}
+          contracts:
+            {% if vzanyprov is defined and vzanyprov | length > 0 %}
+            providers:
+              {% for con in vzanyprov %}
+              - {{ con }}
+              {% endfor %}
+            {% endif %}
+            {% if vzanycons is defined and vzanycons | length > 0 %}
+            consumers:
+              {% for con in vzanycons %}
+              - {{ con }}
+              {% endfor %}
+            {% endif %}
+            {% if vzanyconsif is defined and vzanyconsif | length > 0 %}
+            imported_consumers:
+              {% for con in vzanyconsif %}
+              - {{ con }}
+              {% endfor %}
+            {% endif %}
+          {% endif %}
+{% endfor %}
+{% endif %}
+{% include "tenant_bridge_domains.j2" %}
+{% include "tenant_contracts.nac.j2" %}
+{# {% include "tenant_filters.nac.j2" %} #}

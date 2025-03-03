@@ -1,0 +1,128 @@
+#jinja2: lstrip_blocks: True
+---
+apic:
+  access_policies:
+    leaf_interface_policy_groups:
+{% set accbndl = polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | 
+                  selectattr('infraFuncP', 'defined') | map(attribute='infraFuncP') | map(attribute='children') | flatten | list |
+                  selectattr('infraAccBndlGrp', 'defined') | map(attribute='infraAccBndlGrp') | list %}
+{% set accport = polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | 
+                  selectattr('infraFuncP', 'defined') | map(attribute='infraFuncP') | map(attribute='children') | flatten | list |
+                  selectattr('infraAccPortGrp', 'defined') | map(attribute='infraAccPortGrp') | list %}
+{% for port in accbndl + accport | sort(attribute='attributes.name')%}
+{% set portchildren = port.children %}
+      - name: {{ port.attributes.name }}
+        {% if port.attributes.descr != "" %}
+        description: {{ port.attributes.descr }}
+        {% endif %}
+{% if port.attributes.lagT is defined and port.attributes.lagT == "node" %}
+        type: vpc
+{% elif port.attributes.lagT is defined and port.attributes.lagT == "link" %}
+        type: pc
+{% else %}
+        type: access
+{% endif %}
+        {% set policies = {
+            'lldp_policy': port.children | selectattr('infraRsLldpIfPol', 'defined') | map(attribute='infraRsLldpIfPol') | map(attribute='attributes') | map(attribute='tnLldpIfPolName') | first | default(""),
+            'cdp_policy': port.children | selectattr('infraRsCdpIfPol', 'defined') | map(attribute='infraRsCdpIfPol') | map(attribute='attributes') | map(attribute='tnCdpIfPolName') | first | default(""),
+            'mcp_policy': port.children | selectattr('infraRsMcpIfPol', 'defined') | map(attribute='infraRsMcpIfPol') | map(attribute='attributes') | map(attribute='tnMcpIfPolName') | first | default(""),
+            'l2_policy': port.children | selectattr('infraRsL2IfPol', 'defined') | map(attribute='infraRsL2IfPol') | map(attribute='attributes') | map(attribute='tnL2IfPolName') | first | default(""),
+            'spanning_tree_policy': port.children | selectattr('infraRsStpIfPol', 'defined') | map(attribute='infraRsStpIfPol') | map(attribute='attributes') | map(attribute='tnStpIfPolName') | first | default(""),
+            'port_channel_policy': port.children | selectattr('infraRsLacpPol', 'defined') | map(attribute='infraRsLacpPol') | map(attribute='attributes') | map(attribute='tnLacpLagPolName') | first | default(""),
+            'link_level_policy': port.children | selectattr('infraRsHIfPol', 'defined') | map(attribute='infraRsHIfPol') | map(attribute='attributes') | map(attribute='tnFabricHIfPolName') | first | default(""),
+            'aaep': port.children | selectattr('infraRsAttEntP', 'defined') | map(attribute='infraRsAttEntP') | map(attribute='attributes') | map(attribute='tDn') | first | default("") | replace("uni/infra/attentp-", "")
+        } %}
+        {% for policy, value in policies.items() %}
+        {% if value != "" %}
+        {{ policy }}: {{ value }}
+        {% endif %}
+        {% endfor %}{% endfor %}
+{% include "./access_aaeps.nac.j2"%}
+{% include "./access_vlan_pools.nac.j2" %}
+{% include "./access_domains.nac.j2" %}
+
+{% set cdp_policies =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('cdpIfPol', 'defined') | map(attribute='cdpIfPol') | list%}
+{% set lacp_policies =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('lacpLagPol', 'defined') | map(attribute='lacpLagPol') | list%}
+{% set link_policies =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('fabricHIfPol', 'defined') | map(attribute='fabricHIfPol') | list%}
+{% set lldp_policies =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('lldpIfPol', 'defined') | map(attribute='lldpIfPol') | list%}
+{% set mcp_policies =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('mcpIfPol', 'defined') | map(attribute='mcpIfPol') | list%}
+{% set stp_policies =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('stpIfPol', 'defined') | map(attribute='stpIfPol') | list%}
+
+{% if cdp_policies,lacp_policies,lldp_policies,link_policies,mcp_policies,stp_policies | length > 0 %}
+    interface_policies:
+      {% if cdp_policies | length > 0 %}
+      cdp_policies:
+        {% for pol in cdp_policies %}
+        - name: {{ pol.attributes.name }}
+          {% if pol.attributes.adminSt == 'enabled' %}
+          admin_state: true
+          {% else %}
+          admin_state: false
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+
+      {% if link_policies | length > 0 %}
+      link_level_policies:
+        {% for pol in link_policies %}
+        - name: {{ pol.attributes.name }}
+          {% if pol.attributes.speed != 'inherit' %}
+          speed: {{ pol.attributes.speed }}
+          {% endif %}
+          {% if pol.attributes.autoNeg != 'on' %}
+          auto: false
+          {% endif %}
+          {% if pol.attributes.fecMode != 'inherit' %}
+          fec_mode: {{ pol.attributes.fecMode }}
+          {% endif %}
+          {% if pol.attributes.portPhyMediaType is defined and pol.attributes.portPhyMediaType != 'auto' %}
+          physical_media_type: {{ pol.attributes.portPhyMediaType }}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+
+      {% if lldp_policies | length > 0 %}
+      lldp_policies:
+        {% for pol in lldp_policies %}
+        - name: {{ pol.attributes.name }}
+          {% if pol.attributes.adminRxSt == 'enabled' %}
+          admin_rx_state: true
+          {% else %}
+          admin_rx_state: false
+          {% endif %}
+          {% if pol.attributes.adminTxSt == 'enabled' %}
+          admin_tx_state: true
+          {% else %}
+          admin_tx_state: false
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+
+      {% if mcp_policies | length > 0 %}
+      mcp_policies:
+        {% for pol in mcp_policies %}
+        - name: {{ pol.attributes.name }}
+          {% if pol.attributes.adminSt == 'enabled' %}
+          admin_state: true
+          {% else %}
+          admin_state: false
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+
+      {% if stp_policies | length > 0 %}
+      spanning_tree_policies:
+        {% for pol in stp_policies %}
+        - name: {{ pol.attributes.name }}
+          {% if pol.attributes.descr != "" %}
+          description: {{ pol.attributes.descr }}
+          {% endif %}
+          {% if "bpdu-guard" in pol.attributes.ctrl %}
+          bpdu_guard: true
+          {% endif %}
+          {% if "bpdu-filter" in pol.attributes.ctrl %}
+          bpdu_filter: true
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+{% endif %}
