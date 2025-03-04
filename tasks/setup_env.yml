@@ -1,0 +1,10 @@
+---
+- name: set role_path
+  set_fact:
+    role_path: "/home/doug/dev/ansible_roles/convert_to_nac"
+
+- name: Ensure Output Folder Exists
+  ansible.builtin.file:
+    path: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/"
+    state: directory
+    mode: '0755'
