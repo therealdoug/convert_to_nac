@@ -4,27 +4,45 @@
   gather_facts: false
   become: false
 
-  vars:
-
   tasks:
     - name: Ensure Environment Is Set Up
       ansible.builtin.include_tasks: setup_env.yml
 
     - name: Download Fabric Access Policies
       cisco.aci.aci_rest:
-        path: "/api/node/mo/uni/infra.json?query-target=subtree&rsp-subtree=full&rsp-prop-include=config-only"
+        path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,polUni,fvTenant,fabricInst,infraInfra&rsp-subtree=full&rsp-prop-include=config-only"
         method: get
         host: "{{ ansible_host }}"
         user: "{{ ansible_user }}"
         password: "{{ ansible_password }}"
         validate_certs: no
-      register: funcprof
+      register: query_result
+      timeout: 120
+      retries: 3
+      delay: 30
+      when: read_mode == "online"
 
-    - name: debug
-      ansible.builtin.debug:
-        var: funcprof
+    - name: Set fact
+      ansible.builtin.set_fact:
+        polUni: "{{ query_result.imdata }}"
+      when: read_mode == "online"
 
     - name: Copy to files
       ansible.builtin.copy:
-        content: "{{ funcprof.imdata | to_nice_json }}"
-        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/fabric_access_policies.json"
+        content: '{ "polUni": {{ polUni | to_nice_json }} }'
+        dest: "{{ role_path }}/inventory/{{ inventory_hostname }}/fabric_policies.json"
+      when: read_mode == "online"
+
+    - name: Generate Interface Policy Groups file
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/interface_policy_groups.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/leaf_interface_policy_groups.yml"
+
+    - name: Output Terraform Nexus-As-Code templates for Leaf Interface Profiles
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/access_policies.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname}}/access_policy_{{ item }}.nac.yaml"
+      loop: "{{ polUni | json_query('[].infraInfra.children[].infraAccPortP.attributes.name') | sort }}"
+      vars:
+        - search_string: "[].infraInfra.children[?infraAccPortP.attributes.name==`{{item}}`][].infraAccPortP"
+        - infraAccPortP: "{{ polUni | json_query(search_string) | first }}"

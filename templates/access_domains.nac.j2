@@ -1,5 +1,5 @@
-{% set pdomains =  polUni.children | selectattr('physDomP', 'defined') | map(attribute='physDomP') | list%}
-{% set rdomains =  polUni.children | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | list%}
+{% set pdomains =  polUni | selectattr('physDomP', 'defined') | map(attribute='physDomP') | flatten | list %}
+{% set rdomains =  polUni | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | flatten | list %}
 {% if pdomains | length > 0 %}
     physical_domains:
   {% for domain in pdomains %}

@@ -1,8 +1,7 @@
-{% set vlpools =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('fvnsVlanInstP', 'defined') | map(attribute='fvnsVlanInstP') | list%}
+{% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined') | map(attribute='fvnsVlanInstP') | list %}
     {% if vlpools | length > 0 %}
     vlan_pools:
       {% for vlpool in vlpools %}
-      {% set ranges = vlpool.children | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') | flatten | list %}
       - name: {{ vlpool.attributes.name }}
         {% if vlpool.attributes.descr != "" %}
         description: {{ vlpool.attributes.descr }}
@@ -10,6 +9,7 @@
         {% if vlpool.attributes.allocMode != "static" %}
         allocation: dynamic
         {% endif %}
+        {% set ranges = vlpool | selectattr('children', 'defined') | map(attribute='children') | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') | flatten | list %}
         {% if ranges | length > 0 %}
         ranges:
           {% for range in ranges %}

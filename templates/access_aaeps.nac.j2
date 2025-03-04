@@ -1,4 +1,5 @@
-{% set aaeps =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list%}
+{# {% set aaeps =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list%} #}
+{% set aaeps =  infra_children | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list%}
     {% if aaeps | length > 0 %}
     aaeps:
     {% for aaep in aaeps %}
@@ -36,23 +37,23 @@
         endpoint_groups:
           {% for epg in endpoint_groups %}
             {% set tn, ap, group = epg.tDn.split('/')[1:] %}
-            - endpoint_group: {{ group | regex_replace('^epg-', '') }}
-              tenant: {{ tn | regex_replace('^tn-', '') }}
-              application_profile: {{ ap | regex_replace('^ap-', '') }}
-              {% if epg.primaryEncap == 'unknown' %}
-                {% if epg.encap != 'unknown' %}
-              vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
-                {%endif %}
-              {% else %}
-              primary_vlan: {{ epg.primaryEncap | regex_replace('^vlan-', '') }}
-              secondary_vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
-              {% endif %}
-              {% if epg.mode != 'regular' %}
-              mode: {{ epg.mode }}
-              {% endif %}
-              {% if epg.instrImedcy != 'lazy' %}
-              deployment_immediacy: {{ epg.instrImedcy }}
-              {% endif %}
+          - endpoint_group: {{ group | regex_replace('^epg-', '') }}
+            tenant: {{ tn | regex_replace('^tn-', '') }}
+            application_profile: {{ ap | regex_replace('^ap-', '') }}
+            {% if epg.primaryEncap == 'unknown' %}
+              {% if epg.encap != 'unknown' %}
+            vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
+              {%endif %}
+            {% else %}
+            primary_vlan: {{ epg.primaryEncap | regex_replace('^vlan-', '') }}
+            secondary_vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
+            {% endif %}
+            {% if epg.mode != 'regular' %}
+            mode: {{ epg.mode }}
+            {% endif %}
+            {% if epg.instrImedcy != 'lazy' %}
+            deployment_immediacy: {{ epg.instrImedcy }}
+            {% endif %}
           {% endfor %}
         {% endif %}
       {% endif %}
