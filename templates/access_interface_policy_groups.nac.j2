@@ -1,0 +1,47 @@
+#jinja2: lstrip_blocks: True
+---
+apic:
+  access_policies:
+    leaf_interface_policy_groups:
+{% set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% set infra_funcp = infra_children | selectattr('infraFuncP', 'defined') | map(attribute='infraFuncP') | map(attribute='children') | flatten | list %}
+{% set accbndl = infra_funcp | selectattr('infraAccBndlGrp', 'defined') | map(attribute='infraAccBndlGrp') | list %}
+{% set accport = infra_funcp | selectattr('infraAccPortGrp', 'defined') | map(attribute='infraAccPortGrp') | list %}
+{% set portgroups = accbndl + accport %}
+{% for port in portgroups | sort(attribute='attributes.name')%}
+  {% set portchildren = port.children %}
+      - name: {{ port.attributes.name }}
+  {% if port.attributes.descr != "" %}
+        description: {{ port.attributes.descr }}
+  {% endif %}
+  {% if port.attributes.lagT is defined and port.attributes.lagT == "node" %}
+        type: vpc
+  {% elif port.attributes.lagT is defined and port.attributes.lagT == "link" %}
+        type: pc
+  {% else %}
+        type: access
+  {% endif %}
+  {% set policies = {
+    'lldp_policy': port.children | selectattr('infraRsLldpIfPol', 'defined') | map(attribute='infraRsLldpIfPol') | map(attribute='attributes') | map(attribute='tnLldpIfPolName') | first | default(""),
+    'cdp_policy': port.children | selectattr('infraRsCdpIfPol', 'defined') | map(attribute='infraRsCdpIfPol') | map(attribute='attributes') | map(attribute='tnCdpIfPolName') | first | default(""),
+    'mcp_policy': port.children | selectattr('infraRsMcpIfPol', 'defined') | map(attribute='infraRsMcpIfPol') | map(attribute='attributes') | map(attribute='tnMcpIfPolName') | first | default(""),
+    'l2_policy': port.children | selectattr('infraRsL2IfPol', 'defined') | map(attribute='infraRsL2IfPol') | map(attribute='attributes') | map(attribute='tnL2IfPolName') | first | default(""),
+    'spanning_tree_policy': port.children | selectattr('infraRsStpIfPol', 'defined') | map(attribute='infraRsStpIfPol') | map(attribute='attributes') | map(attribute='tnStpIfPolName') | first | default(""),
+    'port_channel_policy': port.children | selectattr('infraRsLacpPol', 'defined') | map(attribute='infraRsLacpPol') | map(attribute='attributes') | map(attribute='tnLacpLagPolName') | first | default(""),
+    'link_level_policy': port.children | selectattr('infraRsHIfPol', 'defined') | map(attribute='infraRsHIfPol') | map(attribute='attributes') | map(attribute='tnFabricHIfPolName') | first | default(""),
+    'aaep': port.children | selectattr('infraRsAttEntP', 'defined') | map(attribute='infraRsAttEntP') | map(attribute='attributes') | map(attribute='tDn') | first | default("") | replace("uni/infra/attentp-", "")
+  } %}
+  {% for policy, value in policies.items() %}
+    {% if value != "" %}
+        {{ policy }}: {{ value }}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+{% include "./access_aaeps.nac.j2" %}
+
+{% include "./access_vlan_pools.nac.j2" %}
+
+{% include "./access_domains.nac.j2" %}
+
+{% include "./access_interface_policies.nac.j2" %}
