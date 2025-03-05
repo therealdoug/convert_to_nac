@@ -29,13 +29,25 @@ apic:
     'spanning_tree_policy': port.children | selectattr('infraRsStpIfPol', 'defined') | map(attribute='infraRsStpIfPol') | map(attribute='attributes') | map(attribute='tnStpIfPolName') | first | default(""),
     'port_channel_policy': port.children | selectattr('infraRsLacpPol', 'defined') | map(attribute='infraRsLacpPol') | map(attribute='attributes') | map(attribute='tnLacpLagPolName') | first | default(""),
     'link_level_policy': port.children | selectattr('infraRsHIfPol', 'defined') | map(attribute='infraRsHIfPol') | map(attribute='attributes') | map(attribute='tnFabricHIfPolName') | first | default(""),
-    'aaep': port.children | selectattr('infraRsAttEntP', 'defined') | map(attribute='infraRsAttEntP') | map(attribute='attributes') | map(attribute='tDn') | first | default("") | replace("uni/infra/attentp-", "")
+    'aaep': port.children | selectattr('infraRsAttEntP', 'defined') | map(attribute='infraRsAttEntP') | map(attribute='attributes') | map(attribute='tDn') | first | default("") | replace("uni/infra/attentp-", ""),
+    'macsec_policy': port.children | selectattr('infraRsMacsecIfPol', 'defined') | map(attribute='infraRsMacsecIfPol') | map(attribute='attributes') | map(attribute='tnMacsecIfPolName') | first | default(""),
+    'storm_control_policy': port.children | selectattr('infraRsStormctrlIfPol', 'defined') | map(attribute='infraRsStormctrlIfPol') | map(attribute='attributes') | map(attribute='tnStormctrlIfPolName') | first | default("")
   } %}
-  {% for policy, value in policies.items() %}
+  {% for policy, value in policies.items() | sort %}
     {% if value != "" %}
         {{ policy }}: {{ value }}
     {% endif %}
   {% endfor %}
+  {% set netflow_monitor_policies = port.children | selectattr('infraRsNetflowMonitorPol', 'defined') | map(attribute='infraRsNetflowMonitorPol') %}
+  {% if netflow_monitor_policies | length > 0 %}
+        netflow_monitor_policies:
+    {% for netflow_monitor_policy in netflow_monitor_policies | sort(attribute='attributes.tnNetflowMonitorPolName')%}
+          - name: {{ netflow_monitor_policy.attributes.tnNetflowMonitorPolName }}
+          {% if netflow_monitor_policy.attributes.fltType != 'ipv4' %}
+            ip_filter_type: {{ netflow_monitor_policy.attributes.fltType }}
+          {% endif %}
+    {% endfor %}
+  {% endif %}
 {% endfor %}
 
 {% include "./access_aaeps.nac.j2" %}
