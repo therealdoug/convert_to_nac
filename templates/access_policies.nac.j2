@@ -37,7 +37,7 @@ apic:
                 description: {{ block.attributes.descr }}
         {% endif %}
                 from_port: {{ block.attributes.fromPort }}
-        {% if block.attributes.fromPort != block.attributes.toPort %}                
+        {% if block.attributes.fromPort != block.attributes.toPort %}
                 to_port: {{ block.attributes.toPort }}
         {% endif %}
         {% if block.attributes.fromCard != "1" %}
@@ -58,7 +58,7 @@ apic:
                 description: {{ block.attributes.descr }}
         {% endif %}
                 from_port: {{ block.attributes.fromPort }}
-        {% if block.attributes.fromPort != block.attributes.toPort %}                
+        {% if block.attributes.fromPort != block.attributes.toPort %}             
                 to_port: {{ block.attributes.toPort }}
         {% endif %}
                 from_sub_port: {{ block.attributes.fromSubPort }}

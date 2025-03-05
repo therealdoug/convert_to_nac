@@ -30,7 +30,7 @@
     - name: Copy to files
       ansible.builtin.copy:
         content: '{ "polUni": {{ polUni | to_nice_json }} }'
-        dest: "{{ role_path }}/inventory/{{ inventory_hostname }}/fabric_policies.json"
+        dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
       when: read_mode == "online"
 
     - name: Generate Interface Policy Groups file
