@@ -14,8 +14,8 @@
     {% endif %}
   {% endfor %}
 {% endif %}
-
 {% if rdomains | length > 0 %}
+
     routed_domains:
   {% for domain in rdomains %}
       - name: {{ domain.attributes.name }}

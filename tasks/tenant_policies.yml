@@ -1,5 +1,5 @@
 ---
-- hosts: lab
+- hosts: sandbox
   connection: local
   gather_facts: false
   become: false

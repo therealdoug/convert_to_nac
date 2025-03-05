@@ -1,6 +1,5 @@
-{# {% set aaeps =  polUni.children | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | map(attribute='children') | flatten | list | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list%} #}
-{% set aaeps =  infra_children | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list%}
-    {% if aaeps | length > 0 %}
+{% set aaeps =  infra_children | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list %}
+  {% if aaeps | length > 0 %}
     aaeps:
     {% for aaep in aaeps %}
       - name: {{ aaep.attributes.name }}
@@ -58,4 +57,4 @@
         {% endif %}
       {% endif %}
     {% endfor %}
-    {% endif %}
+  {% endif %}
