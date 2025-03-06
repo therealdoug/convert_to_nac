@@ -36,10 +36,15 @@
       delegate_to: localhost
       when: read_mode == "online"
 
+    - name: Generate Access Policies file
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/access_policies.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_policies.nac.yml"
+
     - name: Generate Interface Policy Groups file
       ansible.builtin.template:
         src: "{{ role_path }}/templates/access_interface_policy_groups.nac.j2"
-        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_leaf_interface_policy_groups.yml"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_leaf_interface_policy_groups.nac.yml"
 
     - name: Output Terraform Nexus-As-Code templates for Leaf Interface Profiles
       ansible.builtin.template:

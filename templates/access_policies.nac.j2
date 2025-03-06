@@ -1,0 +1,208 @@
+#jinja2: lstrip_blocks: True
+---
+{% set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+apic:
+  access_policies:
+{% set aaeps =  infra_children | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list %}
+  {% if aaeps | length > 0 %}
+    aaeps:
+    {% for aaep in aaeps %}
+      - name: {{ aaep.attributes.name }}
+      {% if aaep.attributes.descr != "" %}
+        description: {{ aaep.attributes.descr }}
+      {% endif %}
+      {% if aaep.children is defined %}
+        {% if aaep.children | selectattr('infraProvAcc', 'defined') %}
+        infra_vlan: true
+        {% endif %}
+        {% set phys_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/phys-') | list %}
+        {% if phys_domains | length > 0 %}
+        physical_domains:
+          {% for domain in phys_domains %}
+          - {{ domain.attributes.tDn | regex_replace('^uni/phys-', '') }}
+          {% endfor %}
+        {% endif %}
+        {% set l3_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/l3dom-') | list %}
+        {% if l3_domains | length > 0 %}
+        routed_domains:
+          {% for domain in l3_domains %}
+          - {{ domain.attributes.tDn | regex_replace('^uni/l3dom-', '') }}
+          {% endfor %}
+        {% endif %}
+        {% set vmm_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/vmmp-VMware/dom-') | list %}
+        {% if vmm_domains | length > 0 %}
+        vmware_vmm_domains:
+          {% for domain in vmm_domains %}
+          - {{ domain.attributes.tDn | regex_replace('^uni/vmmp-VMware/dom-', '') }}
+          {% endfor %}
+        {% endif %}
+        {% set endpoint_groups = aaep.children | selectattr('infraGeneric', 'defined') | map(attribute='infraGeneric') | selectattr('children', 'defined') | map(attribute='children') | flatten | selectattr('infraRsFuncToEpg', 'defined') | map(attribute='infraRsFuncToEpg') | map(attribute='attributes')  %}
+        {% if endpoint_groups | length > 0 %}
+        endpoint_groups:
+          {% for epg in endpoint_groups %}
+            {% set tn, ap, group = epg.tDn.split('/')[1:] %}
+          - endpoint_group: {{ group | regex_replace('^epg-', '') }}
+            tenant: {{ tn | regex_replace('^tn-', '') }}
+            application_profile: {{ ap | regex_replace('^ap-', '') }}
+            {% if epg.primaryEncap == 'unknown' %}
+              {% if epg.encap != 'unknown' %}
+            vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
+              {%endif %}
+            {% else %}
+            primary_vlan: {{ epg.primaryEncap | regex_replace('^vlan-', '') }}
+            secondary_vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
+            {% endif %}
+            {% if epg.mode != 'regular' %}
+            mode: {{ epg.mode }}
+            {% endif %}
+            {% if epg.instrImedcy != 'lazy' %}
+            deployment_immediacy: {{ epg.instrImedcy }}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+
+
+{% set pdomains =  polUni | selectattr('physDomP', 'defined') | map(attribute='physDomP') | flatten | list %}
+{% set rdomains =  polUni | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | flatten | list %}
+{% if pdomains | length > 0 %}
+    physical_domains:
+  {% for domain in pdomains %}
+      - name: {{ domain.attributes.name }}
+    {% if domain.children is defined %}
+    {% set vlpool = domain.children | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs') | flatten | list | map(attribute='attributes') | map(attribute='tDn') | list %}
+      {% if vlpool != "" and vlpool != [] %}
+        vlan_pool: {{ vlpool | first | replace('uni/infra/vlanns-[', '') | replace(']-dynamic', '') | replace(']-static', '') }}
+      {% elif vlpool == [] %}
+        vlan_pool: default
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% if rdomains | length > 0 %}
+
+    routed_domains:
+  {% for domain in rdomains %}
+      - name: {{ domain.attributes.name }}
+    {% if domain.children is defined %}
+      {% set vlpool = domain.children | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs') | flatten | list | map(attribute='attributes') | map(attribute='tDn') | list %}
+        {% if vlpool != "" and vlpool != [] %}
+        vlan_pool: {{ vlpool | first | replace('uni/infra/vlanns-[', '') | replace(']-dynamic', '') | replace(']-static', '') }}
+        {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% set ptp_profiles = infra_children | selectattr('ptpProfile', 'defined') | map(attribute='ptpProfile') | list %}
+  {% if ptp_profiles | length > 0 %}
+    ptp_profiles:
+    {% for ptp in ptp_profiles | sort(attribute='attributes.name') %}
+      - name: {{ ptp.attributes.name }}
+      {% if ptp.attributes.announceIntvl != "1" %}
+        announce_interval: {{ ptp.attributes.announceIntvl }}
+      {% endif %}
+      {% if ptp.attributes.announceTimeout != "3" %}
+        announce_timeout: {{ ptp.attributes.announceTimeout }}
+      {% endif %}
+      {% if ptp.attributes.delayIntvl != "-3" %}
+        delay_interval: {{ ptp.attributes.delayIntvl }}
+      {% endif %}
+      {% if ptp.attributes.syncIntvl != "-3" %}
+        sync_interval: {{ ptp.attributes.syncIntvl }}
+      {% endif %}
+      {% if ptp.attributes.localPriority != "128" %}
+        priority: {{ ptp.attributes.localPriority }}
+      {% endif %}
+      {% if ptp.attributes.profileTemplate == "aes67" %}
+        {# Leave Blank #}
+      {% elif ptp.attributes.profileTemplate == "smpte" %}
+        template: smpte
+      {% else %}
+        template: telecom
+      {% endif %}
+      {% if ptp.attributes.ptpoeDstMacType != "forwardable" %}
+        forwardable: false
+      {% endif %}
+      {% if ptp.attributes.ptpoeDstMacRxNoMatch == "replyWithCfgMac" %}
+        {# Leave Blank #}
+      {% elif ptp.attributes.ptpoeDstMacRxNoMatch == "replyWithRxMac" %}
+        mismatch_handling: received
+      {% else %}
+        mismatch_handling: drop
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+{% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined') | map(attribute='fvnsVlanInstP') | list %}
+  {% if vlpools | length > 0 %}
+    vlan_pools:
+    {% for vlpool in vlpools %}
+      - name: {{ vlpool.attributes.name }}
+      {% if vlpool.attributes.descr != "" %}
+        description: {{ vlpool.attributes.descr }}
+      {% endif %}
+      {% if vlpool.attributes.allocMode != "static" %}
+        allocation: dynamic
+      {% endif %}
+      {% set ranges = vlpool | selectattr('children', 'defined') | map(attribute='children') | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') | flatten | list %}
+      {% if ranges | length > 0 %}
+        ranges:
+        {% for range in ranges %}
+          - from: {{ range.attributes.from | replace('vlan-','')}}
+          {% if range.attributes.from != range.attributes.to %}
+            to: {{ range.attributes.to | replace('vlan-','')}}
+          {% endif %}
+          {% if range.attributes.descr != "" %}
+            description: {{ range.attributes.descr }}
+          {% endif %}
+          {% if range.attributes.allocMode != "inherit" and range.attributes.allocMode != vlpool.attributes.allocMode %}
+            allocation: {{ range.attributes.allocMode }}
+          {% endif %}
+          {% if range.attributes.role != "external" %}
+            role: internal
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+{% set dhcpRelayP = infra_children | selectattr('dhcpRelayP', 'defined') | map(attribute='dhcpRelayP') | list %}
+{% if dhcpRelayP | length > 0 %}
+    dhcp_relay_policies:
+    {% for pol in dhcpRelayP %}
+      - name: {{ pol.attributes.name }}
+      {% if pol.attributes.descr != "" %}
+        description: {{ pol.attributes.descr }}
+      {% endif %}
+      {% set pol_children = [pol] | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+      {% set providers = pol_children | selectattr('dhcpRsProv', 'defined') | map(attribute='dhcpRsProv') | list %}
+      {% if providers | length > 0 %}
+        providers:
+        {% for prov in providers | sort(attribute='attributes.addr') %}
+          {% set split_tdn = prov.attributes.tDn.split('/') %}
+          {% set tn = split_tdn[1] | regex_replace('^/tn-', '') %}
+          - ip: {{ prov.attributes.addr }}
+          {% if '/instP-' in prov.attributes.tDn %}
+            {% set l3o = split_tdn[2] | regex_replace('^/out-', '') %}
+            {% set eepg = split_tdn[3] | regex_replace('^/instP-', '') %}
+            type: external_epg
+            tenant: {{ tn }}
+            l3out: {{ l3o }}
+            external_endpoint_group: {{ eepg }}
+          {% else %}
+            {% set ap = split_tdn[2] | regex_replace('^/ap-', '') %}
+            {% set epg = split_tdn[3] | regex_replace('^/epg-', '') %}
+            type: epg
+            tenant: {{ tn }}
+            application_profile: {{ ap }}
+            endpoint_group: {{ epg }}
+          {% endif %}
+        {% endfor %}
+      {% endif%}
+    {% endfor %}
+{% endif %}
+
+{% include "./access_interface_policies.nac.j2" %}
