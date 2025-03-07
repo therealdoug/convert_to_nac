@@ -1,0 +1,77 @@
+#jinja2: lstrip_blocks: True
+---
+{% set infraInfra = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | list %}
+{% set infra_children = infraInfra | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% set leaf_profiles = infra_children | selectattr('infraAccPortP', 'defined') | map(attribute='infraAccPortP') | list %}
+{% set leaf_prof = leaf_profiles | selectattr('attributes.name', 'equalto', item) | first %}
+{% set hports = [ leaf_prof ] 
+              | selectattr('children', 'defined') | map(attribute='children') | flatten | list 
+              | selectattr('infraHPortS', 'defined') | map(attribute='infraHPortS') | list %}
+apic:
+  access_policies:
+    leaf_interface_profiles:
+      - name: {{ leaf_prof.attributes.name }}
+{% if leaf_prof.attributes.descr != "" %}
+        description: {{ leaf_prof.attributes.descr }}
+{% endif %}
+{% if hports | length > 0 %}
+        selectors:
+  {% for hport in hports | sort(attribute='attributes.name') %}
+          - name: {{ hport.attributes.name }}
+    {% if hport.attributes.descr != "" %}
+            description: {{ hport.attributes.descr }}
+    {% endif %}
+    {% set pg = hport.children 
+              | selectattr('infraRsAccBaseGrp', 'defined') | map(attribute='infraRsAccBaseGrp')
+              | map(attribute='attributes.tDn') %}
+    {% if pg | length > 0 %}
+            policy_group: {{ pg | first | regex_replace('^uni/infra/funcprof/(accbundle-|accportgrp-)', '') }}
+    {% endif %}
+    {% set port_blocks = hport.children
+                        | selectattr('infraPortBlk', 'defined') | map(attribute='infraPortBlk') %}
+    {% if port_blocks | length > 0 %}
+            port_blocks:
+      {% for block in port_blocks | sort(attribute='attributes.fromCard,attributes.fromPort') %}
+              - name: {{ block.attributes.name }}
+        {% if block.attributes.descr != "" %}
+                description: {{ block.attributes.descr }}
+        {% endif %}
+                from_port: {{ block.attributes.fromPort }}
+        {% if block.attributes.fromPort != block.attributes.toPort %}
+                to_port: {{ block.attributes.toPort }}
+        {% endif %}
+        {% if block.attributes.fromCard != "1" %}
+                from_module: {{ block.attributes.fromCard }}
+        {% endif %}
+        {% if block.attributes.toCard != block.attributes.fromCard %}
+                to_module: {{ block.attributes.toCard }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {% set sub_port_blocks = hport.children
+                            | selectattr('infraSubPortBlk', 'defined') | map(attribute='infraSubPortBlk') %}
+    {% if sub_port_blocks | length > 0 %}
+            sub_port_blocks:
+      {% for block in sub_port_blocks | sort(attribute='attributes.fromCard,attributes.fromPort,attributes.fromSubPort') %}
+              - name: {{ block.attributes.name }}
+        {% if block.attributes.descr != "" %}
+                description: {{ block.attributes.descr }}
+        {% endif %}
+                from_port: {{ block.attributes.fromPort }}
+        {% if block.attributes.fromPort != block.attributes.toPort %}             
+                to_port: {{ block.attributes.toPort }}
+        {% endif %}
+                from_sub_port: {{ block.attributes.fromSubPort }}
+        {% if block.attributes.fromSubPort != block.attributes.toSubPort %}                
+                to_sub_port: {{ block.attributes.toSubPort }}
+        {% endif %}
+        {% if block.attributes.fromCard != "1" %}
+                from_module: {{ block.attributes.fromCard }}
+        {% endif %}
+        {% if block.attributes.toCard != block.attributes.fromCard %}
+                to_module: {{ block.attributes.toCard }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+{% endif %}

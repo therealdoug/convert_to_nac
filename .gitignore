@@ -1,3 +1,6 @@
 files/*
+!files/iac-nac/sandbox/*
 inventory/*
+!inventory/host_vars/sandbox/*
 *.retry
+backup_from_sandbox_fabric_policies.json

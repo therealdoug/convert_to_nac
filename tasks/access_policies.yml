@@ -4,30 +4,53 @@
   gather_facts: false
   become: false
 
-  vars:
-
   tasks:
+    - name: Ensure Environment Is Set Up
+      ansible.builtin.include_tasks: setup_env.yml
 
-    - name: set role_path
-      set_fact:
-        role_path: "/home/doug/dev/ansible_roles/convert_to_nac"
+    - name: Download Fabric Policies
+      cisco.aci.aci_rest:
+        path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,polUni,fvTenant,fabricInst,infraInfra&rsp-subtree=full&rsp-prop-include=config-only"
+        method: get
+        host: "{{ ansible_host }}"
+        user: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        validate_certs: no
+      register: query_result
+      timeout: 120
+      retries: 3
+      delay: 30
+      when: read_mode == "online"
 
-    - name: Ensure Output Folder Exists
-      ansible.builtin.file:
-        path: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/"
-        state: directory
-        mode: '0755'
+    - name: Copy to files
+      ansible.builtin.copy:
+        content: '{{ fabric_policy | to_nice_json }}'
+        dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
+      vars:
+        fabric_policy: '{ "polUni": {{ query_result.imdata }} }'
+      when: read_mode == "online"
+
+    - name: Sleep to wait for slow I/O to pick up host_vars files.  Adjust as necessary.
+      ansible.builtin.wait_for:
+        timeout: 3
+      delegate_to: localhost
+      when: read_mode == "online"
+
+    - name: Generate Access Policies file
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/access_policies.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_policies.nac.yml"
+
+    - name: Generate Interface Policy Groups file
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/access_interface_policy_groups.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_leaf_interface_policy_groups.nac.yml"
 
     - name: Output Terraform Nexus-As-Code templates for Leaf Interface Profiles
       ansible.builtin.template:
-        src: "../templates/access_policies.nac.j2"
-        dest: "../files/iac-nac/{{ inventory_hostname}}/access_policy_{{ item }}.nac.yaml"
-      loop: "{{ polUni | json_query('children[].infraInfra.children[].infraAccPortP.attributes.name') | sort }}"
+        src: "{{ role_path }}/templates/access_leaf_interface_profiles.nac.j2"
+        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname}}/access_leaf_interface_profiles_{{ item }}.nac.yaml"
+      loop: "{{ polUni | json_query('[].infraInfra.children[].infraAccPortP.attributes.name') | sort }}"
       vars:
-        - search_string: "children[].infraInfra.children[?infraAccPortP.attributes.name==`{{item}}`][].infraAccPortP"
-        - infraAccPortP: "{{ polUni | json_query(search_string) }}"
-
-    - name: Output Terraform Nexus-As-Code template for Leaf Interface Policy Groups
-      ansible.builtin.template:
-        src: "{{ role_path }}/templates/interface_policy_groups.nac.j2"
-        dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/leaf_interface_policy_groups.nac.yaml"
+        - search_string: "[].infraInfra.children[?infraAccPortP.attributes.name==`{{item}}`][].infraAccPortP"
+        - infraAccPortP: "{{ polUni | json_query(search_string) | first }}"
