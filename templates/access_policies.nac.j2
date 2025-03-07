@@ -64,8 +64,6 @@ apic:
     {% endfor %}
   {% endif %}
 
-
-
 {% set pdomains =  polUni | selectattr('physDomP', 'defined') | map(attribute='physDomP') | flatten | list %}
 {% set rdomains =  polUni | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | flatten | list %}
 {% if pdomains | length > 0 %}
@@ -134,6 +132,83 @@ apic:
         mismatch_handling: drop
       {% endif %}
     {% endfor %}
+  {% endif %}
+
+{% set qos = infra_children | selectattr('qosInstPol', 'defined') | map(attribute='qosInstPol') | list %}
+{% set qos_children = qos | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% set qos_classes = qos_children | selectattr('qosClass', 'defined') | map(attribute='qosClass') | list %}
+  {% if qos | length > 0 %}
+    qos:
+    {% if qos | map(attribute='attributes.ctrl') != '' %}
+      preserve_cos: true
+    {% endif %}
+    {% if qos_classes | length > 0 %}
+      qos_classes:
+      {% for class in qos_classes %}
+        {% set class_children = [class] | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+        {% set qosSched = class_children | selectattr('qosSched', 'defined') | map(attribute='qosSched') | map(attribute='attributes') | first %}
+        {% set qosPfcPol = class_children | selectattr('qosPfcPol', 'defined') | map(attribute='qosPfcPol') | map(attribute='attributes') | first %}
+        {% set qosCong = class_children | selectattr('qosCong', 'defined') | map(attribute='qosCong') | map(attribute='attributes') | first %}
+        {% set qosBuffer = class_children | selectattr('qosBuffer', 'defined') | map(attribute='qosBuffer') | map(attribute='attributes') | first %}
+        - level: {{ class.attributes.prio | replace('level', '') }}
+        {% if class.attributes.admin != "enabled" %}
+          admin_state: false
+        {% endif %}
+        {% if class.attributes.descr != "" %}
+          description: {{ class.attributes.descr }}
+        {% endif %}
+        {% if class.attributes.mtu != "9216" %}
+          mtu: {{ class.attributes.mtu }}
+        {% endif %}
+        {% if qosSched is defined %}
+          {% if qosSched.meth != 'wrr' %}
+          scheduling: {{ qosSched.meth }}
+          {% endif %}
+          {% if qosSched.bw != '20' %}
+          bandwidth_percent: {{ qosSched.bw }}
+          {% endif %}
+        {% endif %}
+        {% if qosPfcPol is defined %}
+          {% if qosPfcPol.adminSt!= 'no' %}
+          pfc_state: true
+          {% endif %}
+          {% if qosPfcPol.noDropCos != '' %}
+          no_drop_qos: {{ qosPfcPol.noDropCos }}
+          {% endif %}
+          {% if qosPfcPol.enableScope != 'tor' %}
+          pfc_scope: {{ qosPfcPol.enableScope }}
+          {% endif %}
+        {% endif %}
+        {% if qosCong is defined %}
+          {% if qosCong.algo != 'tail-drop'%}
+          congestion_algorithm: {{ qosCong.algo }}
+          {% endif %}
+          {% if qosCong.ecn != 'disabled'%}
+          ecn: {{ qosCong.ecn }}
+          {% endif %}
+          {% if qosCong.forwardNonEcn != 'disabled'%}
+          forward_non_ecn: true
+          {% endif %}
+          {% if qosCong.wredMaxThreshold != '100'%}
+          wred_max_threshold: {{ qosCong.wredMaxThreshold }}
+          {% endif %}
+          {% if qosCong.wredMinThreshold != '0'%}
+          wred_min_threshold: {{ qosCong.wredMinThreshold }}
+          {% endif %}
+          {% if qosCong.wredProbability != '0'%}
+          wred_probability: {{ qosCong.wredProbability }}
+          {% endif %}
+          {% if qosCong.wredWeight != '0'%}
+          weight: {{ qosCong.wredWeight }}
+          {% endif %}
+        {% endif %}
+        {% if qosBuffer is defined %}
+          {% if qosBuffer.min != '0'%}
+          minimum_buffer: {{ qosBuffer.min }}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
   {% endif %}
 
 {% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined') | map(attribute='fvnsVlanInstP') | list %}
