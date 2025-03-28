@@ -4,8 +4,8 @@
 {% set infra_children = infraInfra | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
 {% set leaf_profiles = infra_children | selectattr('infraAccPortP', 'defined') | map(attribute='infraAccPortP') | list %}
 {% set leaf_prof = leaf_profiles | selectattr('attributes.name', 'equalto', item) | first %}
-{% set hports = [ leaf_prof ] 
-              | selectattr('children', 'defined') | map(attribute='children') | flatten | list 
+{% set hports = [ leaf_prof ]
+              | selectattr('children', 'defined') | map(attribute='children') | flatten | list
               | selectattr('infraHPortS', 'defined') | map(attribute='infraHPortS') | list %}
 apic:
   access_policies:
@@ -21,7 +21,7 @@ apic:
     {% if hport.attributes.descr != "" %}
             description: {{ hport.attributes.descr }}
     {% endif %}
-    {% set pg = hport.children 
+    {% set pg = hport.children
               | selectattr('infraRsAccBaseGrp', 'defined') | map(attribute='infraRsAccBaseGrp')
               | map(attribute='attributes.tDn') %}
     {% if pg | length > 0 %}
@@ -58,11 +58,11 @@ apic:
                 description: {{ block.attributes.descr }}
         {% endif %}
                 from_port: {{ block.attributes.fromPort }}
-        {% if block.attributes.fromPort != block.attributes.toPort %}             
+        {% if block.attributes.fromPort != block.attributes.toPort %}
                 to_port: {{ block.attributes.toPort }}
         {% endif %}
                 from_sub_port: {{ block.attributes.fromSubPort }}
-        {% if block.attributes.fromSubPort != block.attributes.toSubPort %}                
+        {% if block.attributes.fromSubPort != block.attributes.toSubPort %}
                 to_sub_port: {{ block.attributes.toSubPort }}
         {% endif %}
         {% if block.attributes.fromCard != "1" %}

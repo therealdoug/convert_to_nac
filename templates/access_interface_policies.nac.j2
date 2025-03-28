@@ -90,7 +90,7 @@
           symmetric_hash: true
         {% endif %}
           {# TODO: hash-key 'l2LoadBalancePol' #}
-        {% set loadbal = [ pol ] | selectattr('children', 'defined') | map(attribute='children') | flatten | list 
+        {% set loadbal = [ pol ] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
                 | selectattr('l2LoadBalancePol', 'defined') | map(attribute='l2LoadBalancePol')  %}
         {% if loadbal | length > 0 %}
           hash_key: {{ loadbal | map(attribute='attributes') | map(attribute='hashFields') | first }}

@@ -1,12 +1,17 @@
 {% set filters = this_tenant.children | selectattr('vzFilter', 'defined') | map(attribute='vzFilter') | flatten | list %}
 {% if filters | length > 0 %}
+
       filters:
         {% for fltr in filters %}
         - name: {{ fltr.attributes.name }}
+          {% if fltr.attributes.nameAlias != "" %}
+          alias: {{ fltr.attributes.nameAlias }}
+          {% endif %}
           {% if fltr.attributes.descr != "" %}
           description: {{ fltr.attributes.descr }}
           {% endif %}
-          {% if fltr.children | selectattr('vzEntry','defined') | map(attribute='vzEntry') | list | length > 0 %}
+          {% if [fltr] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('vzEntry','defined') | map(attribute='vzEntry') | list | length > 0 %}
           entries:
             {% for entry in fltr.children | selectattr('vzEntry','defined') | map(attribute='vzEntry') %}
             - name: {{ entry.attributes.name }}
