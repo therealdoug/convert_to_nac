@@ -1,0 +1,33 @@
+#jinja2: lstrip_blocks: True
+---
+{% set ctrlrInst = polUni | selectattr('ctrlrInst', 'defined') | map(attribute='ctrlrInst') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% set pod_policy = ctrlrInst | selectattr('fabricSetupPol', 'defined') | map(attribute='fabricSetupPol') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% set pods = pod_policy | selectattr('fabricSetupP', 'defined') | map(attribute='fabricSetupP') | list %}
+apic:
+  pod_policies:
+  {% if pods | length > 0 %}
+    pods:
+    {% for pod in pods | sort(attribute='attributes.podId') %}
+      - id: {{ pod.attributes.podId }}
+      {% if pod.attributes.tepPool != "" %}
+        tep_pool: {{ pod.attributes.tepPool }}
+      {% endif %}
+      {% if pod.attributes.podType != "physical" %}
+        pod_type: {{ pod.attributes.podType }}
+      {% endif %}
+      {% set ext_tep_pools = pod.children | selectattr('fabricExtRoutablePodSubnet', 'defined') | map(attribute='fabricExtRoutablePodSubnet') | flatten | list if pod.children is defined else [] %}
+      {% if ext_tep_pools | length > 0 %}
+        external_tep_pools:
+        {% for pool in ext_tep_pools | sort(attribute='attributes.pool') %}
+          - prefix: {{ pool.attributes.pool }}
+          {% if pool.attributes.reserveAddressCount != "" %}
+            reserved_address_count: {{ pool.attributes.reserveAddressCount }}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {# TODO: data_plane_tep attribute. Comes from aci-external-connectivity-policy #}
+    {# TODO: unicast_tep attribute. Comes from aci-external-connectivity-policy #}
+    {# TODO: policy attribute. I don't know where this is referenced #}
+    {# TODO: remote_pools. I don't have an example to use #}
+    {% endfor %}
+  {% endif %}
