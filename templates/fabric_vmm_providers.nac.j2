@@ -1,3 +1,0 @@
-{% set vmware = backup_file.polUni.children | selectattr('vmmProvP', 'defined') | map(attribute='vmmProvP') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-
-{{ vmware }}
