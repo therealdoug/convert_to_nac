@@ -8,3 +8,37 @@
     path: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/"
     state: directory
     mode: '0755'
+
+- name: Ensure host_vars Folder Exists
+  ansible.builtin.file:
+    path: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/"
+    state: directory
+    mode: '0755'
+
+- name: Download Fabric Policies
+  cisco.aci.aci_rest:
+    path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,polUni,fvTenant,fabricInst,infraInfra,ctrlrInst&rsp-subtree=full&rsp-prop-include=config-only"
+    method: get
+    host: "{{ ansible_host }}"
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
+    validate_certs: no
+  register: query_result
+  timeout: 120
+  retries: 3
+  delay: 30
+  when: read_mode == "online"
+
+- name: Copy to files
+  ansible.builtin.copy:
+    content: '{{ fabric_policy | to_nice_json }}'
+    dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
+  vars:
+    fabric_policy: '{ "polUni": {{ query_result.imdata }} }'
+  when: read_mode == "online"
+
+- name: Sleep to wait for slow I/O to pick up host_vars files.  Adjust as necessary.
+  ansible.builtin.wait_for:
+    timeout: 10
+  delegate_to: localhost
+  when: read_mode == "online"

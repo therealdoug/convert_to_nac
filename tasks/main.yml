@@ -1,2 +1,33 @@
 ---
-# tasks file for convert_to_nac
+- hosts: opc
+  connection: local
+  gather_facts: false
+  become: false
+
+  environment: "{{ proxy_env | default('') }}"
+
+  vars:
+    create_access_policies: true
+    create_tenant_policies: true
+    create_fabric_policies: true
+    create_pod_policies: true
+
+  tasks:
+    - name: Ensure Environment Is Set Up
+      ansible.builtin.include_tasks: setup_env.yml
+
+    - name: Generate Access Policies
+      ansible.builtin.include_tasks: access_policies.yml
+      when: create_access_policies == true
+
+    - name: Generate Tenant Policies
+      ansible.builtin.include_tasks: tenant_policies.yml
+      when: create_tenant_policies == true
+
+    - name: Generate Pod Policies
+      ansible.builtin.include_tasks: pod_policies.yml
+      when: create_pod_policies == true
+
+    - name: Generate Fabric Policies
+      ansible.builtin.include_tasks: fabric_policies.yml
+      when: create_fabric_policies == true
