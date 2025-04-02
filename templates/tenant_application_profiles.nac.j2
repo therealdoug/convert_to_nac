@@ -1,0 +1,345 @@
+    {% if aps | length > 0 %}
+      application_profiles:
+      {% for ap in aps | sort(attribute='attributes.name') %}
+      {% set epgs = [ap] | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('fvAEPg', 'defined') | map(attribute='fvAEPg') | flatten | default([]) %}
+        - name: {{ ap.attributes.name }}
+        {% if ap.attributes.nameAlias != '' %}
+          alias: {{ ap.attributes.nameAlias }}
+        {% endif %}
+        {% if ap.attributes.descr != '' %}
+          description: {{ ap.attributes.descr }}
+        {% endif %}
+        {% if epgs | length > 0 %}
+          endpoint_groups:
+          {% for epg in epgs | sort(attribute='attributes.name') %}
+            {% set epg_policies = {
+              'alias': epg.attributes.nameAlias,
+              'description': epg.attributes.descr,
+              'qos_class': epg.attributes.prio if epg.attributes.prio != 'level3' else '',
+              'custom_qos_policy': [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('fvRsCustQosPol', 'defined') | map(attribute='fvRsCustQosPol.attributes.tnQosCustomPolName') 
+                | flatten | first | default(''),
+              'trust_control_policy': [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('fvRsTrustCtrl', 'defined') | map(attribute='fvRsTrustCtrl.attributes.tnFhsTrustCtrlPolName') 
+                | flatten | first | default(''),
+            }%}
+            - name: {{ epg.attributes.name }}
+              bridge_domain: {{ [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('fvRsBd', 'defined') | map(attribute='fvRsBd.attributes.tnFvBDName') | flatten 
+                | first | default('') }}
+            {% for policy, value in epg_policies.items() | sort if value != '' and value != 'unspecified' %}
+              {{ policy }}: {{ value }}
+            {% endfor %}
+            {% if epg.attributes.floodOnEncap != 'disabled' %}
+              flood_in_encap: true
+            {% endif %}
+            {% if epg.attributes.pcEnfPref != 'unenforced' %}
+              intra_epg_isolation: true
+            {% endif %}
+            {% if epg.attributes.fwdCtrl != '' %}
+              proxy_arp: true
+            {% endif %}
+            {% if epg.attributes.prefGrMemb != 'exclude' %}
+              preferred_group: true
+            {% endif %}
+            {# Physical Domains #}
+            {% set phys_domains = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsDomAtt', 'defined') | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/phys-') 
+                | map(attribute='fvRsDomAtt.attributes.tDn') | list | default([]) %}
+            {% if phys_domains | length > 0 %}
+              physical_domains:
+              {% for domain in phys_domains | sort %}
+                - {{ domain | regex_replace('^uni/phys-(.*)$', '\\1') }}
+              {% endfor %}
+            {% endif %}
+            {# vmware vmm Domains #}
+            {% set vmm_domains = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsDomAtt', 'defined') | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/vmmp-VMware/dom-') 
+                | map(attribute='fvRsDomAtt') | list | default([]) %}
+            {% if vmm_domains | length > 0 %}
+              vmware_vmm_domains:
+              {% for domain in vmm_domains | sort(attribute='fvRsDomAtt.attributes.tDn') %}
+                {% set policies = {
+                  'custom_epg_name': domain.attributes.customEpgName,
+                  'delimiter': domain.attributes.delimiter,
+
+                }%}
+                - name: {{ domain.attributes.tDn | regex_replace('^uni/vmmp-VMware/dom-(.*)$', '\\1') }}
+                {% for policy, value in policies.items() | sort if value != '' %}
+                  {{ policy }}: {{ value | string }}
+                {% endfor %}
+                {% set vmmSecP = {
+                  'allow_promiscuous': [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                    | selectattr('vmmSecP', 'defined') | map(attribute='vmmSecP.attributes.allowPromiscuous') | first | default(''),
+                  'forged_transmits': [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                    | selectattr('vmmSecP', 'defined') | map(attribute='vmmSecP.attributes.forgedTransmits') | first | default(''),
+                  'mac_changes': [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                    | selectattr('vmmSecP', 'defined') | map(attribute='vmmSecP.attributes.macChanges') | first | default(''),
+                }%}
+                {% for policy, value in vmmSecP.items() if value != 'reject' %}
+                  {{ policy }}: {{ value }}
+                {% endfor %}
+                {# u_segmentation #}
+                {% if domain.attributes.classPref != 'encap' %}
+                  u_segmentation: true
+                {% endif %}
+                {% if domain.attributes.primaryEncap == 'unknown' %}
+                  {% if domain.attributes.encap != 'unknown' %}
+                  vlan: {{ domain.attributes.encap | regex_replace('^vlan-', '') }}
+                  {%endif %}
+                {% else %}
+                  primary_vlan: {{ domain.attributes.primaryEncap | regex_replace('^vlan-', '') }}
+                  secondary_vlan: {{ domain.attributes.encap | regex_replace('^vlan-', '') }}
+                {% endif %}
+                {# netflow #}
+                {% if domain.attributes.netflowPref != 'disabled' %}
+                  netflow: true
+                {% endif %}
+                {# deployment_immediacy #}
+                {% if domain.attributes.instrImedcy != 'lazy' %}
+                  deployment_immediacy: {{ domain.attributes.instrImedcy }}
+                {% endif %}
+                {# resolution_immediacy #}
+                {% if domain.attributes.resImedcy != 'immediate' %}
+                  resolution_immediacy: {{ domain.attributes.resImedcy }}
+                {% endif %}
+                {# elag #}
+                {% set elag = [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvAEPgLagPolAtt', 'defined') | map(attribute='fvAEPgLagPolAtt') 
+                  | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvRsVmmVSwitchEnhancedLagPol', 'defined') | map(attribute='fvRsVmmVSwitchEnhancedLagPol.attributes.tDn') 
+                  | first | default('')%}
+                {% if elag != '' %}
+                  elag: {{ elag | regex_replace('^.*enlacplagp-', '') }}
+                {% endif %}
+                {# Uplinks #}
+                {% set active_uplinks = [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                    | selectattr('fvUplinkOrderCont', 'defined') | map(attribute='fvUplinkOrderCont.attributes.active') | first | default('')%}
+                {% set standby_uplinks = [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                    | selectattr('fvUplinkOrderCont', 'defined') | map(attribute='fvUplinkOrderCont.attributes.standby') | first | default('')%}
+                {% if active_uplinks != '' %}
+                  active_uplinks_order: {{ active_uplinks }}
+                {% endif %}
+                {% if standby_uplinks != '' %}
+                  standby_uplinks: {{ active_uplinks }}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {# Static Leafs #}
+            {% set static_leafs = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt') | list | default([]) %}
+            {% if static_leafs | length > 0 %}
+              static_leafs:
+              {% for leaf in static_leafs | sort(attribute='attributes.tDn') %}
+                {% set pod_id, node = leaf.attributes.tDn | regex_replace('^topology/pod-(\d)/node-(\d{3,4})$', '\\1,\\2') | split(',') %}
+                - node_id: {{ node }}
+                {% if pod_id != '1' %}
+                  pod_id: {{ pod_id }}
+                {% endif %}
+                {% if leaf.attributes.encap != 'unknown' %}
+                  vlan: {{ leaf.attributes.encap | replace('vlan-', '') }}
+                {% endif %}
+                {% if leaf.attributes.instrImedcy != 'lazy' %}
+                  deployment_immediacy: {{ leaf.attributes.instrImedcy }}
+                {% endif %}
+                {% if leaf.attributes.mode != 'regular' %}
+                  mode: {{ leaf.attributes.mode }}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {# TODO: Finish Static Ports #}
+            {% set static_ports = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsPathAtt', 'defined') | map(attribute='fvRsPathAtt') | list | default([]) %}
+            {% if static_ports | length > 0 %}
+              static_ports:
+              {% for port in static_ports | sort(attribute='attributes.tDn') %}
+                {% if '/paths' in port.attributes.tDn %}
+                  {% set pod_id, node_id, path = port.attributes.tDn | regex_replace('^topology\/pod-(\d)\/paths-(\d+)\/pathep-\[(.*?)\]$', '\\1,\\2,\\3')
+                    | split(',') %}
+                - node_id: {{ node_id }}
+                  {% if pod_id != '1' %}
+                  pod_id: {{ pod_id }}
+                  {% endif %}
+                  vlan: {{ port.attributes.encap | replace('vlan-', '') }}
+                  {% if port.attributes.descr != '' %}
+                  description: {{ port.attributes.descr }}
+                  {% endif %}
+                  {% if port.attributes.instrImedcy != 'lazy' %}
+                  deployment_immediacy: {{ port.attributes.instrImedcy }}
+                  {% endif %}
+                  {% if '/' in path %}
+                    {% set module, port = path | regex_replace('^eth(\d)\/(\d+)$', '\\1,\\2') | split(',') %}
+                    {% if module != '1' %}
+                  module: {{ module }}
+                    {% endif %}
+                  port: {{ port }}
+                  {% else %}
+                  channel: {{ path }}
+                  {% endif %}
+                {% elif '/protpaths' in port.attributes.tDn %}
+                  {% set pod_id, node_id, node2_id, channel = port.attributes.tDn
+                    | regex_replace('^topology\/pod-(\d)\/protpaths-(\d+)-(\d+)\/pathep-\[(.*?)\]$', '\\1,\\2,\\3,\\4') | split(',') %}
+                - node_id: {{ node_id }}
+                  node2_id: {{ node2_id }}
+                  {% if pod_id != '1' %}
+                  pod_id: {{ pod_id }}
+                  {% endif %}
+                  channel: {{ channel }}
+                  vlan: {{ port.attributes.encap | replace('vlan-', '') }}
+                  {% if port.attributes.descr != '' %}
+                  description: {{ port.attributes.descr }}
+                  {% endif %}
+                  {% if port.attributes.instrImedcy != 'lazy' %}
+                  deployment_immediacy: {{ port.attributes.instrImedcy }}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {# TODO: Static Endpoints #}
+            {# Subnets #}
+            {% set subnets = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvSubnet', 'defined') | map(attribute='fvSubnet') | list | default([]) %}
+            {% if subnets | length > 0 %}
+              subnets:
+              {% for subnet in subnets | sort(attribute='attributes.ip') %}
+                {% set subnet_policies = {
+                  'alias': subnet.attributes.nameAlias,
+                  'name': subnet.attributes.name,
+                  'description': subnet.attributes.descr,
+                  'nd_ra_prefix_policy': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvRsNdPfxPol', 'defined') | map(attribute='fvRsNdPfxPol.attributes.tnNdPfxPolName')
+                  | first | default(''),
+                  'next_hop_ip': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvEpReachability', 'defined') | map(attribute='fvEpReachability') 
+                  | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('ipNexthopEpP', 'defined') | map(attribute='ipNexthopEpP.attributes.nhAddr')
+                  | first | default(''),
+                  'anycast_mac': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvEpAnycast', 'defined') | map(attribute='fvEpAnycast.attributes.mac') | first | default(''),
+                  'nlb_group': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.group') | first | default(''),
+                  'nlb_mac': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.mac') | first | default(''),
+                  'nlb_mode': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.mode') | first | default(''),
+                }%}
+                - ip: {{ subnet.attributes.ip }}
+                {% if subnet.attributes.preferred == "yes" %}
+                  primary_ip: true
+                {% endif %}
+                {% if subnet.attributes.virtual == "yes" %}
+                  virtual: true
+                {% endif %}
+                {% if "public" in subnet.attributes.scope.split(',') | list %}
+                  public: true
+                {% endif %}
+                {% if "shared" in subnet.attributes.scope.split(',') | list %}
+                  shared: true
+                {% endif %}
+                {% if 'nd' not in subnet.attributes.ctrl %}
+                  nd_ra_prefix: false
+                {% endif %}
+                {% if 'no-default-gateway' in subnet.attributes.ctrl %}
+                  no_default_gateway: true
+                {% endif %}
+                {% if 'querier' in subnet.attributes.ctrl %}
+                  igmp_querier: true
+                {% endif %}
+                {% if subnet.attributes.ipDPLearning is defined and subnet.attributes.ipDPLearning != 'enabled' %}
+                  ip_dataplane_learning: false
+                {% endif %}
+                {% for policy, value in subnet_policies.items() if value != '' %}
+                  {{ policy }}: {{ value }}
+                  {% if policy == 'nlb_mode' and value != 'mode-uc' %}
+                  {{ policy }}: {{ value }}
+                  {% endif %}
+                {% endfor %}
+                {# TODO: ip_pools #}
+              {% endfor %}
+            {% endif %}
+            {# contracts #}
+            {% set fvRsCon = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsCons', 'defined') | map(attribute='fvRsCons.attributes.tnVzBrCPName') | list | default([]) %}
+            {% set fvRsConIf = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsConsIf', 'defined') | map(attribute='fvRsConsIf.attributes.tnVzCPIfName') | list | default([]) %}
+            {% set fvRsProv = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsProv', 'defined') | map(attribute='fvRsProv.attributes.tnVzBrCPName') | list | default([]) %}
+            {% set fvRsIntraEpg = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsIntraEpg', 'defined') | map(attribute='fvRsIntraEpg.attributes.tnVzBrCPName') | list | default([]) %}
+            {% set fvRsSecInherited = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvRsSecInherited', 'defined') | map(attribute='fvRsSecInherited.attributes.tDn') | list | default([]) %}
+            {% if fvRsCon|length + fvRsConIf|length + fvRsProv|length + fvRsIntraEpg|length + fvRsSecInherited|length > 0 %}
+              contracts:
+              {% if fvRsCon | length > 0 %}
+                consumers:
+                {% for contract in fvRsCon | sort %}
+                  - {{ contract }}
+                {% endfor %}
+              {% endif %}
+              {% if fvRsProv | length > 0 %}
+                providers:
+                {% for contract in fvRsProv | sort %}
+                  - {{ contract }}
+                {% endfor %}
+              {% endif %}
+              {% if fvRsConIf | length > 0 %}
+                imported_consumers:
+                {% for contract in fvRsConIf | sort %}
+                  - {{ contract }}
+                {% endfor %}
+              {% endif %}
+              {% if fvRsIntraEpg | length > 0 %}
+                intra_epgs:
+                {% for contract in fvRsIntraEpg | sort %}
+                  - {{ contract }}
+                {% endfor %}
+              {% endif %}
+              {% if fvRsSecInherited | length > 0 %}
+                masters:
+                {% for contract in fvRsSecInherited | sort %}
+                  - endpoint_group: {{ contract | regex_replace('^.*/epg-', '') }}
+                    {% if ap.attributes.name not in contract %}
+                    application_profile: {{ contract | regex_replace('^.*/ap-(.*?)/epg.*$', '\\1') }}
+                    {% endif %}
+                {% endfor %}
+              {% endif %}
+            {% endif %}
+            {# Tags #}
+            {% set tags = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('tagInst', 'defined') | map(attribute='tagInst.attributes.name') | list | default([]) %}
+            {% if tags | length > 0 %}
+              tags:
+              {% for tag in tags | sort %}
+                - {{ tag }}
+              {% endfor %}
+            {% endif%}
+            {# l4l7_virtual_ips #}
+            {% set vips = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('fvVip', 'defined') | map(attribute='fvVip') | list | default([]) %}
+            {% if vips | length > 0 %}
+              l4l7_virtual_ips:
+              {% for vip in vips | sort(attribute='attributes.addr') %}
+                - ip: {{ vip.attributes.addr }}
+                {% if vip.attributes.descr != '' %}
+                  description: {{ vip.attributes.descr }}
+                {% endif%}
+              {% endfor %}
+            {% endif%}
+            {# l4l7_address_pools #}
+            {% set pools = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                | selectattr('vnsAddrInst', 'defined') | map(attribute='vnsAddrInst') | list | default([]) %}
+            {% if pools | length > 0 %}
+              l4l7_address_pools:
+              {% for pool in pools | sort(attribute='attributes.name') %}
+                - name: {{ pool.attributes.name }}
+                {% if pool.attributes.descr != '' %}
+                  description: {{ pool.attributes.descr }}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {# TODO: PTP #}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
