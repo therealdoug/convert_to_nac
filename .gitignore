@@ -4,3 +4,5 @@ inventory/*
 !inventory/host_vars/sandbox/*
 *.retry
 backup_from_sandbox_fabric_policies.json
+ce2_Backup-4HR-NETOPSP1-2024-08-26T08-05-29_1.json
+ce2_defaultAuto-2024-08-26T00-00-08_1.json
