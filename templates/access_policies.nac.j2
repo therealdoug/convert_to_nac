@@ -258,18 +258,18 @@ apic:
         providers:
         {% for prov in providers | sort(attribute='attributes.addr') %}
           {% set split_tdn = prov.attributes.tDn.split('/') %}
-          {% set tn = split_tdn[1] | regex_replace('^/tn-', '') %}
+          {% set tn = split_tdn[1] | regex_replace('^tn-', '') %}
           - ip: {{ prov.attributes.addr }}
           {% if '/instP-' in prov.attributes.tDn %}
-            {% set l3o = split_tdn[2] | regex_replace('^/out-', '') %}
-            {% set eepg = split_tdn[3] | regex_replace('^/instP-', '') %}
+            {% set l3o = split_tdn[2] | regex_replace('^out-', '') %}
+            {% set eepg = split_tdn[3] | regex_replace('^instP-', '') %}
             type: external_epg
             tenant: {{ tn }}
             l3out: {{ l3o }}
             external_endpoint_group: {{ eepg }}
           {% else %}
-            {% set ap = split_tdn[2] | regex_replace('^/ap-', '') %}
-            {% set epg = split_tdn[3] | regex_replace('^/epg-', '') %}
+            {% set ap = split_tdn[2] | regex_replace('^ap-', '') %}
+            {% set epg = split_tdn[3] | regex_replace('^epg-', '') %}
             type: epg
             tenant: {{ tn }}
             application_profile: {{ ap }}
