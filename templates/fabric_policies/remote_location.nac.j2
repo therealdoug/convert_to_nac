@@ -1,0 +1,37 @@
+  {% set remotes = fabricInst_children | selectattr('fileRemotePath', 'defined') | map(attribute='fileRemotePath') 
+    | list | default([])
+  %}
+  {% if remotes | length > 0 %}
+
+    remote_locations:
+    {% for remote in remotes %}
+      {% set policy = {
+        'name': remote.attributes.name,
+        'hostname_ip': remote.attributes.host,
+        'description': remote.attributes.descr | default(''),
+        'auth_type': remote.attributes.authType | default('') | replace('usePassword','')
+          | replace('useSshKeyContents','ssh_keys'),
+        'protocol': remote.attributes.protocol | default('sftp'),
+        'path': remote.attributes.remotePath | default(''),
+        'port': remote.attributes.remotePort | default('') | replace('0', ''),
+        'username': remote.attributes.userName,
+        'password': remote.attributes.password | default(''),
+        'ssh_private_key': remote.attributes.identityPrivateKeyContents | default(''),
+        'ssh_public_key': remote.attributes.identityPublicKeyContents | default(''),
+        'ssh_passphrase': remote.attributes.identityPrivateKeyPassphrase | default(''),
+        'mgmt_epg_type': 'oob' if 'oob' in [remote] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('fileRsARemoteHostToEpg', 'defined') | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
+          | first | default('') else '',
+        'mgmt_epg_name': [remote] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('fileRsARemoteHostToEpg', 'defined') | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
+          | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
+      }%}
+      {% for pol, value in policy.items() if value != '' %}
+        {% if loop.first %}
+      - {{ pol }}: {{ value }}
+        {% else %}
+        {{ pol }}: {{ value }}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  {% endif %}

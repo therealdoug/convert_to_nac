@@ -1,0 +1,21 @@
+  {% set banner = aaaUserEp | selectattr('aaaPreLoginBanner', 'defined') | map(attribute='aaaPreLoginBanner') %}
+  {% if banner | length > 0 %}
+    banners:
+    {% for bnr in banner %}
+      {% if bnr.attributes.guiTextMessage != '' %}
+      apic_gui_alias: "{{ bnr.attributes.guiTextMessage }}"
+      {% endif %}
+      {% if bnr.attributes.message != '' %}
+      apic_cli_banner: |
+{{ bnr.attributes.message | indent(10, True) }}
+      {% endif %}
+      {% if bnr.attributes.switchMessage != '' %}
+      switch_cli_banner: |
+{{ bnr.attributes.switchMessage | indent(10, True) }}
+      {% endif %}
+      {% if bnr.attributes.guiMessage != '' %}
+      apic_gui_banner_message: |
+{{ bnr.attributes.guiMessage | indent(10, True) }}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
