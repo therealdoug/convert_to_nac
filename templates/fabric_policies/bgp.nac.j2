@@ -1,0 +1,26 @@
+  {% set bgp_policy = {
+    'fabric_bgp_as': fabricInst_children | selectattr('bgpInstPol', 'defined') | map(attribute='bgpInstPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('bgpAsP', 'defined') | map(attribute='bgpAsP.attributes.asn') | first | default(''),
+    'fabric_bgp_ext_rr': fabricInst_children | selectattr('bgpInstPol', 'defined') | map(attribute='bgpInstPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('bgpExtRRP', 'defined') | map(attribute='bgpExtRRP') | flatten | default([])
+      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('bgpRRNodePEp', 'defined') | map(attribute='bgpRRNodePEp') | flatten | default([]),
+    'fabric_bgp_rr': fabricInst_children | selectattr('bgpInstPol', 'defined') | map(attribute='bgpInstPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('bgpRRP', 'defined') | map(attribute='bgpRRP') | flatten | default([])
+      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('bgpRRNodePEp', 'defined') | map(attribute='bgpRRNodePEp') | flatten | default([]),
+  }%}
+  {% for policy, value in bgp_policy.items() if value != '' and value != [] %}
+    {% if policy == 'fabric_bgp_as' %}
+    {{ policy }}: {{ value }}
+    {% else %}
+    {{ policy }}:
+    {% for bgp in value %}
+      - node_id: {{ bgp.attributes.id }}
+        pod_id: {{ bgp.attributes.podId }}
+    {% endfor %}
+    {% endif %}
+  {% endfor %}
