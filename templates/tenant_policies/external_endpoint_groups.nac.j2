@@ -1,0 +1,107 @@
+{% set eepgs = [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+  | selectattr('l3extInstP', 'defined') | map(attribute='l3extInstP')
+  | flatten | default('')
+%}
+{% if eepgs | length > 0 %}
+          external_endpoint_groups:
+  {% for eepg in eepgs %}
+    {% set eepg_policy = {
+      'name': eepg.attributes.name,
+      'description': eepg.attributes.descr | default(''),
+      'alias': eepg.attributes.alias | default(''),
+      'preferred_group': 'true' if eepg.attributes.prefGrMemb == 'include' else '' | default(''),
+      'target_dscp': eepg.attributes.targetDscp | default('') | replace('unspecified', ''),
+      'qos_class': eepg.attributes.prio | default('') | replace('unspecified', ''),
+    } %}
+    {% for policy, value in eepg_policy.items() if value != '' and value != [] %}
+      {% if loop.first %}
+            - {{ policy }}: {{ value }}
+      {% else %}
+              {{ policy }}: {{ value }}
+      {% endif %}
+    {% endfor %}
+    {% set rtctrl_profiles = [eepg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('l3extRsInstPToProfile', 'defined') | map(attribute='l3extRsInstPToProfile') | list | default('') %}
+    {% if rtctrl_profiles | length > 0 %}
+              route_control_profiles:
+      {% for rtctrl_profile in rtctrl_profiles %}
+                - name: {{ rtctrl_profile.attributes.tnRtctrlProfileName }}
+                  direction: {{ rtctrl_profile.attributes.direction }}
+      {% endfor %}
+    {% endif %}
+    {% set subnets = [eepg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('l3extSubnet', 'defined') | map(attribute='l3extSubnet') | list | default('')
+    %}
+    {% if subnets | length > 0 %}
+              subnets:
+      {% for subnet in subnets %}
+        {% set sub_policy ={
+          'prefix': subnet.attributes.ip,
+          'name': subnet.attributes.name | default(''),
+          'description': subnet.attributes.descr | default(''),
+          'alias': subnet.attributes.alias | default(''),
+          'import_security': 'false' if 'import-security' not in subnet.attributes.scope else '',
+          'shared_security': 'true' if 'shared-security' in subnet.attributes.scope else '',
+          'shared_route_control': 'true' if 'shared-rtctrl' in subnet.attributes.scope else '',
+          'export_route_control': 'true' if 'export-rtctrl' in subnet.attributes.scope else '',
+          'import_route_control': 'true' if 'import-rtctrl' in subnet.attributes.scope else '',
+          'aggregate_export_route_control': 'true' if 'export-rtctrl' in subnet.attributes.aggregate else '',
+          'aggregate_import_route_control': 'true' if 'import-rtctrl' in subnet.attributes.aggregate else '',
+          'aggregate_shared_route_control': 'true' if 'shared-rtctrl' in subnet.attributes.aggregate else '',
+          'bgp_route_summarization': 'true' if 'bgprtsum' in [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('l3extRsSubnetToRtSumm', 'defined') | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn') | first | default('') else '',
+          'bgp_route_summarization_policy': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('l3extRsSubnetToRtSumm', 'defined') | selectattr('l3extRsSubnetToRtSumm.attributes.tDn', 'search', 'bgprtsum')
+            | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn') | first | default('') | regex_replace('^.*bgprtsum-', ''),
+          'ospf_route_summarization': 'true' if 'ospfrtsumm' in [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('l3extRsSubnetToRtSumm', 'defined') | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn') | first | default('') else '',
+          'eigrp_route_summarization': 'true' if 'eigrprtsumm' in [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('l3extRsSubnetToRtSumm', 'defined') | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn') | first | default('') else '',
+        }%}
+        {% for policy, value in sub_policy.items() if value != '' and value != [] %}
+          {% if loop.first %}
+                - {{ policy }}: {{ value }}
+          {% else %}
+                  {{ policy }}: {{ value }}
+          {% endif %}
+        {% endfor %}
+        {% set rtctrl_profiles = [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('l3extRsSubnetToProfile', 'defined') | map(attribute='l3extRsSubnetToProfile') | list | default('') %}
+        {% if rtctrl_profiles | length > 0 %}
+                  route_control_profiles:
+          {% for rtctrl_profile in rtctrl_profiles %}
+                    - name: {{ rtctrl_profile.attributes.tnRtctrlProfileName }}
+                      direction: {{ rtctrl_profile.attributes.direction }}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {% set fvRsCon = [eepg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('fvRsCons', 'defined') | map(attribute='fvRsCons.attributes.tnVzBrCPName') | list | default([]) %}
+    {% set fvRsConIf = [eepg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('fvRsConsIf', 'defined') | map(attribute='fvRsConsIf.attributes.tnVzCPIfName') | list | default([]) %}
+    {% set fvRsProv = [eepg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('fvRsProv', 'defined') | map(attribute='fvRsProv.attributes.tnVzBrCPName') | list | default([]) %}
+    {% if fvRsCon|length + fvRsConIf|length + fvRsProv|length > 0 %}
+              contracts:
+      {% if fvRsCon | length > 0 %}
+                consumers:
+        {% for contract in fvRsCon | sort %}
+                  - {{ contract }}
+        {% endfor %}
+      {% endif %}
+      {% if fvRsProv | length > 0 %}
+                providers:
+        {% for contract in fvRsProv | sort %}
+                  - {{ contract }}
+        {% endfor %}
+      {% endif %}
+      {% if fvRsConIf | length > 0 %}
+                imported_consumers:
+        {% for contract in fvRsConIf | sort %}
+                  - {{ contract }}
+          {% endfor %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endif %}

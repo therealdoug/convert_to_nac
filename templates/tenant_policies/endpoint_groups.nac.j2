@@ -1,15 +1,5 @@
-    {% if aps | length > 0 %}
-      application_profiles:
-      {% for ap in aps | sort(attribute='attributes.name') %}
       {% set epgs = [ap] | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('fvAEPg', 'defined') | map(attribute='fvAEPg') | flatten | default([]) %}
-        - name: {{ ap.attributes.name }}
-        {% if ap.attributes.nameAlias != '' %}
-          alias: {{ ap.attributes.nameAlias }}
-        {% endif %}
-        {% if ap.attributes.descr != '' %}
-          description: {{ ap.attributes.descr }}
-        {% endif %}
         {% if epgs | length > 0 %}
           endpoint_groups:
           {% for epg in epgs | sort(attribute='attributes.name') %}
@@ -341,5 +331,3 @@
             {# TODO: PTP #}
           {% endfor %}
         {% endif %}
-      {% endfor %}
-    {% endif %}
