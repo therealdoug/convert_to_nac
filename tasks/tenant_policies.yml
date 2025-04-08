@@ -7,6 +7,8 @@
   ansible.builtin.template:
     src: "{{ role_path }}/templates/tenant_policies.nac.j2"
     dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname}}/tenant_policies_{{ item }}.nac.yaml"
-  loop: "{{ polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') | map(attribute='attributes') | map(attribute='name') | sort }}"
+  loop: "{{ polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
+    | map(attribute='attributes') | map(attribute='name') | sort }}"
   vars:
-    this_tenant: "{{ polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') | selectattr('attributes', 'defined') | selectattr('attributes.name', 'match', item) | first }}"
+    this_tenant: "{{ polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
+      | selectattr('attributes', 'defined') | selectattr('attributes.name', 'match', item) | first }}"

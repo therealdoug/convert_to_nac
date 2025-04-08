@@ -9,6 +9,6 @@
         {% if ap.attributes.descr != '' %}
           description: {{ ap.attributes.descr }}
         {% endif %}
-{% include tenant_policies/endpoint_groups.nac.j2 %}
+{% include "tenant_policies/endpoint_groups.nac.j2" %}
       {% endfor %}
     {% endif %}
