@@ -1,0 +1,415 @@
+    {% if vrfs | length > 0 %}
+      vrfs:
+      {% for vrf in vrfs %}
+        - name: {{ vrf.attributes.name }}
+        {% if vrf.attributes.descr != "" %}
+          description: {{ vrf.attributes.descr }}
+        {% endif %}
+        {% if vrf.attributes.ipDataPlaneLearning != "enabled" %}
+          data_plane_learning: false
+        {% endif %}
+        {% if vrf.attributes.pcEnfDir != "ingress" %}
+          enforcement_direction: egress
+        {% endif %}
+        {% if vrf.attributes.pcEnfPref != "enforced" %}
+          enforcement_preference: unenforced
+        {% endif %}
+        {% if vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+          | selectattr('attributes', 'defined') | map(attribute='attributes')
+          | map(attribute='prefGrMemb') | first == "enabled" %}
+          preferred_group: true
+        {% endif %}
+        {% if vrf.children | selectattr('fvRsCtxToExtRouteTagPol', 'defined') | map(attribute='fvRsCtxToExtRouteTagPol') | selectattr('attributes', 'defined') | map(attribute='attributes') | map(attribute='tnL3extRouteTagPolName') | first != "" %}
+          transit_route_tag_policy: {{ vrf.children | selectattr('fvRsCtxToExtRouteTagPol', 'defined') | map(attribute='fvRsCtxToExtRouteTagPol') | selectattr('attributes', 'defined') | map(attribute='attributes') | map(attribute='tnL3extRouteTagPolName') | first }}
+        {% endif %}
+        {#- Begin Leaked Prefixes -#}
+        {% set leak_internal = vrf.children | selectattr('leakRoutes', 'defined') | map(attribute='leakRoutes')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('leakInternalSubnet', 'defined') | map(attribute='leakInternalSubnet') | list %}
+        {% set leak_external = vrf.children | selectattr('leakRoutes', 'defined') | map(attribute='leakRoutes')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('leakExternalPrefix', 'defined') | map(attribute='leakExternalPrefix') | list %}
+        {% if leak_internal | length > 0 %}
+
+          leaked_internal_prefixes:
+          {% for prefix in leak_internal | sort(attribute='attributes.ip') %}
+            - prefix: {{ prefix.attributes.ip }}
+            {% if prefix.attributes.scope != 'private' %}
+              public: true
+            {% endif %}
+            {% set dests = [prefix] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+              | selectattr('leakTo', 'defined') | map(attribute='leakTo') | list %}
+            {% if dests | length > 0 %}
+              destinations:
+              {% for dest in dests %}
+                - tenant: {{ dest.attributes.tenantName }}
+                  vrf: {{ dest.attributes.ctxName}}
+                {% if dest.attributes.descr != '' %}
+                  description: {{ dest.attributes.descr }}
+                {% endif %}
+                {% if dest.attributes.scope == 'private' %}
+                  public: false
+                {% elif dest.attributes.scope == 'public' %}
+                  public: true
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if leak_external | length > 0 %}
+
+          leaked_external_prefixes:
+          {% for prefix in leak_external | sort(attribute='attributes.ip') %}
+            - prefix: {{ prefix.attributes.ip }}
+            {% if prefix.attributes.ge != '' %}
+              from_prefix_length: {{ prefix.attributes.ge }}
+            {% endif %}
+            {% if prefix.attributes.le != '' %}
+              to_prefix_length: {{ prefix.attributes.ge }}
+            {% endif %}
+            {% set dests = [prefix] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+              | selectattr('leakTo', 'defined') | map(attribute='leakTo') | list %}
+            {% if dests | length > 0 %}
+              destinations:
+              {% for dest in dests %}
+                - tenant: {{ dest.attributes.tenantName }}
+                  vrf: {{ dest.attributes.ctxName}}
+                {% if dest.attributes.descr != '' %}
+                  description: {{ dest.attributes.descr }}
+                {% endif %}
+                {% if dest.attributes.scope == 'private' %}
+                  public: false
+                {% elif dest.attributes.scope == 'public' %}
+                  public: true
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {#- Begin Contracts -#}
+        {% set vzanyprov = vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+          | selectattr('children', 'defined') | map(attribute='children')   | flatten | list
+          | selectattr('vzRsAnyToProv', 'defined') | map(attribute='vzRsAnyToProv')
+          | map(attribute='attributes') | map(attribute='tnVzBrCPName')
+          | list %}
+        {% set vzanycons = vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('vzRsAnyToCons', 'defined') | map(attribute='vzRsAnyToCons')
+          | map(attribute='attributes') | map(attribute='tnVzBrCPName')
+          | list %}
+        {% set vzanyconsif = vrf.children | selectattr('vzAny', 'defined') | map(attribute='vzAny')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          | selectattr('fvRsConsIf', 'defined') | map(attribute='fvRsConsIf')
+          | map(attribute='attributes') | map(attribute='tnVzBrCPName')
+          | list %}
+        {% if vzanyprov | length > 0 or vzanycons | length > 0 or vzanyconsif | length > 0  %}
+
+          contracts:
+          {% if vzanyprov is defined and vzanyprov | length > 0 %}
+            providers:
+            {% for con in vzanyprov %}
+              - {{ con }}
+            {% endfor %}
+          {% endif %}
+          {% if vzanycons is defined and vzanycons | length > 0 %}
+            consumers:
+            {% for con in vzanycons %}
+              - {{ con }}
+            {% endfor %}
+          {% endif %}
+          {% if vzanyconsif is defined and vzanyconsif | length > 0 %}
+            imported_consumers:
+            {% for con in vzanyconsif %}
+              - {{ con }}
+            {% endfor %}
+          {% endif %}
+        {% endif %}
+        {#- Begin BGP -#}
+        {% set bgp_policies = {
+          'timer_policy': vrf.children | selectattr('fvRsBgpCtxPol', 'defined') | map(attribute='fvRsBgpCtxPol')
+                        | map(attribute='attributes') | map(attribute='tnBgpCtxPolName') | first | default(''),
+          'ipv4_address_family_context_policy': vrf.children | selectattr('fvRsCtxToBgpCtxAfPol', 'defined') | map(attribute='fvRsCtxToBgpCtxAfPol')
+                                              | selectattr('attributes.af', 'match', 'ipv4-ucast') | map(attribute='attributes.tnBgpCtxAfPolName')
+                                              | first | default(''),
+          'ipv6_address_family_context_policy': vrf.children | selectattr('fvRsCtxToBgpCtxAfPol', 'defined') | map(attribute='fvRsCtxToBgpCtxAfPol')
+                                              | selectattr('attributes.af', 'match', 'ipv6-ucast') | map(attribute='attributes.tnBgpCtxAfPolName')
+                                              | first | default(''),
+          'ipv4_import_route_target': vrf.children | selectattr('bgpRtTargetP', 'defined') | map(attribute='bgpRtTargetP')
+                                    | selectattr('attributes.af', 'match', 'ipv4-ucast') | map(attribute='children') | flatten | list
+                                    | selectattr('bgpRtTarget.attributes.type', 'match', 'import') | map(attribute='bgpRtTarget.attributes.rt')
+                                    | default(''),
+          'ipv4_export_route_target': vrf.children | selectattr('bgpRtTargetP', 'defined') | map(attribute='bgpRtTargetP')
+                                    | selectattr('attributes.af', 'match', 'ipv4-ucast') | map(attribute='children') | flatten | list
+                                    | selectattr('bgpRtTarget.attributes.type', 'match', 'export') | map(attribute='bgpRtTarget.attributes.rt')
+                                    | default(''),
+          'ipv6_import_route_target': vrf.children | selectattr('bgpRtTargetP', 'defined') | map(attribute='bgpRtTargetP')
+                                    | selectattr('attributes.af', 'match', 'ipv6-ucast') | map(attribute='children') | flatten | list
+                                    | selectattr('bgpRtTarget.attributes.type', 'match', 'import') | map(attribute='bgpRtTarget.attributes.rt')
+                                    | default(''),
+          'ipv6_export_route_target': vrf.children | selectattr('bgpRtTargetP', 'defined') | map(attribute='bgpRtTargetP')
+                                    | selectattr('attributes.af', 'match', 'ipv6-ucast') | map(attribute='children') | flatten | list
+                                    | selectattr('bgpRtTarget.attributes.type', 'match', 'export') | map(attribute='bgpRtTarget.attributes.rt')
+                                    | default(''),
+
+        } %}
+        {% if bgp_policies.values() | select('!=', '') | select('!=', []) | list | length > 0 %}
+
+          bgp:
+          {% for policy, value in bgp_policies.items() | sort %}
+            {% if value != '' and value != [] %}
+              {% if 'route_target' in policy %}
+            {{ policy }}:
+                {% for rt in value %}
+              - {{ rt }}
+                {% endfor %}
+              {% else %}
+            {{ policy }}: {{ value }}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {#- Begin OSPF -#}
+        {% set ospf_policies = {
+          'timer_policy': vrf.children | selectattr('fvRsOspfCtxPol', 'defined') | map(attribute='fvRsOspfCtxPol')
+                        | map(attribute='attributes') | map(attribute='tnOspfCtxPolName') | first | default(''),
+          'ipv4_address_family_context_policy': vrf.children | selectattr('fvRsCtxToOspfCtxPol', 'defined') | map(attribute='fvRsCtxToOspfCtxPol')
+                                              | selectattr('attributes.af', 'match', 'ipv4-ucast') | map(attribute='attributes.tnOspfCtxPolName')
+                                              | first | default(''),
+          'ipv6_address_family_context_policy': vrf.children | selectattr('fvRsCtxToOspfCtxPol', 'defined') | map(attribute='fvRsCtxToOspfCtxPol')
+                                              | selectattr('attributes.af', 'match', 'ipv6-ucast') | map(attribute='attributes.tnOspfCtxPolName')
+                                              | first | default(''),
+        } %}
+        {% if ospf_policies.values() | select('!=', '') | list | length > 0 %}
+
+          ospf:
+          {% for policy, value in ospf_policies.items() | sort %}
+            {% if value != '' %}
+            {{ policy }}: {{ value }}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {#- Begin Route Summarization Policies -#}
+        {% set rtsummpol = vrf.children | selectattr('fvCtxRtSummPol', 'defined' ) | map(attribute='fvCtxRtSummPol') | flatten %}
+        {% if rtsummpol | length > 0 %}
+
+          route_summarization_policies:
+          {% for pol in rtsummpol | sort(attribute='attributes.name') %}
+            {% set nodes = pol.children | selectattr('fvRsNodeRtSummAtt', 'defined') | map(attribute='fvRsNodeRtSummAtt') | map(attribute='attributes.tDn') | list %}
+            {% set subnets = pol.children | selectattr('fvRtSummSubnet', 'defined') | map(attribute='fvRtSummSubnet') | list %}
+            - name: {{ pol.attributes.name }}
+            {% if nodes | length > 0 %}
+              nodes:
+              {% for node in nodes %}
+                - id: {{ node | regex_replace('^.*node-(\d{3,})$', '\\1') }}
+                  pod: {{ node | regex_replace('^.*pod-(\d{1})/.*$', '\\1') }}
+              {% endfor %}
+            {% endif %}
+            {% if subnets | length > 0 %}
+              subnets:
+              {% for subnet in subnets %}
+                {% set pol = subnet.children | selectattr('fvRsSubnetToRtSummPol', 'defined') | map(attribute='fvRsSubnetToRtSummPol')
+                  | map(attribute='attributes.tDn') | first | default('') %}
+                - prefix: {{ subnet.attributes.prefix}}
+                {% if pol !=  'uni/tn-common/bgprtsum-default' and pol != '' %}
+                  bgp_route_summarization_policy: {{ pol | regex_replace('^.*bgprtsum-', '') }}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {#- Begin PIM -#}
+        {% set pim_children = vrf.children | selectattr('pimCtxP', 'defined' ) | map(attribute='pimCtxP')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten | default([]) %}
+        {% set bsr_children = pim_children | selectattr('pimBSRPPol', 'defined' ) | map(attribute='pimBSRPPol')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten | default([]) %}
+        {% set pim_policies = {
+          'mtu': vrf.children | selectattr('pimCtxP', 'defined' ) | map(attribute='pimCtxP') | map(attribute='attributes.mtu') | first | default(''),
+          'pim_ctrl': vrf.children | selectattr('pimCtxP', 'defined' ) | map(attribute='pimCtxP') | map(attribute='attributes.ctrl') | first | default(''),
+          'max_multicast_entries': pim_children | selectattr('pimResPol', 'defined') | map(attribute='pimResPol') | map(attribute='attributes.max') | first | default(''),
+          'reserved_multicast_entries': pim_children | selectattr('pimResPol', 'defined') | map(attribute='pimResPol') | map(attribute='attributes.rsvd') | first | default(''),
+          'resource_policy_multicast_route_map': pim_children | selectattr('pimResPol', 'defined') | map(attribute='pimResPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+            | default('') | regex_replace('^.*rtmap-', ''),
+          'bsr_ctrl': pim_children | selectattr('pimBSRPPol', 'defined') | map(attribute='pimBSRPPol')
+            | selectattr('attributes', 'defined') | map(attribute='attributes.ctrl') | first | default(''),
+          'bsr_filter_multicast_route_map': bsr_children | selectattr('pimBSRFilterPol', 'defined') | map(attribute='pimBSRFilterPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+            | default('') | regex_replace('^.*rtmap-', ''),
+          'autorp_ctrl': pim_children | selectattr('pimAutoRPPol', 'defined') | map(attribute='pimAutoRPPol.attributes.ctrl') | first | default(''),
+          'auto_rp_filter_multicast_route_map': pim_children | selectattr('pimAutoRPPol', 'defined') | map(attribute='pimAutoRPPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimMAFilterPol', 'defined') | map(attribute='pimMAFilterPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+            | default('') | regex_replace('^.*rtmap-', ''),
+          'asm_shared_range_multicast_route_map': pim_children | selectattr('pimASMPatPol', 'defined') | map(attribute='pimASMPatPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimSharedRangePol', 'defined') | map(attribute='pimSharedRangePol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+            | default('') | regex_replace('^.*rtmap-', ''),
+          'asm_sg_expiry_multicast_route_map': pim_children | selectattr('pimASMPatPol', 'defined') | map(attribute='pimASMPatPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimSGRangeExpPol', 'defined') | map(attribute='pimSGRangeExpPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+            | default('') | regex_replace('^.*rtmap-', ''),
+          'asm_sg_expiry': pim_children | selectattr('pimASMPatPol', 'defined') | map(attribute='pimASMPatPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimSGRangeExpPol', 'defined') | map(attribute='pimSGRangeExpPol.attributes.sgExpItvl')
+            | first | default(''),
+          'asm_traffic_registry_max_rate': pim_children | selectattr('pimASMPatPol', 'defined') | map(attribute='pimASMPatPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimRegTrPol', 'defined') | map(attribute='pimRegTrPol.attributes.maxRate')
+            | first | default(''),
+          'asm_traffic_registry_source_ip': pim_children | selectattr('pimASMPatPol', 'defined') | map(attribute='pimASMPatPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimRegTrPol', 'defined') | map(attribute='pimRegTrPol.attributes.srcIp')
+            | first | default(''),
+          'ssm_group_range_multicast_route_map': pim_children | selectattr('pimSSMPatPol', 'defined') | map(attribute='pimSSMPatPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimSSMRangePol', 'defined') | map(attribute='pimSSMRangePol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+            | default('') | regex_replace('^.*rtmap-', ''),
+        }%}
+        {% if pim_policies.values() | select('!=', '') | list | length > 0%}
+
+          pim:
+          {% if pim_policies.mtu != "1500" %}
+            mtu: {{ pim_policies.mtu }}
+          {% endif %}
+          {% if 'fast-conv' in pim_policies.pim_ctrl %}
+            fast_convergence: true
+          {% endif %}
+          {% if 'strict-rfc-compliant' in pim_policies.pim_ctrl %}
+            strict_rfc: true
+          {% endif %}
+          {% if pim_policies.max_multicast_entries != 'unlimited' %}
+            max_multicast_entries: {{ pim_policies.max_multicast_entries }}
+          {% endif %}
+          {% if pim_policies.reserved_multicast_entries != 'undefined' %}
+            reserved_multicast_entries: {{ pim_policies.reserved_multicast_entries }}
+          {% endif %}
+          {% if pim_policies.resource_policy_multicast_route_map != '' %}
+            resource_policy_multicast_route_map: {{ pim_policies.resource_policy_multicast_route_map }}
+          {% endif %}
+          {% if 'forward' in pim_policies.bsr_ctrl %}
+            bsr_forward_updates: true
+          {% endif %}
+          {% if 'listen' in pim_policies.bsr_ctrl %}
+            bsr_listen_updates: true
+          {% endif %}
+          {% if pim_policies.bsr_filter_multicast_route_map != '' %}
+            bsr_filter_multicast_route_map: {{ pim_policies.bsr_filter_multicast_route_map }}
+          {% endif %}
+          {% if 'forward' in pim_policies.autorp_ctrl %}
+            auto_rp_forward_updates: true
+          {% endif %}
+          {% if 'listen' in pim_policies.autorp_ctrl %}
+            auto_rp_listen_updates: true
+          {% endif %}
+          {% if pim_policies.auto_rp_filter_multicast_route_map != '' %}
+            auto_rp_filter_multicast_route_map: {{ pim_policies.auto_rp_filter_multicast_route_map }}
+          {% endif %}
+          {% if pim_policies.asm_shared_range_multicast_route_map != '' %}
+            asm_shared_range_multicast_route_map: {{ pim_policies.asm_shared_range_multicast_route_map }}
+          {% endif %}
+          {% if pim_policies.asm_sg_expiry_multicast_route_map != '' %}
+            asm_sg_expiry_multicast_route_map: {{ pim_policies.asm_sg_expiry_multicast_route_map }}
+          {% endif %}
+          {% if pim_policies.asm_sg_expiry != 'default-timeout' %}
+            asm_sg_expiry: {{ pim_policies.asm_sg_expiry }}
+          {%endif %}
+          {% if pim_policies.asm_traffic_registry_max_rate != '65535' %}
+            asm_traffic_registry_max_rate: {{ pim_policies.asm_traffic_registry_max_rate }}
+          {%endif %}
+          {% if pim_policies.asm_traffic_registry_source_ip != '0.0.0.0' %}
+            asm_traffic_registry_source_ip: {{ pim_policies.asm_traffic_registry_source_ip }}
+          {%endif %}
+          {% if pim_policies.ssm_group_range_multicast_route_map != '' %}
+            ssm_group_range_multicast_route_map: {{ pim_policies.ssm_group_range_multicast_route_map }}
+          {% endif %}
+        {% endif %}
+          {#- Static RPs -#}
+          {% set static_rps = pim_children | selectattr('pimStaticRPPol', 'defined') | map(attribute='pimStaticRPPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimStaticRPEntryPol', 'defined') | map(attribute='pimStaticRPEntryPol') | flatten | list | default([]) %}
+          {% if static_rps | length > 0 %}
+
+            static_rps:
+            {% for srp in static_rps | sort(attribute='attributes.rpIp') %}
+              {% set rtmap = [srp] | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('pimRPGrpRangePol', 'defined') | map(attribute='pimRPGrpRangePol')
+                | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+                | default('') | regex_replace('^.*rtmap-', '')
+              %}
+              - ip: {{ srp.attributes.rpIp}}
+              {% if rtmap != "" %}
+                multicast_route_map: {{ rtmap }}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {#- Fabric RPs -#}
+          {% set fabric_rps = pim_children | selectattr('pimFabricRPPol', 'defined') | map(attribute='pimFabricRPPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimStaticRPEntryPol', 'defined') | map(attribute='pimStaticRPEntryPol') | flatten | list | default([])
+          %}
+          {% if fabric_rps | length > 0 %}
+
+            fabric_rps:
+            {% for frp in fabric_rps | sort(attribute='attributes.rpIp') %}
+              {% set rtmap = [frp] | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('pimRPGrpRangePol', 'defined') | map(attribute='pimRPGrpRangePol')
+                | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+                | default('') | regex_replace('^.*rtmap-', '')
+              %}
+              - ip: {{ frp.attributes.rpIp}}
+              {% if rtmap != "" %}
+                multicast_route_map: {{ rtmap }}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {#- igmp_context_ssm_translate_policies -#}
+          {% set igmpSSMXlateP = vrf.children | selectattr('igmpCtxP', 'defined') | map(attribute='igmpCtxP')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('igmpSSMXlateP', 'defined') | map(attribute='igmpSSMXlateP') | list
+          %}
+          {% if igmpSSMXlateP | length > 0 %}
+
+            igmp_context_ssm_translate_policies:
+            {% for igmp in igmpSSMXlateP | sort(attribute='attributes.grpPfx')%}
+              - group_prefix: {{ igmp.attributes.grpPfx }}
+                source_address: {{ igmp.attributes.srcAddr }}
+              {% if igmp.attributes.descr != '' %}
+                description: {{ igmp.attributes.descr }}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {#- inter_vrf_policies -#}
+          {% set pimInterVRFPol = pim_children | selectattr('pimInterVRFPol', 'defined') | map(attribute='pimInterVRFPol')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('pimInterVRFEntryPol', 'defined') | map(attribute='pimInterVRFEntryPol') | flatten | list | default([])
+          %}
+          {% if pimInterVRFPol | length > 0 %}
+
+            inter_vrf_policies:
+            {% for pol in pimInterVRFPol | sort(attribute='attributes.srcVrfDn') %}
+              {% set uni, src_tenant, src_vrf = pol.attributes.srcVrfDn | split('/') %}
+              {% set rtmap = [pol] | selectattr('children', 'defined') | map(attribute='children') | flatten
+                | selectattr('rtdmcRsFilterToRtMapPol', 'defined') | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn') | first
+                | default('') | regex_replace('^.*rtmap-', '')
+              %}
+              - tenant: {{ src_tenant | replace('tn-', '') }}
+                vrf: {{ src_vrf | replace('ctx-', '') }}
+              {% if rtmap != '' %}
+                multicast_route_map: {{ rtmap }}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+      {% endfor %}
+    {% endif %}

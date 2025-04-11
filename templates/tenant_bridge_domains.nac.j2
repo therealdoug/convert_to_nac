@@ -1,0 +1,77 @@
+    {% if bds | length > 0 %}
+      bridge_domains:
+      {% for bd in bds | sort(attribute='attributes.name') %}
+        - name: {{ bd.attributes.name }}
+        {% if bd.attributes.descr != "" %}
+          description: {{ bd.attributes.descr }}
+        {% endif %}
+        {% if bd.attributes.nameAlias != "" %}
+          alias: {{ bd.attributes.nameAlias }}
+        {% endif %}
+          vrf: {{ bd.children | selectattr('fvRsCtx', 'defined') | map(attribute='fvRsCtx') | map(attribute='attributes') | map(attribute='tnFvCtxName') | first | default('') }}
+        {% if bd.attributes.arpFlood != "yes" %}
+          arp_flooding: false
+        {% endif %}
+        {% if bd.attributes.hostBasedRouting != "no" %}
+          advertise_host_routes: false
+        {% endif %}
+        {% if bd.attributes.ipLearning != "yes" %}
+          ip_dataplane_learning: false
+        {% endif %}
+        {% if bd.attributes.mac != "00:22:BD:F8:19:FF" %}
+          mac: {{ bd.attributes.mac }}
+        {% endif %}
+        {% if bd.attributes.vmac != "not-applicable" %}
+          virtual_mac: {{ bd.attributes.vmac }}
+        {% endif %}
+        {% if bd.attributes.unicastRoute != "yes" %}
+          unicast_routing: false
+        {% endif %}
+        {% if bd.attributes.multiDstPktAct != "bd-flood" %}
+          multi_destination_flooding: {{ bd.attributes.multiDstPktAct }}
+        {% endif %}
+        {% if bd.attributes.unkMacUcastAct != "proxy" %}
+          unknown_unicast: {{ bd.attributes.unkMacUcastAct }}
+        {% endif %}
+        {% if bd.attributes.unkMcastAct != "flood" %}
+          unknown_ipv4_multicast: {{ bd.attributes.unkMcastAct }}
+        {% endif %}
+        {% if bd.children | selectattr('fvSubnet', 'defined')  | map(attribute='fvSubnet') | list | length > 0 %}
+          subnets:
+          {% for subnet in bd.children | selectattr('fvSubnet', 'defined') | map(attribute='fvSubnet') %}
+            - ip: {{ subnet.attributes.ip }}
+            {% if subnet.attributes.preferred == "yes" %}
+              primary_ip: true
+            {% endif %}
+            {% if subnet.attributes.name != "" %}
+              name: {{ subnet.attributes.name }}
+            {% endif %}
+            {% if subnet.attributes.descr != "" %}
+              description: {{ subnet.attributes.descr }}
+            {% endif %}
+            {% if subnet.attributes.virtual == "yes" %}
+              virtual: true
+            {% endif %}
+            {% if "public" in subnet.attributes.scope.split(',') | list %}
+              public: true
+            {% endif %}
+            {% if "shared" in subnet.attributes.scope.split(',') | list %}
+              shared: true
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if bd.children | selectattr('fvRsBDToOut', 'defined')  | map(attribute='fvRsBDToOut') | list | length > 0 %}
+          l3outs:
+          {% for l3o in bd.children | selectattr('fvRsBDToOut', 'defined')  | map(attribute='fvRsBDToOut') %}
+            - {{ l3o.attributes.tnL3extOutName }}
+          {% endfor %}
+        {% endif %}
+        {% if bd.children | selectattr('dhcpLbl', 'defined')  | map(attribute='dhcpLbl') | list | length > 0 %}
+          dhcp_labels:
+          {% for dhcp in bd.children | selectattr('dhcpLbl', 'defined')  | map(attribute='dhcpLbl') %}
+            - dhcp_relay_policy: {{ dhcp.attributes.name }}
+              scope: {{ dhcp.attributes.owner }}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}

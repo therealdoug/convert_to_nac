@@ -1,0 +1,52 @@
+{% set l3outs = this_tenant.children 
+  | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') 
+  | selectattr('attributes.mplsEnabled', 'equalto', 'yes') | flatten | list %}
+      {% if l3outs | length > 0 %}
+
+      sr_mpls_l3outs:
+      {% for l3o in l3outs%}
+        {% set l3o_policy = {
+          'name': l3o.attributes.name,
+          'vrf': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('l3extRsEctx', 'defined') | map(attribute='l3extRsEctx.attributes.tnFvCtxName')
+            | flatten | first | default(''),
+          'domain': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('l3extRsL3DomAtt', 'defined') | map(attribute='l3extRsL3DomAtt.attributes.tDn')
+            | flatten | first | default('') | replace('uni/l3dom-', ''),
+          'description': l3o.attributes.descr | default(''),
+          'alias': l3o.attributes.alias | default(''),
+          'import_route_control_enforcement': 'true' if 'import' in l3o.attributes.enforceRtctrl else ''
+            | default(''),
+          'export_route_control_enforcement': 'false' if 'export' not in l3o.attributes.enforceRtctrl else ''
+            | default(''),
+          'target_dscp': l3o.attributes.targetDscp | default('') | replace('unspecified', ''),
+        }%}
+        {% for policy, value in l3o_policy.items() if value != '' and value != [] %}
+          {% if loop.first %}
+        - {{ policy }}: {{ value }}
+          {% else %}
+          {{ policy }}: {{ value }}
+          {% endif %}
+        {% endfor %}
+        {% set eepgs = [l3o] | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list | selectattr('l3extInstP', 'defined') | map(attribute='l3extInstP') %}
+        {% if eepgs | length > 0 %}
+          external_endpoint_groups:
+          {% for eepg in eepgs %}
+            {% set eep_pol = {
+              'name': eepg.attributes.name,
+              'description': eepg.attributes.descr | default(''),
+              'alias': eepg.attributes.alias | default(''),
+            }%}
+            {% for policy, value in eep_pol.items() if value != '' and value != [] %}
+              {% if loop.first %}
+            - {{ policy }}: {{ value }}
+              {% else %}
+              {{ policy }}: {{ value }}
+              {% endif %}
+            {% endfor %}
+            {% set subnets =%}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+      {% endif %}
