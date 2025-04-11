@@ -17,7 +17,7 @@
 
 - name: Download Fabric Policies
   cisco.aci.aci_rest:
-    path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,polUni,fvTenant,fabricInst,infraInfra,ctrlrInst&rsp-subtree=full&rsp-prop-include=config-only"
+    path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,polUni,fvTenant,fabricInst,infraInfra,ctrlrInst,aaaUserEp&rsp-subtree=full&rsp-prop-include=config-only"
     method: get
     host: "{{ ansible_host }}"
     user: "{{ ansible_user }}"
@@ -29,7 +29,7 @@
   delay: 30
   when: read_mode == "online"
 
-- name: Copy to files
+- name: Copy to inventory host_vars directory
   ansible.builtin.copy:
     content: '{{ fabric_policy | to_nice_json }}'
     dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
@@ -39,6 +39,6 @@
 
 - name: Sleep to wait for slow I/O to pick up host_vars files.  Adjust as necessary.
   ansible.builtin.wait_for:
-    timeout: 10
+    timeout: 15
   delegate_to: localhost
   when: read_mode == "online"

@@ -1,8 +1,5 @@
 #jinja2: lstrip_blocks: True
 {% set vrfs = this_tenant.children | selectattr('fvCtx', 'defined') | map(attribute='fvCtx') | flatten | list %}
-{% set bds = this_tenant.children | selectattr('fvBD', 'defined') | map(attribute='fvBD') | flatten | list %}
-{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp') | flatten | list %}
-{% set l3outs = this_tenant.children | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') | flatten | list %}
 {% set sec_domains = this_tenant.children | selectattr('aaaDomainRef', 'defined') | map(attribute='aaaDomainRef') | flatten | list %}
 ---
 apic:
@@ -17,9 +14,10 @@ apic:
         - {{ dom.attributes.name }}
       {% endfor %}
     {% endif %}
-
-{% include "tenant_vrfs.nac.j2" %}
-{% include "tenant_bridge_domains.nac.j2" %}
-{% include "tenant_contracts.nac.j2" %}
-{% include "tenant_filters.nac.j2" %}
-{% include "tenant_l3outs.nac.j2" %}
+{% include "tenant_policies/vrfs.nac.j2" %}
+{% include "tenant_policies/bridge_domains.nac.j2" %}
+{% include "tenant_policies/contracts.nac.j2" %}
+{% include "tenant_policies/filters.nac.j2" %}
+{% include "tenant_policies/application_profiles.nac.j2" %}
+{# {% include "tenant_policies/l3outs.nac.j2" %} #}
+{# {% include "tenant_policies/sr_mpls_l3outs.nac.j2" %} #}
