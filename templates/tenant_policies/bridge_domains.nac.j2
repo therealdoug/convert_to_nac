@@ -41,7 +41,11 @@
               'name': subnet.attributes.name | default(''),
               'virtual': 'true' if 'yes' in subnet.attributes.virtual | default('') else '',
               'public': 'true' if 'public' in subnet.attributes.scope | default('') else '',
-              'shared': 'true' if 'shared' in subnet.attributes.scope | default('') else ''
+              'shared': 'true' if 'shared' in subnet.attributes.scope | default('') else '',
+              'igmp_querier': 'true' if 'querier' in subnet.attributes.ctrl | default('') else '',
+              'nd_ra_prefix': 'true' if 'nd' in subnet.attributes.ctrl | default('') else '',
+              'no_default_gateway': 'true' if 'no-default-gateway' in subnet.attributes.ctrl
+                | default('') else '',
             }%}
             {% for policy, value in subnet_policy.items() if value != '' %}
               {% if loop.first %}
