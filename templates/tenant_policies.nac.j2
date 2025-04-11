@@ -14,10 +14,10 @@ apic:
         - {{ dom.attributes.name }}
       {% endfor %}
     {% endif %}
-
-{# {% include "tenant_policies/vrfs.nac.j2" %} #}
-{# {% include "tenant_policies/bridge_domains.nac.j2" %} #}
-{# {% include "tenant_policies/contracts.nac.j2" %} #}
-{# {% include "tenant_policies/filters.nac.j2" %} #}
-{% include "tenant_policies/l3outs.nac.j2" %}
-{% include "tenant_policies/sr_mpls_l3outs.nac.j2" %}
+{% include "tenant_policies/vrfs.nac.j2" %}
+{% include "tenant_policies/bridge_domains.nac.j2" %}
+{% include "tenant_policies/contracts.nac.j2" %}
+{% include "tenant_policies/filters.nac.j2" %}
+{% include "tenant_policies/application_profiles.nac.j2" %}
+{# {% include "tenant_policies/l3outs.nac.j2" %} #}
+{# {% include "tenant_policies/sr_mpls_l3outs.nac.j2" %} #}
