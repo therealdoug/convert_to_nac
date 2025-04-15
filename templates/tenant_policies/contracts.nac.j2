@@ -2,7 +2,7 @@
     {% set imp_contracts = this_tenant.children | selectattr('vzCPIf', 'defined') | map(attribute='vzCPIf') | flatten | list | default([]) %}    {#- Contracts -#}
     {% if contracts | length > 0 %}
       contracts:
-      {% for con in contracts %}
+      {% for con in contracts | sort(attribute='attributes.name') %}
         - name: {{ con.attributes.name }}
         {% if con.attributes.descr != "" %}
           description: {{ con.attributes.descr }}
@@ -19,7 +19,7 @@
         {% set subjects = con.children | selectattr('vzSubj','defined') | map(attribute='vzSubj') | list if con.children is defined %}
         {% if subjects | length > 0  %}
           subjects:
-          {% for subj in subjects %}
+          {% for subj in subjects | sort(attribute='attributes.name') %}
             - name: {{ subj.attributes.name }}
             {% if subj.attributes.descr != "" %}
               description: {{ subj.attributes.descr }}
@@ -31,13 +31,17 @@
               target_dscp: {{ subj.attributes.targetDscp }}
             {% endif %}
             {% if subj.children | selectattr('vzRsSubjGraphAtt','defined') | map(attribute='vzRsSubjGraphAtt') | list | length > 0 %}
-            {% for sg in subj.children | selectattr('vzRsSubjGraphAtt','defined') | map(attribute='vzRsSubjGraphAtt') %}
+            {% for sg in subj.children | selectattr('vzRsSubjGraphAtt','defined') | map(attribute='vzRsSubjGraphAtt')
+              | sort(attribute='attributes.tnVnsAbsGraphName')
+            %}
               service_graph: {{ sg.attributes.tnVnsAbsGraphName }}
             {% endfor %}
             {% endif %}
             {% if subj.children | selectattr('vzRsSubjFiltAtt', 'defined') | map(attribute='vzRsSubjFiltAtt') | list | length > 0 %}
               filters:
-              {% for fltr in subj.children | selectattr('vzRsSubjFiltAtt', 'defined') | map(attribute='vzRsSubjFiltAtt') %}
+              {% for fltr in subj.children | selectattr('vzRsSubjFiltAtt', 'defined') | map(attribute='vzRsSubjFiltAtt')
+                | sort(attribute='attributes.tnVzFilterName')
+                  %}
                 - filter: {{ fltr.attributes.tnVzFilterName }}
                 {% if fltr.attributes.action != "permit" %}
                   action: {{ fltr.attributes.action }}

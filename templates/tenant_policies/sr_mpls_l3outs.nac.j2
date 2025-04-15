@@ -4,7 +4,7 @@
       {% if l3outs | length > 0 %}
 
       sr_mpls_l3outs:
-      {% for l3o in l3outs%}
+      {% for l3o in l3outs| sort(attribute='attributes.name') %}
         {% set l3o_policy = {
           'name': l3o.attributes.name,
           'vrf': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
@@ -32,7 +32,7 @@
           | flatten | list | selectattr('l3extInstP', 'defined') | map(attribute='l3extInstP') %}
         {% if eepgs | length > 0 %}
           external_endpoint_groups:
-          {% for eepg in eepgs %}
+          {% for eepg in eepgs | sort(attribute='attributes.name') %}
             {% set eep_pol = {
               'name': eepg.attributes.name,
               'description': eepg.attributes.descr | default(''),

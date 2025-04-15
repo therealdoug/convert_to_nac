@@ -18,7 +18,7 @@
     {{ policy }}: {{ value }}
     {% else %}
     {{ policy }}:
-    {% for bgp in value %}
+    {% for bgp in value | sort(attribute='attributes.id') %}
       - node_id: {{ bgp.attributes.id }}
         pod_id: {{ bgp.attributes.podId }}
     {% endfor %}

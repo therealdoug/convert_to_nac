@@ -4,7 +4,7 @@
   {% if remotes | length > 0 %}
 
     remote_locations:
-    {% for remote in remotes %}
+    {% for remote in remotes | sort(attribute='attributes.name') %}
       {% set policy = {
         'name': remote.attributes.name,
         'hostname_ip': remote.attributes.host,

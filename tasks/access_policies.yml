@@ -15,5 +15,5 @@
     dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_leaf_interface_profiles_{{ item }}.nac.yaml"
   loop: "{{ polUni | json_query('[].infraInfra.children[].infraAccPortP.attributes.name') | sort }}"
   vars:
-    - search_string: "[].infraInfra.children[?infraAccPortP.attributes.name==`{{ item }}`][].infraAccPortP"
-    - infraAccPortP: "{{ polUni | json_query(search_string) | first }}"
+    search_string: "[].infraInfra.children[?infraAccPortP.attributes.name==`{{ item }}`][].infraAccPortP"
+    infraAccPortP: "{{ polUni | json_query(search_string) | first }}"
