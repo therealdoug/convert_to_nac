@@ -222,7 +222,7 @@ apic:
       {% if vlpool.attributes.allocMode != "static" %}
         allocation: dynamic
       {% endif %}
-      {% set ranges = vlpool | selectattr('children', 'defined') | map(attribute='children') | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') | flatten | list %}
+      {% set ranges = [vlpool] | selectattr('children', 'defined') | map(attribute='children') | flatten | list | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') %}
       {% if ranges | length > 0 %}
         ranges:
         {% for range in ranges | sort(attribute='attributes.from') %}
