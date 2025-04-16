@@ -112,9 +112,9 @@
     %}
     {% if domains | length > 0 %}
       security_domains:
-      {% for domain in domains %}
+      {% for domain in domains | sort(attribute='attributes.name') %}
         - name: "{{ domain.attributes.name }}"
-        {% if domain.attributes.restrictedRbacDomain != 'no' %}
+        {% if domain | map(attribute='attributes.restrictedRbacDomain') | default('') == 'yes' %}
           restricted_rbac_domain: true
         {% endif %}
       {% endfor %}

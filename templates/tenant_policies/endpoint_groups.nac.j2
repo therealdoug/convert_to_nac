@@ -241,7 +241,7 @@
                   | list | default('') %}
                 {% if ippools | length > 0 %}
                   ip_pools:
-                  {% for pool in ippools %}
+                  {% for pool in ippools | sort(attribute='attributes.name') %}
                     {% set pool = {
                       'name': pool.attributes.name,
                       'description': pool.attributes.descr | default(''),

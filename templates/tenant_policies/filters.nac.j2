@@ -2,7 +2,7 @@
 {% if filters | length > 0 %}
 
       filters:
-        {% for fltr in filters %}
+        {% for fltr in filters | sort(attribute='attributes.name') %}
         - name: {{ fltr.attributes.name }}
           {% if fltr.attributes.nameAlias != "" %}
           alias: {{ fltr.attributes.nameAlias }}
@@ -13,7 +13,8 @@
           {% if [fltr] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
             | selectattr('vzEntry','defined') | map(attribute='vzEntry') | list | length > 0 %}
           entries:
-            {% for entry in fltr.children | selectattr('vzEntry','defined') | map(attribute='vzEntry') %}
+            {% for entry in fltr.children | selectattr('vzEntry','defined')
+              | map(attribute='vzEntry') | sort(attribute='attributes.name') %}
             - name: {{ entry.attributes.name }}
               {% if entry.attributes.etherT != "ip" %}
               ethertype: {{ entry.attributes.etherT }}

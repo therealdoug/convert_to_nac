@@ -1,6 +1,6 @@
     {% if vrfs | length > 0 %}
       vrfs:
-      {% for vrf in vrfs %}
+      {% for vrf in vrfs | sort(attribute='attributes.name') %}
         - name: {{ vrf.attributes.name }}
         {% if vrf.attributes.descr != "" %}
           description: {{ vrf.attributes.descr }}
@@ -41,7 +41,7 @@
               | selectattr('leakTo', 'defined') | map(attribute='leakTo') | list %}
             {% if dests | length > 0 %}
               destinations:
-              {% for dest in dests %}
+              {% for dest in dests | sort(attribute='attributes.tenantName,attributes.ctxName') %}
                 - tenant: {{ dest.attributes.tenantName }}
                   vrf: {{ dest.attributes.ctxName}}
                 {% if dest.attributes.descr != '' %}
@@ -71,7 +71,7 @@
               | selectattr('leakTo', 'defined') | map(attribute='leakTo') | list %}
             {% if dests | length > 0 %}
               destinations:
-              {% for dest in dests %}
+              {% for dest in dests | sort(attribute='attributes.tenantName,attributes.ctxName') %}
                 - tenant: {{ dest.attributes.tenantName }}
                   vrf: {{ dest.attributes.ctxName}}
                 {% if dest.attributes.descr != '' %}
@@ -107,19 +107,19 @@
           contracts:
           {% if vzanyprov is defined and vzanyprov | length > 0 %}
             providers:
-            {% for con in vzanyprov %}
+            {% for con in vzanyprov | sort %}
               - {{ con }}
             {% endfor %}
           {% endif %}
           {% if vzanycons is defined and vzanycons | length > 0 %}
             consumers:
-            {% for con in vzanycons %}
+            {% for con in vzanycons | sort %}
               - {{ con }}
             {% endfor %}
           {% endif %}
           {% if vzanyconsif is defined and vzanyconsif | length > 0 %}
             imported_consumers:
-            {% for con in vzanyconsif %}
+            {% for con in vzanyconsif | sort %}
               - {{ con }}
             {% endfor %}
           {% endif %}
@@ -155,11 +155,11 @@
         {% if bgp_policies.values() | select('!=', '') | select('!=', []) | list | length > 0 %}
 
           bgp:
-          {% for policy, value in bgp_policies.items() | sort %}
+          {% for policy, value in bgp_policies.items() %}
             {% if value != '' and value != [] %}
               {% if 'route_target' in policy %}
             {{ policy }}:
-                {% for rt in value %}
+                {% for rt in value | sort %}
               - {{ rt }}
                 {% endfor %}
               {% else %}
@@ -199,14 +199,14 @@
             - name: {{ pol.attributes.name }}
             {% if nodes | length > 0 %}
               nodes:
-              {% for node in nodes %}
+              {% for node in nodes | sort %}
                 - id: {{ node | regex_replace('^.*node-(\d{3,})$', '\\1') }}
                   pod: {{ node | regex_replace('^.*pod-(\d{1})/.*$', '\\1') }}
               {% endfor %}
             {% endif %}
             {% if subnets | length > 0 %}
               subnets:
-              {% for subnet in subnets %}
+              {% for subnet in subnets | sort(attribute='attributes.prefix') %}
                 {% set pol = subnet.children | selectattr('fvRsSubnetToRtSummPol', 'defined') | map(attribute='fvRsSubnetToRtSummPol')
                   | map(attribute='attributes.tDn') | first | default('') %}
                 - prefix: {{ subnet.attributes.prefix}}

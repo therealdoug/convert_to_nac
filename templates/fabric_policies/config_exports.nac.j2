@@ -4,7 +4,7 @@
   {% if cfg_exports | length > 0 %}
 
     config_exports:
-    {% for export in cfg_exports %}
+    {% for export in cfg_exports | sort(attribute='attributes.name') %}
       {% set policy = {
         'name': export.attributes.name,
         'description': export.attributes.descr | default(''),

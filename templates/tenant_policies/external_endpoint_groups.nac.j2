@@ -4,7 +4,7 @@
 %}
 {% if eepgs | length > 0 %}
           external_endpoint_groups:
-  {% for eepg in eepgs %}
+  {% for eepg in eepgs | sort(attribute='attributes.name') %}
     {% set eepg_policy = {
       'name': eepg.attributes.name,
       'description': eepg.attributes.descr | default(''),
@@ -24,7 +24,7 @@
       | selectattr('l3extRsInstPToProfile', 'defined') | map(attribute='l3extRsInstPToProfile') | list | default('') %}
     {% if rtctrl_profiles | length > 0 %}
               route_control_profiles:
-      {% for rtctrl_profile in rtctrl_profiles %}
+      {% for rtctrl_profile in rtctrl_profiles | sort(attribute='attributes.tnRtctrlProfileName') %}
                 - name: {{ rtctrl_profile.attributes.tnRtctrlProfileName }}
                   direction: {{ rtctrl_profile.attributes.direction }}
       {% endfor %}
@@ -34,7 +34,7 @@
     %}
     {% if subnets | length > 0 %}
               subnets:
-      {% for subnet in subnets %}
+      {% for subnet in subnets | sort(attribute='attributes.ip') %}
         {% set sub_policy ={
           'prefix': subnet.attributes.ip,
           'name': subnet.attributes.name | default(''),
@@ -69,7 +69,7 @@
           | selectattr('l3extRsSubnetToProfile', 'defined') | map(attribute='l3extRsSubnetToProfile') | list | default('') %}
         {% if rtctrl_profiles | length > 0 %}
                   route_control_profiles:
-          {% for rtctrl_profile in rtctrl_profiles %}
+          {% for rtctrl_profile in rtctrl_profiles | sort(attribute='attributes.tnRtctrlProfileName') %}
                     - name: {{ rtctrl_profile.attributes.tnRtctrlProfileName }}
                       direction: {{ rtctrl_profile.attributes.direction }}
           {% endfor %}

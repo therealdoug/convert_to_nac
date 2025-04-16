@@ -6,7 +6,7 @@ apic:
 {% set aaeps =  infra_children | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list %}
   {% if aaeps | length > 0 %}
     aaeps:
-    {% for aaep in aaeps %}
+    {% for aaep in aaeps | sort(attribute='attributes.name') %}
       - name: {{ aaep.attributes.name }}
       {% if aaep.attributes.descr != "" %}
         description: {{ aaep.attributes.descr }}
@@ -18,28 +18,28 @@ apic:
         {% set phys_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/phys-') | list %}
         {% if phys_domains | length > 0 %}
         physical_domains:
-          {% for domain in phys_domains %}
+          {% for domain in phys_domains | sort(attribute='attributes.tDn') %}
           - {{ domain.attributes.tDn | regex_replace('^uni/phys-', '') }}
           {% endfor %}
         {% endif %}
         {% set l3_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/l3dom-') | list %}
         {% if l3_domains | length > 0 %}
         routed_domains:
-          {% for domain in l3_domains %}
+          {% for domain in l3_domains | sort(attribute='attributes.tDn') %}
           - {{ domain.attributes.tDn | regex_replace('^uni/l3dom-', '') }}
           {% endfor %}
         {% endif %}
         {% set vmm_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/vmmp-VMware/dom-') | list %}
         {% if vmm_domains | length > 0 %}
         vmware_vmm_domains:
-          {% for domain in vmm_domains %}
+          {% for domain in vmm_domains | sort(attribute='attributes.tDn') %}
           - {{ domain.attributes.tDn | regex_replace('^uni/vmmp-VMware/dom-', '') }}
           {% endfor %}
         {% endif %}
         {% set endpoint_groups = aaep.children | selectattr('infraGeneric', 'defined') | map(attribute='infraGeneric') | selectattr('children', 'defined') | map(attribute='children') | flatten | selectattr('infraRsFuncToEpg', 'defined') | map(attribute='infraRsFuncToEpg') | map(attribute='attributes')  %}
         {% if endpoint_groups | length > 0 %}
         endpoint_groups:
-          {% for epg in endpoint_groups %}
+          {% for epg in endpoint_groups | sort(attribute='tDn') %}
             {% set tn, ap, group = epg.tDn.split('/')[1:] %}
           - endpoint_group: {{ group | regex_replace('^epg-', '') }}
             tenant: {{ tn | regex_replace('^tn-', '') }}
@@ -68,7 +68,7 @@ apic:
 {% set rdomains =  polUni | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | flatten | list %}
 {% if pdomains | length > 0 %}
     physical_domains:
-  {% for domain in pdomains %}
+  {% for domain in pdomains | sort(attribute='attributes.name') %}
       - name: {{ domain.attributes.name }}
     {% if domain.children is defined %}
     {% set vlpool = domain.children | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs') | flatten | list | map(attribute='attributes') | map(attribute='tDn') | list %}
@@ -83,7 +83,7 @@ apic:
 {% if rdomains | length > 0 %}
 
     routed_domains:
-  {% for domain in rdomains %}
+  {% for domain in rdomains | sort(attribute='attributes.name') %}
       - name: {{ domain.attributes.name }}
     {% if domain.children is defined %}
       {% set vlpool = domain.children | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs') | flatten | list | map(attribute='attributes') | map(attribute='tDn') | list %}
@@ -144,7 +144,7 @@ apic:
     {% endif %}
     {% if qos_classes | length > 0 %}
       qos_classes:
-      {% for class in qos_classes %}
+      {% for class in qos_classes | sort(attribute='attributes.prio') %}
         {% set class_children = [class] | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
         {% set qosSched = class_children | selectattr('qosSched', 'defined') | map(attribute='qosSched') | map(attribute='attributes') | first %}
         {% set qosPfcPol = class_children | selectattr('qosPfcPol', 'defined') | map(attribute='qosPfcPol') | map(attribute='attributes') | first %}
@@ -214,7 +214,7 @@ apic:
 {% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined') | map(attribute='fvnsVlanInstP') | list %}
   {% if vlpools | length > 0 %}
     vlan_pools:
-    {% for vlpool in vlpools %}
+    {% for vlpool in vlpools | sort(attribute='attributes.name') %}
       - name: {{ vlpool.attributes.name }}
       {% if vlpool.attributes.descr != "" %}
         description: {{ vlpool.attributes.descr }}
@@ -222,10 +222,10 @@ apic:
       {% if vlpool.attributes.allocMode != "static" %}
         allocation: dynamic
       {% endif %}
-      {% set ranges = vlpool | selectattr('children', 'defined') | map(attribute='children') | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') | flatten | list %}
+      {% set ranges = [vlpool] | selectattr('children', 'defined') | map(attribute='children') | flatten | list | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') %}
       {% if ranges | length > 0 %}
         ranges:
-        {% for range in ranges %}
+        {% for range in ranges | sort(attribute='attributes.from') %}
           - from: {{ range.attributes.from | replace('vlan-','')}}
           {% if range.attributes.from != range.attributes.to %}
             to: {{ range.attributes.to | replace('vlan-','')}}
@@ -247,7 +247,7 @@ apic:
 {% set dhcpRelayP = infra_children | selectattr('dhcpRelayP', 'defined') | map(attribute='dhcpRelayP') | list %}
 {% if dhcpRelayP | length > 0 %}
     dhcp_relay_policies:
-    {% for pol in dhcpRelayP %}
+    {% for pol in dhcpRelayP | sort(attribute='attributes.name') %}
       - name: {{ pol.attributes.name }}
       {% if pol.attributes.descr != "" %}
         description: {{ pol.attributes.descr }}

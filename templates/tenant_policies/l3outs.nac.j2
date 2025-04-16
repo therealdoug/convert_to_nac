@@ -4,7 +4,7 @@
     {% if l3outs | length > 0 %}
 
       l3outs:
-      {% for l3o in l3outs%}
+      {% for l3o in l3outs | sort(attribute='attributes.name') %}
         {% set l3o_policy = {
           'name': l3o.attributes.name,
           'vrf': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
@@ -74,7 +74,7 @@
             | selectattr('l3extRsRedistributePol', 'defined') | map(attribute='l3extRsRedistributePol') %}
         {% if redis_rtmaps | length > 0 %}
           redistribution_route_maps:
-          {% for rtmaps in redis_rtmaps %}
+          {% for rtmaps in redis_rtmaps | sort(attribute='attributes.src') %}
             - source: {{ rtmaps.attributes.src }}
               route_map: {{ rtmaps.attributes.tnRtctrlProfileName }}
           {% endfor %}
@@ -115,7 +115,7 @@
         {# {{ rtctrl_rtmaps | to_nice_json }} #}
         {% if rtctrl_rtmaps | length > 0 %}
           route_maps:
-          {% for rtmap in rtctrl_rtmaps %}
+          {% for rtmap in rtctrl_rtmaps | sort(attribute='attributes.name') %}
             {% set map = {
               'name': rtmap.attributes.name,
               'type': rtmap.attributes.type | replace('global', ''),
@@ -136,7 +136,7 @@
             %}
             {% if contexts | length > 0 %}
               contexts:
-              {% for context in contexts %}
+              {% for context in contexts | sort(attribute='attributes.name') %}
                 {% set ctx = {
                   'name': context.attributes.name,
                   'action': context.attributes.action | replace('permit', ''),
@@ -158,7 +158,7 @@
                 - {{ policy }}: {{ value }}
                   {% elif policy == 'match_rules' and value | length > 0 %}
                   match_rules:
-                  {% for match in value %}
+                  {% for match in value | sort %}
                     - {{ match }}
                   {% endfor %}
                   {% else %}
