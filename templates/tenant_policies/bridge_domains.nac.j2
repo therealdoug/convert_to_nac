@@ -1,4 +1,5 @@
-    {% set bds = this_tenant.children | selectattr('fvBD', 'defined') | map(attribute='fvBD') | flatten | list %}
+    {% set bds = this_tenant.children | selectattr('fvBD', 'defined') | map(attribute='fvBD')
+      | flatten | list %}
     {% if bds | length > 0 %}
 
       bridge_domains:
@@ -10,12 +11,16 @@
           'vrf': bd.children | selectattr('fvRsCtx', 'defined')
             | map(attribute='fvRsCtx.attributes.tnFvCtxName')
             | first | default(''),
-          'arp_flooding': 'false' if 'no' in bd.attributes.arpFlood | default('') else '',
-          'advertise_host_routes': 'true' if 'yes' in bd.attributes.hostBasedRouting | default('') else '',
-          'ip_dataplane_learning': 'false' if 'no' in bd.attributes.ipLearning | default('') else '',
+          'arp_flooding': 'false' if 'no' in bd.attributes.arpFlood
+            | default('') else '',
+          'advertise_host_routes': 'true' if 'yes' in bd.attributes.hostBasedRouting
+            | default('') else '',
+          'ip_dataplane_learning': 'false' if 'no' in bd.attributes.ipLearning
+            | default('') else '',
           'mac': bd.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
           'virtual_mac': bd.attributes.vmac | default('') | replace('not-applicable', ''),
-          'unicast_routing': 'false' if 'no' in bd.attributes.unicastRoute | default('') else '',
+          'unicast_routing': 'false' if 'no' in bd.attributes.unicastRoute
+            | default('') else '',
           'multi_destination_flooding': bd.attributes.multiDstPktAct | default('')
             | replace('bd-flood', ''),
           'unknown_unicast': bd.attributes.unkMacUcastAct | default('') 
@@ -30,9 +35,13 @@
           {{ policy }}: {{ value }}
           {% endif %}
         {% endfor %}
-        {% if bd.children | selectattr('fvSubnet', 'defined')  | map(attribute='fvSubnet') | list | length > 0 %}
+        {% if bd.children | selectattr('fvSubnet', 'defined')  | map(attribute='fvSubnet')
+          | list | length > 0
+        %}
           subnets:
-          {% for subnet in bd.children | selectattr('fvSubnet', 'defined') | map(attribute='fvSubnet') %}
+          {% for subnet in bd.children | selectattr('fvSubnet', 'defined') 
+            | map(attribute='fvSubnet')
+          %}
             {% set subnet_policy = {
               'ip': subnet.attributes.ip,
               'description': subnet.attributes.descr | default(''),
@@ -43,7 +52,7 @@
               'public': 'true' if 'public' in subnet.attributes.scope | default('') else '',
               'shared': 'true' if 'shared' in subnet.attributes.scope | default('') else '',
               'igmp_querier': 'true' if 'querier' in subnet.attributes.ctrl | default('') else '',
-              'nd_ra_prefix': 'true' if 'nd' in subnet.attributes.ctrl | default('') else '',
+              'nd_ra_prefix': 'false' if 'nd' not in subnet.attributes.ctrl | default('') else '',
               'no_default_gateway': 'true' if 'no-default-gateway' in subnet.attributes.ctrl
                 | default('') else '',
             }%}
@@ -56,15 +65,23 @@
             {% endfor %}
           {% endfor %}
         {% endif %}
-        {% if bd.children | selectattr('fvRsBDToOut', 'defined')  | map(attribute='fvRsBDToOut') | list | length > 0 %}
+        {% if bd.children | selectattr('fvRsBDToOut', 'defined')  | map(attribute='fvRsBDToOut')
+          | list | length > 0
+        %}
           l3outs:
-          {% for l3o in bd.children | selectattr('fvRsBDToOut', 'defined')  | map(attribute='fvRsBDToOut') %}
+          {% for l3o in bd.children | selectattr('fvRsBDToOut', 'defined')
+            | map(attribute='fvRsBDToOut')
+          %}
             - {{ l3o.attributes.tnL3extOutName }}
           {% endfor %}
         {% endif %}
-        {% if bd.children | selectattr('dhcpLbl', 'defined')  | map(attribute='dhcpLbl') | list | length > 0 %}
+        {% if bd.children | selectattr('dhcpLbl', 'defined') | map(attribute='dhcpLbl')
+          | list | length > 0
+        %}
           dhcp_labels:
-          {% for dhcp in bd.children | selectattr('dhcpLbl', 'defined')  | map(attribute='dhcpLbl') %}
+          {% for dhcp in bd.children | selectattr('dhcpLbl', 'defined')
+            | map(attribute='dhcpLbl')
+          %}
             - dhcp_relay_policy: {{ dhcp.attributes.name }}
               scope: {{ dhcp.attributes.owner }}
           {% endfor %}

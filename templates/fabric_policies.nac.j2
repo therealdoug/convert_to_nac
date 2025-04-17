@@ -1,12 +1,15 @@
 #jinja2: lstrip_blocks: True
 ---
-{% set fabricInst_children = polUni | selectattr('fabricInst', 'defined') | map(attribute='fabricInst')
-                      | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-{% set aaaUserEp = polUni | selectattr('aaaUserEp', 'defined') | map(attribute='aaaUserEp')
-                      | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% set fabricInst_children = polUni | selectattr('fabricInst', 'defined')
+  | map(attribute='fabricInst') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten | list %}
+{% set aaaUserEp = polUni | selectattr('aaaUserEp', 'defined')
+  | map(attribute='aaaUserEp') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten | list %}
 apic:
   fabric_policies:
-  {% set conn_pref = fabricInst_children | selectattr('mgmtConnectivityPrefs', 'defined') | map(attribute='mgmtConnectivityPrefs') | first | default('') %}
+  {% set conn_pref = fabricInst_children | selectattr('mgmtConnectivityPrefs', 'defined')
+    | map(attribute='mgmtConnectivityPrefs') | first | default('') %}
   {% if conn_pref != '' and conn_pref.attributes.interfacePref != 'inband' %}
     apic_conn_pref: "{{ conn_pref.attributes.interfacePref }}"
   {% endif %}

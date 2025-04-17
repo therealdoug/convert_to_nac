@@ -5,26 +5,36 @@
           {% for epg in epgs | sort(attribute='attributes.name') %}
             {% set epg_policies = {
               'name': epg.attributes.name,
-              'bridge_domain': [epg] | selectattr('children', 'defined') | map(attribute='children')
+              'bridge_domain': [epg] | selectattr('children', 'defined')
+                | map(attribute='children')
                 | flatten | selectattr('fvRsBd', 'defined')
                 | map(attribute='fvRsBd.attributes.tnFvBDName') | flatten
                 | first | default(''),
               'alias': epg.attributes.nameAlias | default(''),
               'description': epg.attributes.descr | default(''),
               'qos_class': epg.attributes.prio if epg.attributes.prio != 'level3' else '',
-              'flood_in_encap': 'true' if epg.attributes.floodOnEncap == 'enabled' else '' | default(''),
-              'intra_epg_isolation': 'true' if epg.attributes.pcEnfPref != 'unenforced' else '' | default(''),
-              'proxy_arp': 'true' if epg.attributes.fwdCtrl == 'proxy-arp' else '' | default(''),
-              'preferred_group': 'true' if epg.attributes.prefGrMemb == 'include' else '' | default(''),
-              'custom_qos_policy': [epg] | selectattr('children', 'defined') | map(attribute='children')
+              'flood_in_encap': 'true' if epg.attributes.floodOnEncap == 'enabled' else ''
+                | default(''),
+              'intra_epg_isolation': 'true' if epg.attributes.pcEnfPref != 'unenforced' else ''
+                | default(''),
+              'proxy_arp': 'true' if epg.attributes.fwdCtrl == 'proxy-arp' else ''
+                | default(''),
+              'preferred_group': 'true' if epg.attributes.prefGrMemb == 'include' else ''
+                | default(''),
+              'custom_qos_policy': [epg] | selectattr('children', 'defined')
+                | map(attribute='children')
                 | flatten | selectattr('fvRsCustQosPol', 'defined')
-                | map(attribute='fvRsCustQosPol.attributes.tnQosCustomPolName') | flatten | first
+                | map(attribute='fvRsCustQosPol.attributes.tnQosCustomPolName')
+                | flatten | first
                 | default(''),
-              'trust_control_policy': [epg] | selectattr('children', 'defined') | map(attribute='children')
+              'trust_control_policy': [epg] | selectattr('children', 'defined')
+                | map(attribute='children')
                 | flatten | selectattr('fvRsTrustCtrl', 'defined')
-                | map(attribute='fvRsTrustCtrl.attributes.tnFhsTrustCtrlPolName') | flatten | first
+                | map(attribute='fvRsTrustCtrl.attributes.tnFhsTrustCtrlPolName')
+                | flatten | first
                 | default(''),
-              'physical_domains': [epg] | selectattr('children', 'defined') | map(attribute='children')
+              'physical_domains': [epg] | selectattr('children', 'defined')
+                | map(attribute='children')
                 | flatten | list | selectattr('fvRsDomAtt', 'defined')
                 | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/phys-')
                 | map(attribute='fvRsDomAtt.attributes.tDn') | list | default('')
@@ -42,9 +52,11 @@
               {% endif %}
             {% endfor %}
             {# vmware vmm Domains #}
-            {% set vmm_domains = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsDomAtt', 'defined') | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/vmmp-VMware/dom-')
-                | map(attribute='fvRsDomAtt') | list | default([]) %}
+            {% set vmm_domains = [epg] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsDomAtt', 'defined')
+              | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/vmmp-VMware/dom-')
+              | map(attribute='fvRsDomAtt') | list | default([]) %}
             {% if vmm_domains | length > 0 %}
               vmware_vmm_domains:
               {% for domain in vmm_domains | sort(attribute='fvRsDomAtt.attributes.tDn') %}
@@ -53,17 +65,27 @@
                   'delimiter': domain.attributes.delimiter,
 
                 }%}
-                - name: {{ domain.attributes.tDn | regex_replace('^uni/vmmp-VMware/dom-(.*)$', '\\1') }}
+                - name: {{ domain.attributes.tDn
+                          | regex_replace('^uni/vmmp-VMware/dom-(.*)$', '\\1') }}
                 {% for policy, value in policies.items() | sort if value != '' %}
                   {{ policy }}: {{ value | string }}
                 {% endfor %}
                 {% set vmmSecP = {
-                  'allow_promiscuous': [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('vmmSecP', 'defined') | map(attribute='vmmSecP.attributes.allowPromiscuous') | first | default(''),
-                  'forged_transmits': [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('vmmSecP', 'defined') | map(attribute='vmmSecP.attributes.forgedTransmits') | first | default(''),
-                  'mac_changes': [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('vmmSecP', 'defined') | map(attribute='vmmSecP.attributes.macChanges') | first | default(''),
+                  'allow_promiscuous': [domain] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('vmmSecP', 'defined')
+                    | map(attribute='vmmSecP.attributes.allowPromiscuous')
+                    | first | default(''),
+                  'forged_transmits': [domain] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('vmmSecP', 'defined')
+                    | map(attribute='vmmSecP.attributes.forgedTransmits')
+                    | first | default(''),
+                  'mac_changes': [domain] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('vmmSecP', 'defined')
+                    | map(attribute='vmmSecP.attributes.macChanges')
+                    | first | default(''),
                 }%}
                 {% for policy, value in vmmSecP.items() if value != 'reject' %}
                   {{ policy }}: {{ value }}
@@ -93,19 +115,27 @@
                   resolution_immediacy: {{ domain.attributes.resImedcy }}
                 {% endif %}
                 {# elag #}
-                {% set elag = [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                {% set elag = [domain] | selectattr('children', 'defined') | map(attribute='children')
+                  | flatten | list
                   | selectattr('fvAEPgLagPolAtt', 'defined') | map(attribute='fvAEPgLagPolAtt')
                   | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                  | selectattr('fvRsVmmVSwitchEnhancedLagPol', 'defined') | map(attribute='fvRsVmmVSwitchEnhancedLagPol.attributes.tDn')
+                  | selectattr('fvRsVmmVSwitchEnhancedLagPol', 'defined')
+                  | map(attribute='fvRsVmmVSwitchEnhancedLagPol.attributes.tDn')
                   | first | default('')%}
                 {% if elag != '' %}
                   elag: {{ elag | regex_replace('^.*enlacplagp-', '') }}
                 {% endif %}
                 {# Uplinks #}
-                {% set active_uplinks = [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('fvUplinkOrderCont', 'defined') | map(attribute='fvUplinkOrderCont.attributes.active') | first | default('')%}
-                {% set standby_uplinks = [domain] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('fvUplinkOrderCont', 'defined') | map(attribute='fvUplinkOrderCont.attributes.standby') | first | default('')%}
+                {% set active_uplinks = [domain] | selectattr('children', 'defined') | map(attribute='children')
+                  | flatten | list
+                  | selectattr('fvUplinkOrderCont', 'defined')
+                  | map(attribute='fvUplinkOrderCont.attributes.active')
+                  | first | default('')%}
+                {% set standby_uplinks = [domain] | selectattr('children', 'defined')
+                  | map(attribute='children') | flatten | list
+                    | selectattr('fvUplinkOrderCont', 'defined')
+                    | map(attribute='fvUplinkOrderCont.attributes.standby')
+                    | first | default('')%}
                 {% if active_uplinks != '' %}
                   active_uplinks_order: {{ active_uplinks }}
                 {% endif %}
@@ -115,12 +145,16 @@
               {% endfor %}
             {% endif %}
             {# Static Leafs #}
-            {% set static_leafs = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt') | list | default([]) %}
+            {% set static_leafs = [epg] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt')
+              | list | default([]) %}
             {% if static_leafs | length > 0 %}
               static_leafs:
               {% for leaf in static_leafs | sort(attribute='attributes.tDn') %}
-                {% set pod_id, node = leaf.attributes.tDn | regex_replace('^topology/pod-(\d)/node-(\d{3,4})$', '\\1,\\2') | split(',') %}
+                {% set pod_id, node = leaf.attributes.tDn
+                  | regex_replace('^topology/pod-(\d)/node-(\d{3,4})$', '\\1,\\2')
+                  | split(',') %}
                 - node_id: {{ node }}
                 {% if pod_id != '1' %}
                   pod_id: {{ pod_id }}
@@ -137,13 +171,17 @@
               {% endfor %}
             {% endif %}
             {# TODO: Finish Static Ports #}
-            {% set static_ports = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsPathAtt', 'defined') | map(attribute='fvRsPathAtt') | list | default([]) %}
+            {% set static_ports = [epg] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsPathAtt', 'defined') | map(attribute='fvRsPathAtt')
+              | list | default([]) %}
             {% if static_ports | length > 0 %}
               static_ports:
               {% for port in static_ports | sort(attribute='attributes.tDn') %}
                 {% if '/paths' in port.attributes.tDn %}
-                  {% set pod_id, node_id, path = port.attributes.tDn | regex_replace('^topology\/pod-(\d)\/paths-(\d+)\/pathep-\[(.*?)\]$', '\\1,\\2,\\3')
+                  {% set pod_id, node_id, path = port.attributes.tDn
+                    | regex_replace('^topology\/pod-(\d)\/paths-(\d+)\/pathep-\[(.*?)\]$',
+                                    '\\1,\\2,\\3')
                     | split(',') %}
                 - node_id: {{ node_id }}
                   {% if pod_id != '1' %}
@@ -157,7 +195,8 @@
                   deployment_immediacy: {{ port.attributes.instrImedcy }}
                   {% endif %}
                   {% if '/' in path %}
-                    {% set module, port = path | regex_replace('^eth(\d)\/(\d+)$', '\\1,\\2') | split(',') %}
+                    {% set module, port = path | regex_replace('^eth(\d)\/(\d+)$', '\\1,\\2')
+                      | split(',') %}
                     {% if module != '1' %}
                   module: {{ module }}
                     {% endif %}
@@ -167,7 +206,9 @@
                   {% endif %}
                 {% elif '/protpaths' in port.attributes.tDn %}
                   {% set pod_id, node_id, node2_id, channel = port.attributes.tDn
-                    | regex_replace('^topology\/pod-(\d)\/protpaths-(\d+)-(\d+)\/pathep-\[(.*?)\]$', '\\1,\\2,\\3,\\4') | split(',') %}
+                    | regex_replace('^topology\/pod-(\d)\/protpaths-(\d+)-(\d+)\/pathep-\[(.*?)\]$',
+                                    '\\1,\\2,\\3,\\4')
+                    | split(',') %}
                 - node_id: {{ node_id }}
                   node2_id: {{ node2_id }}
                   {% if pod_id != '1' %}
@@ -187,8 +228,10 @@
             {% endif %}
             {# TODO: Static Endpoints #}
             {# Subnets #}
-            {% set subnets = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvSubnet', 'defined') | map(attribute='fvSubnet') | list | default([]) %}
+            {% set subnets = [epg] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten | list
+              | selectattr('fvSubnet', 'defined') | map(attribute='fvSubnet')
+              | list | default([]) %}
             {% if subnets | length > 0 %}
               subnets:
               {% for subnet in subnets | sort(attribute='attributes.ip') %}
@@ -197,13 +240,19 @@
                   'alias': subnet.attributes.nameAlias | default(''),
                   'name': subnet.attributes.name | default(''),
                   'description': subnet.attributes.descr | default(''),
-                  'primary_ip': 'true' if subnet.attributes.preferred == 'yes' else '' | default(''),
-                  'virtual': 'true' if subnet.attributes.virtual == 'yes' else '' | default(''),
-                  'public': 'true' if 'public' in subnet.attributes.scope else '' | default(''),
-                  'shared': 'true' if 'shared' in subnet.attributes.scope else '' | default(''),
-                  'no_default_gateway': 'true' if 'no-default-gateway' in subnet.attributes.ctrl else ''
+                  'primary_ip': 'true' if subnet.attributes.preferred == 'yes' else ''
                     | default(''),
-                  'igmp_querier': 'true' if 'querier' in subnet.attributes.ctrl else '' | default(''),
+                  'virtual': 'true' if subnet.attributes.virtual == 'yes' else '' 
+                    | default(''),
+                  'public': 'true' if 'public' in subnet.attributes.scope else '' 
+                    | default(''),
+                  'shared': 'true' if 'shared' in subnet.attributes.scope else '' 
+                    | default(''),
+                  'no_default_gateway': 'true' if 'no-default-gateway' 
+                    in subnet.attributes.ctrl else ''
+                    | default(''),
+                  'igmp_querier': 'true' if 'querier' in subnet.attributes.ctrl else ''
+                    | default(''),
                   'ip_dataplane_learning': 'false' if subnet.attributes.ipDPLearning is defined
                     and subnet.attributes.ipDPLearning == 'enabled' else ''
                     | default(''),
@@ -217,14 +266,22 @@
                     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
                     | selectattr('ipNexthopEpP', 'defined') | map(attribute='ipNexthopEpP.attributes.nhAddr')
                     | first | default(''),
-                  'anycast_mac': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('fvEpAnycast', 'defined') | map(attribute='fvEpAnycast.attributes.mac') | first | default(''),
-                  'nlb_group': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.group') | first | default(''),
-                  'nlb_mac': [subnet] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                    | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.mac') | first | default(''),
+                  'anycast_mac': [subnet] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('fvEpAnycast', 'defined')
+                    | map(attribute='fvEpAnycast.attributes.mac')
+                    | first | default(''),
+                  'nlb_group': [subnet] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.group')
+                    | first | default(''),
+                  'nlb_mac': [subnet] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.mac')
+                    | first | default(''),
                   'nlb_mode': [subnet] | selectattr('children', 'defined') | map(attribute='children')
-                    | flatten | list | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.mode')
+                    | flatten | list | selectattr('fvEpNlb', 'defined')
+                    | map(attribute='fvEpNlb.attributes.mode')
                     | first | default('') | replace('mode-uc', ''),
                 }%}
                 {% for policy, value in subnet_policies.items() if value != '' %}
@@ -235,8 +292,8 @@
                   {% endif %}
                 {% endfor %}
                 {# ip_pools #}
-                {% set ippools = [subnet] | selectattr('children', 'defined') | map(attribute='children')
-                  | flatten | list
+                {% set ippools = [subnet] | selectattr('children', 'defined')
+                  | map(attribute='children') | flatten | list
                   | selectattr('fvCepNetCfgPol', 'defined') | map(attribute='fvCepNetCfgPol')
                   | list | default('') %}
                 {% if ippools | length > 0 %}
@@ -264,17 +321,36 @@
               {% endfor %}
             {% endif %}
             {# contracts #}
-            {% set fvRsCon = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsCons', 'defined') | map(attribute='fvRsCons.attributes.tnVzBrCPName') | list | default([]) %}
-            {% set fvRsConIf = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsConsIf', 'defined') | map(attribute='fvRsConsIf.attributes.tnVzCPIfName') | list | default([]) %}
-            {% set fvRsProv = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsProv', 'defined') | map(attribute='fvRsProv.attributes.tnVzBrCPName') | list | default([]) %}
-            {% set fvRsIntraEpg = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsIntraEpg', 'defined') | map(attribute='fvRsIntraEpg.attributes.tnVzBrCPName') | list | default([]) %}
-            {% set fvRsSecInherited = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvRsSecInherited', 'defined') | map(attribute='fvRsSecInherited.attributes.tDn') | list | default([]) %}
-            {% if fvRsCon|length + fvRsConIf|length + fvRsProv|length + fvRsIntraEpg|length + fvRsSecInherited|length > 0 %}
+            {% set fvRsCon = [epg] | selectattr('children', 'defined') | map(attribute='children')
+              | flatten | list
+              | selectattr('fvRsCons', 'defined')
+              | map(attribute='fvRsCons.attributes.tnVzBrCPName')
+              | list | default([]) %}
+            {% set fvRsConIf = [epg] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsConsIf', 'defined')
+              | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
+              | list | default([]) %}
+            {% set fvRsProv = [epg] | selectattr('children', 'defined') 
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsProv', 'defined')
+              | map(attribute='fvRsProv.attributes.tnVzBrCPName')
+              | list | default([]) %}
+            {% set fvRsIntraEpg = [epg] | selectattr('children', 'defined') 
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsIntraEpg', 'defined') 
+              | map(attribute='fvRsIntraEpg.attributes.tnVzBrCPName') 
+              | list | default([]) %}
+            {% set fvRsSecInherited = [epg] | selectattr('children', 'defined') 
+              | map(attribute='children') | flatten | list
+              | selectattr('fvRsSecInherited', 'defined') 
+              | map(attribute='fvRsSecInherited.attributes.tDn') 
+              | list | default([]) %}
+            {% if fvRsCon | length 
+                + fvRsConIf | length 
+                + fvRsProv | length 
+                + fvRsIntraEpg | length 
+                + fvRsSecInherited | length > 0 %}
               contracts:
               {% if fvRsCon | length > 0 %}
                 consumers:
@@ -305,14 +381,17 @@
                 {% for contract in fvRsSecInherited | sort %}
                   - endpoint_group: {{ contract | regex_replace('^.*/epg-', '') }}
                     {% if ap.attributes.name not in contract %}
-                    application_profile: {{ contract | regex_replace('^.*/ap-(.*?)/epg.*$', '\\1') }}
+                    application_profile: {{ contract 
+                                          | regex_replace('^.*/ap-(.*?)/epg.*$', '\\1') }}
                     {% endif %}
                 {% endfor %}
               {% endif %}
             {% endif %}
             {# Tags #}
-            {% set tags = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('tagInst', 'defined') | map(attribute='tagInst.attributes.name') | list | default([]) %}
+            {% set tags = [epg] | selectattr('children', 'defined') | map(attribute='children')
+              | flatten | list
+              | selectattr('tagInst', 'defined') | map(attribute='tagInst.attributes.name') 
+              | list | default([]) %}
             {% if tags | length > 0 %}
               tags:
               {% for tag in tags | sort %}
@@ -320,8 +399,10 @@
               {% endfor %}
             {% endif%}
             {# l4l7_virtual_ips #}
-            {% set vips = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('fvVip', 'defined') | map(attribute='fvVip') | list | default([]) %}
+            {% set vips = [epg] | selectattr('children', 'defined') | map(attribute='children')
+              | flatten | list
+              | selectattr('fvVip', 'defined') | map(attribute='fvVip') 
+              | list | default([]) %}
             {% if vips | length > 0 %}
               l4l7_virtual_ips:
               {% for vip in vips | sort(attribute='attributes.addr') %}
@@ -332,8 +413,10 @@
               {% endfor %}
             {% endif%}
             {# l4l7_address_pools #}
-            {% set pools = [epg] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('vnsAddrInst', 'defined') | map(attribute='vnsAddrInst') | list | default([]) %}
+            {% set pools = [epg] | selectattr('children', 'defined') | map(attribute='children')
+              | flatten | list
+              | selectattr('vnsAddrInst', 'defined') | map(attribute='vnsAddrInst')
+              | list | default([]) %}
             {% if pools | length > 0 %}
               l4l7_address_pools:
               {% for pool in pools | sort(attribute='attributes.name') %}

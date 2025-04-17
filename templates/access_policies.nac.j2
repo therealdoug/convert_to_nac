@@ -211,7 +211,8 @@ apic:
     {% endif %}
   {% endif %}
 
-{% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined') | map(attribute='fvnsVlanInstP') | list %}
+{% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined')
+  | map(attribute='fvnsVlanInstP') | list %}
   {% if vlpools | length > 0 %}
     vlan_pools:
     {% for vlpool in vlpools | sort(attribute='attributes.name') %}
@@ -222,7 +223,9 @@ apic:
       {% if vlpool.attributes.allocMode != "static" %}
         allocation: dynamic
       {% endif %}
-      {% set ranges = [vlpool] | selectattr('children', 'defined') | map(attribute='children') | flatten | list | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk') %}
+      {% set ranges = [vlpool] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | list | selectattr('fvnsEncapBlk', 'defined')
+        | map(attribute='fvnsEncapBlk') %}
       {% if ranges | length > 0 %}
         ranges:
         {% for range in ranges | sort(attribute='attributes.from') %}
@@ -233,7 +236,9 @@ apic:
           {% if range.attributes.descr != "" %}
             description: {{ range.attributes.descr }}
           {% endif %}
-          {% if range.attributes.allocMode != "inherit" and range.attributes.allocMode != vlpool.attributes.allocMode %}
+          {% if range.attributes.allocMode != "inherit" 
+              and range.attributes.allocMode != vlpool.attributes.allocMode
+          %}
             allocation: {{ range.attributes.allocMode }}
           {% endif %}
           {% if range.attributes.role != "external" %}
@@ -244,7 +249,8 @@ apic:
     {% endfor %}
   {% endif %}
 
-{% set dhcpRelayP = infra_children | selectattr('dhcpRelayP', 'defined') | map(attribute='dhcpRelayP') | list %}
+{% set dhcpRelayP = infra_children | selectattr('dhcpRelayP', 'defined')
+  | map(attribute='dhcpRelayP') | list %}
 {% if dhcpRelayP | length > 0 %}
     dhcp_relay_policies:
     {% for pol in dhcpRelayP | sort(attribute='attributes.name') %}
@@ -252,8 +258,10 @@ apic:
       {% if pol.attributes.descr != "" %}
         description: {{ pol.attributes.descr }}
       {% endif %}
-      {% set pol_children = [pol] | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-      {% set providers = pol_children | selectattr('dhcpRsProv', 'defined') | map(attribute='dhcpRsProv') | list %}
+      {% set pol_children = [pol] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten | list %}
+      {% set providers = pol_children | selectattr('dhcpRsProv', 'defined')
+        | map(attribute='dhcpRsProv') | list %}
       {% if providers | length > 0 %}
         providers:
         {% for prov in providers | sort(attribute='attributes.addr') %}

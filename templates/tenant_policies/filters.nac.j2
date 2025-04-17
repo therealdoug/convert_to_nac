@@ -1,4 +1,5 @@
-{% set filters = this_tenant.children | selectattr('vzFilter', 'defined') | map(attribute='vzFilter') | flatten | list %}
+{% set filters = this_tenant.children | selectattr('vzFilter', 'defined')
+  | map(attribute='vzFilter') | flatten | list %}
 {% if filters | length > 0 %}
 
       filters:
@@ -10,8 +11,9 @@
           {% if fltr.attributes.descr != "" %}
           description: {{ fltr.attributes.descr }}
           {% endif %}
-          {% if [fltr] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('vzEntry','defined') | map(attribute='vzEntry') | list | length > 0 %}
+          {% if [fltr] | selectattr('children', 'defined') | map(attribute='children')
+            | flatten | list | selectattr('vzEntry','defined') | map(attribute='vzEntry')
+            | list | length > 0 %}
           entries:
             {% for entry in fltr.children | selectattr('vzEntry','defined')
               | map(attribute='vzEntry') | sort(attribute='attributes.name') %}
@@ -25,13 +27,15 @@
               {% if entry.attributes.sFromPort != "unspecified" %}
               source_from_port: {{ entry.attributes.sFromPort }}
               {% endif %}
-              {% if entry.attributes.sToPort != "unspecified" and entry.attributes.sToPort != entry.attributes.sFromPort %}
+              {% if entry.attributes.sToPort != "unspecified"
+                and entry.attributes.sToPort != entry.attributes.sFromPort %}
               source_to_port: {{ entry.attributes.sToPort }}
               {% endif %}
               {% if entry.attributes.dFromPort != "unspecified" %}
               destination_from_port: {{ entry.attributes.dFromPort }}
               {% endif %}
-              {% if entry.attributes.dToPort != "unspecified" and entry.attributes.dToPort != entry.attributes.dFromPort %}
+              {% if entry.attributes.dToPort != "unspecified"
+                and entry.attributes.dToPort != entry.attributes.dFromPort %}
               destination_to_port: {{ entry.attributes.dToPort }}
               {% endif %}
               {% if entry.attributes.stateful != "no" %}

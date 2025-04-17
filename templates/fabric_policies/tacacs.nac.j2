@@ -1,6 +1,8 @@
-  {% set tacacs_providers = aaaUserEp | selectattr('aaaTacacsPlusEp', 'defined') | map(attribute='aaaTacacsPlusEp')
+  {% set tacacs_providers = aaaUserEp | selectattr('aaaTacacsPlusEp', 'defined')
+    | map(attribute='aaaTacacsPlusEp')
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-    | selectattr('aaaTacacsPlusProvider', 'defined') | map(attribute='aaaTacacsPlusProvider') | list
+    | selectattr('aaaTacacsPlusProvider', 'defined') | map(attribute='aaaTacacsPlusProvider')
+    | list
   %}
   {% if tacacs_providers | length > 0 %}
 
@@ -18,11 +20,14 @@
         'monitoring_password': prov.attributes.monitoringPassword | default(''),
         'monitoring': prov.attributes.monitorServer | default('') | replace('disabled', '')
           | replace('enabled', 'true'),
-        'mgmt_epg_type': 'oob' if 'oob' in [prov] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-          | selectattr('aaaRsSecProvToEpg', 'defined') | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
+        'mgmt_epg_type': 'oob' if 'oob' in [prov] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten | list
+          | selectattr('aaaRsSecProvToEpg', 'defined')
+          | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
           | first | default('') else '',
-        'mgmt_epg_name': [prov] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-          | selectattr('aaaRsSecProvToEpg', 'defined') | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
+        'mgmt_epg_name': [prov] | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list | selectattr('aaaRsSecProvToEpg', 'defined')
+          | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
           | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
       }%}
       {% for pol, value in policy.items() if value != '' %}

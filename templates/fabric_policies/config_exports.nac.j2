@@ -1,4 +1,5 @@
-  {% set cfg_exports = fabricInst_children | selectattr('configExportP', 'defined') | map(attribute='configExportP')
+  {% set cfg_exports = fabricInst_children | selectattr('configExportP', 'defined')
+    | map(attribute='configExportP')
     | list | default([])
   %}
   {% if cfg_exports | length > 0 %}
@@ -9,12 +10,15 @@
         'name': export.attributes.name,
         'description': export.attributes.descr | default(''),
         'format': export.attributes.format | default('') | replace('json',''),
-        'snapshot': export.attributes.snapshot | default('') | replace('no','') | replace('yes', 'true'),
-        'remote_location': export | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+        'snapshot': export.attributes.snapshot | default('') | replace('no','')
+          | replace('yes', 'true'),
+        'remote_location': export | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list
           | selectattr('configRsRemotePath', 'defined') 
           | map(attribute='configRsRemotePath.attributes.tnFileRemotePathName')
           | first | default(''),
-        'scheduler': export | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+        'scheduler': export | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list
           | selectattr('configRsExportScheduler', 'defined') 
           | map(attribute='configRsExportScheduler.attributes.tnTrigSchedPName')
           | first | default(''),

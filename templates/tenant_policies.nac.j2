@@ -1,6 +1,8 @@
 #jinja2: lstrip_blocks: True
-{% set vrfs = this_tenant.children | selectattr('fvCtx', 'defined') | map(attribute='fvCtx') | flatten | list %}
-{% set sec_domains = this_tenant.children | selectattr('aaaDomainRef', 'defined') | map(attribute='aaaDomainRef') | flatten | list %}
+{% set vrfs = this_tenant.children | selectattr('fvCtx', 'defined')
+  | map(attribute='fvCtx') | flatten | list %}
+{% set sec_domains = this_tenant.children | selectattr('aaaDomainRef', 'defined')
+  | map(attribute='aaaDomainRef') | flatten | list %}
 ---
 apic:
   tenants:

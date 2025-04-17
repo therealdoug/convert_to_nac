@@ -1,17 +1,30 @@
-{% set cdp_policies =  infra_children | selectattr('cdpIfPol', 'defined') | map(attribute='cdpIfPol') | list %}
-{% set l2_policies =  infra_children | selectattr('l2IfPol', 'defined') | map(attribute='l2IfPol') | list %}
-{% set link_policies =  infra_children | selectattr('fabricHIfPol', 'defined') | map(attribute='fabricHIfPol') | list %}
-{% set port_channel_policies =  infra_children | selectattr('lacpLagPol', 'defined') | map(attribute='lacpLagPol') | list %}
-{% set pc_member_policies =  infra_children | selectattr('lacpIfPol', 'defined') | map(attribute='lacpIfPol') | list %}
-{% set lldp_policies =  infra_children | selectattr('lldpIfPol', 'defined') | map(attribute='lldpIfPol') | list %}
-{% set macsec_policies =  infra_children | selectattr('macsecPolCont', 'defined') | map(attribute='macsecPolCont')
-      | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-{% set macsec_params_policies = macsec_policies | selectattr('macsecParamPol', 'defined') | map(attribute='macsecParamPol') | list %}
-{% set macsec_keychain_policies = macsec_policies | selectattr('macsecKeyChainPol', 'defined') | map(attribute='macsecKeyChainPol') | list %}
-{% set macsec_interface_policies = infra_children | selectattr('macsecIfPol', 'defined') | map(attribute='macsecIfPol') | list %}
-{% set mcp_policies =  infra_children | selectattr('mcpIfPol', 'defined') | map(attribute='mcpIfPol') | list %}
-{% set stp_policies =  infra_children | selectattr('stpIfPol', 'defined') | map(attribute='stpIfPol') | list %}
-{% set storm_control_policies =  infra_children | selectattr('stormctrlIfPol', 'defined') | map(attribute='stormctrlIfPol') | list %}
+{% set cdp_policies =  infra_children | selectattr('cdpIfPol', 'defined')
+  | map(attribute='cdpIfPol') | list %}
+{% set l2_policies =  infra_children | selectattr('l2IfPol', 'defined')
+  | map(attribute='l2IfPol') | list %}
+{% set link_policies =  infra_children | selectattr('fabricHIfPol', 'defined')
+  | map(attribute='fabricHIfPol') | list %}
+{% set port_channel_policies =  infra_children | selectattr('lacpLagPol', 'defined')
+  | map(attribute='lacpLagPol') | list %}
+{% set pc_member_policies =  infra_children | selectattr('lacpIfPol', 'defined')
+  | map(attribute='lacpIfPol') | list %}
+{% set lldp_policies =  infra_children | selectattr('lldpIfPol', 'defined')
+  | map(attribute='lldpIfPol') | list %}
+{% set macsec_policies =  infra_children | selectattr('macsecPolCont', 'defined')
+  | map(attribute='macsecPolCont') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten | list %}
+{% set macsec_params_policies = macsec_policies | selectattr('macsecParamPol', 'defined')
+  | map(attribute='macsecParamPol') | list %}
+{% set macsec_keychain_policies = macsec_policies | selectattr('macsecKeyChainPol', 'defined')
+  | map(attribute='macsecKeyChainPol') | list %}
+{% set macsec_interface_policies = infra_children | selectattr('macsecIfPol', 'defined')
+  | map(attribute='macsecIfPol') | list %}
+{% set mcp_policies =  infra_children | selectattr('mcpIfPol', 'defined')
+  | map(attribute='mcpIfPol') | list %}
+{% set stp_policies =  infra_children | selectattr('stpIfPol', 'defined')
+  | map(attribute='stpIfPol') | list %}
+{% set storm_control_policies =  infra_children | selectattr('stormctrlIfPol', 'defined')
+  | map(attribute='stormctrlIfPol') | list %}
     interface_policies:
     {% if cdp_policies | length > 0 %}
 
@@ -55,7 +68,8 @@
         {% if pol.attributes.fecMode != 'inherit' %}
           fec_mode: {{ pol.attributes.fecMode }}
         {% endif %}
-        {% if pol.attributes.portPhyMediaType is defined and pol.attributes.portPhyMediaType != 'auto' %}
+        {% if pol.attributes.portPhyMediaType is defined
+          and pol.attributes.portPhyMediaType != 'auto' %}
           physical_media_type: {{ pol.attributes.portPhyMediaType }}
         {% endif %}
       {% endfor %}
@@ -91,8 +105,9 @@
           symmetric_hash: true
         {% endif %}
           {# TODO: hash-key 'l2LoadBalancePol' #}
-        {% set loadbal = [ pol ] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('l2LoadBalancePol', 'defined') | map(attribute='l2LoadBalancePol')  %}
+        {% set loadbal = [ pol ] | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list | selectattr('l2LoadBalancePol', 'defined')
+          | map(attribute='l2LoadBalancePol')  %}
         {% if loadbal | length > 0 %}
           hash_key: {{ loadbal | map(attribute='attributes') | map(attribute='hashFields') | first }}
         {% endif %}
@@ -167,8 +182,9 @@
         {% if pol.attributes.descr != "" %}
           description: {{ pol.attributes.descr }}
         {% endif %}
-        {% set key_policies = macsec_keychain_policies | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-                | selectattr('macsecKeyPol', 'defined') | map(attribute='macsecKeyPol') | list %}
+        {% set key_policies = macsec_keychain_policies | selectattr('children', 'defined')
+          | map(attribute='children') | flatten | list
+          | selectattr('macsecKeyPol', 'defined') | map(attribute='macsecKeyPol') | list %}
         {% if key_policies | length > 0 %}
           key_policies:
           {% for kp in key_policies | sort(attribute='attributes.name') %}
@@ -197,14 +213,20 @@
         {% if pol.attributes.adminSt != 'enabled' %}
           admin_state: false
         {% endif %}
-        {% set pol_children = [ pol ] | selectattr('children', 'defined') | map(attribute='children') | flatten | list  %}
-        {% set mpp = pol_children | selectattr('macsecRsToParamPol', 'defined') | map(attribute='macsecRsToParamPol') %}
+        {% set pol_children = [ pol ] | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list  %}
+        {% set mpp = pol_children | selectattr('macsecRsToParamPol', 'defined')
+          | map(attribute='macsecRsToParamPol') %}
         {% if mpp | length > 0 %}
-          macsec_parameters_policy: {{ mpp | map(attribute='attributes') | map(attribute='tDn') | first | regex_replace('^uni/infra/macsecpcont/paramp-', '') }}
+          macsec_parameters_policy: {{ mpp | map(attribute='attributes')
+            | map(attribute='tDn') | first | regex_replace('^uni/infra/macsecpcont/paramp-', '') }}
         {% endif %}
-        {% set mkp = pol_children | selectattr('macsecRsToKeyChainPol', 'defined') | map(attribute='macsecRsToKeyChainPol') %}
+        {% set mkp = pol_children | selectattr('macsecRsToKeyChainPol', 'defined')
+          | map(attribute='macsecRsToKeyChainPol') %}
         {% if mkp | length > 0 %}
-          macsec_keychain_policy: {{ mkp | map(attribute='attributes') | map(attribute='tDn') | first | regex_replace('^uni/infra/macsecpcont/keychainp-', '') }}
+          macsec_keychain_policy: {{ mkp | map(attribute='attributes')
+            | map(attribute='tDn') | first
+            | regex_replace('^uni/infra/macsecpcont/keychainp-', '') }}
         {% endif %}
       {% endfor %}
     {% endif %}

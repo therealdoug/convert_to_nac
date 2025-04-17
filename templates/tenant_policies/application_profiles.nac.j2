@@ -1,4 +1,6 @@
-{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp') | flatten | list %}
+{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp') 
+  | flatten | list
+%}
     {% if aps | length > 0 %}
       application_profiles:
       {% for ap in aps | sort(attribute='attributes.name') %}

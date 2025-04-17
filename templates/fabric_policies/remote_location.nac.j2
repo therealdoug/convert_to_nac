@@ -1,4 +1,5 @@
-  {% set remotes = fabricInst_children | selectattr('fileRemotePath', 'defined') | map(attribute='fileRemotePath') 
+  {% set remotes = fabricInst_children | selectattr('fileRemotePath', 'defined')
+    | map(attribute='fileRemotePath') 
     | list | default([])
   %}
   {% if remotes | length > 0 %}
@@ -19,11 +20,15 @@
         'ssh_private_key': remote.attributes.identityPrivateKeyContents | default(''),
         'ssh_public_key': remote.attributes.identityPublicKeyContents | default(''),
         'ssh_passphrase': remote.attributes.identityPrivateKeyPassphrase | default(''),
-        'mgmt_epg_type': 'oob' if 'oob' in [remote] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-          | selectattr('fileRsARemoteHostToEpg', 'defined') | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
+        'mgmt_epg_type': 'oob' if 'oob' in [remote] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten | list
+          | selectattr('fileRsARemoteHostToEpg', 'defined')
+          | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
           | first | default('') else '',
-        'mgmt_epg_name': [remote] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-          | selectattr('fileRsARemoteHostToEpg', 'defined') | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
+        'mgmt_epg_name': [remote] | selectattr('children', 'defined') | map(attribute='children')
+          | flatten | list
+          | selectattr('fileRsARemoteHostToEpg', 'defined')
+          | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
           | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
       }%}
       {% for pol, value in policy.items() if value != '' %}

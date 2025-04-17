@@ -7,38 +7,49 @@
       {% for l3o in l3outs | sort(attribute='attributes.name') %}
         {% set l3o_policy = {
           'name': l3o.attributes.name,
-          'vrf': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extRsEctx', 'defined') | map(attribute='l3extRsEctx.attributes.tnFvCtxName')
+          'vrf': [l3o] | selectattr('children', 'defined') | map(attribute='children')
+            | flatten | list | selectattr('l3extRsEctx', 'defined') 
+            | map(attribute='l3extRsEctx.attributes.tnFvCtxName')
             | flatten | first | default(''),
-          'domain': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extRsL3DomAtt', 'defined') | map(attribute='l3extRsL3DomAtt.attributes.tDn')
+          'domain': [l3o] | selectattr('children', 'defined') | map(attribute='children')
+            | flatten | list | selectattr('l3extRsL3DomAtt', 'defined')
+            | map(attribute='l3extRsL3DomAtt.attributes.tDn')
             | flatten | first | default('') | replace('uni/l3dom-', ''),
           'description': l3o.attributes.descr | default(''),
           'alias': l3o.attributes.alias | default(''),
-          'import_route_control_enforcement': 'true' if 'import' in l3o.attributes.enforceRtctrl else ''
+          'import_route_control_enforcement': 'true' if 'import'
+            in l3o.attributes.enforceRtctrl else ''
             | default(''),
-          'export_route_control_enforcement': 'false' if 'export' not in l3o.attributes.enforceRtctrl else ''
+          'export_route_control_enforcement': 'false' if 'export' not 
+            in l3o.attributes.enforceRtctrl else ''
             | default(''),
           'target_dscp': l3o.attributes.targetDscp | default('') | replace('unspecified', ''),
-          'interleak_route_map': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extRsInterleakPol', 'defined') | map(attribute='l3extRsInterleakPol.attributes.tnRtctrlProfileName')
+          'interleak_route_map': [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extRsInterleakPol', 'defined')
+            | map(attribute='l3extRsInterleakPol.attributes.tnRtctrlProfileName')
             | first | default(''),
-          'l3_multicast_ipv4': 'true' if [l3o] | selectattr('children', 'defined') | map(attribute='children')
+          'l3_multicast_ipv4': 'true' if [l3o] | selectattr('children', 'defined')
+            | map(attribute='children')
             | flatten | list | selectattr('pimExtP', 'defined')
             | selectattr('pimExtP.attributes.enabledAf', 'equalto', 'ipv4-mcast')
-            | map(attribute='pimExtP.attributes.enabledAf') | first | default('') == 'ipv4-mcast' else '',
-          'dampening_ipv4_route_map': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | map(attribute='pimExtP.attributes.enabledAf') | first
+            | default('') == 'ipv4-mcast' else '',
+          'dampening_ipv4_route_map': [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
             | selectattr('l3extRsDampeningPol', 'defined')
             | selectattr('l3extRsDampeningPol.attributes.af', 'equalto', 'ipv4-ucast')
             | map(attribute='l3extRsDampeningPol.attributes.tnRtctrlProfileName')
             | first | default(''),
-          'dampening_ipv6_route_map': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+          'dampening_ipv6_route_map': [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
             | selectattr('l3extRsDampeningPol', 'defined')
             | selectattr('l3extRsDampeningPol.attributes.af', 'equalto', 'ipv6-ucast')
             | map(attribute='l3extRsDampeningPol.attributes.tnRtctrlProfileName')
             | first | default(''),
-          'multipod': 'true' if [l3o] | selectattr('children', 'defined') | map(attribute='children')
-            | flatten | list | selectattr('bgpExtP', 'defined') is defined
+          'multipod': 'true' if [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpExtP', 'defined') is defined
             and this_tenant.attributes.name == 'infra' else '',
         }%}
         {% for policy, value in l3o_policy.items() if value != '' and value != [] %}
@@ -50,17 +61,24 @@
         {% endfor %}
         {# default_route_leak_policy #}
         {% set def_rtleak_policy = {
-          'always': 'true' if [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined') | map(attribute='l3extDefaultRouteLeakP.attributes.always')
+          'always': 'true' if [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extDefaultRouteLeakP', 'defined')
+            | map(attribute='l3extDefaultRouteLeakP.attributes.always')
             | first | default('') == 'yes' else '',
-          'criteria': [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined') | map(attribute='l3extDefaultRouteLeakP.attributes.criteria')
+          'criteria': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
+            | flatten | list | selectattr('l3extDefaultRouteLeakP', 'defined')
+            | map(attribute='l3extDefaultRouteLeakP.attributes.criteria')
             | first | default('') | replace('only', ''),
-          'context_scope': 'true' if 'ctx' in [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined') | map(attribute='l3extDefaultRouteLeakP.attributes.always')
+          'context_scope': 'true' if 'ctx' in [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extDefaultRouteLeakP', 'defined')
+            | map(attribute='l3extDefaultRouteLeakP.attributes.always')
             | first | default('') else '',
-          'outside_scope': 'false' if 'l3-out' not in [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined') | map(attribute='l3extDefaultRouteLeakP.attributes.always')
+          'outside_scope': 'false' if 'l3-out' not in [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extDefaultRouteLeakP', 'defined')
+            | map(attribute='l3extDefaultRouteLeakP.attributes.always')
             | first | default('') else '',
         }%}
         {% if def_rtleak_policy.values() | select('!=', '' ) | list | length > 0 %}
@@ -70,8 +88,10 @@
           {% endfor %}
         {% endif %}
         {# redistribution_route_maps #}
-        {% set redis_rtmaps = [l3o] | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('l3extRsRedistributePol', 'defined') | map(attribute='l3extRsRedistributePol') %}
+        {% set redis_rtmaps = [l3o] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten | list
+          | selectattr('l3extRsRedistributePol', 'defined')
+          | map(attribute='l3extRsRedistributePol') %}
         {% if redis_rtmaps | length > 0 %}
           redistribution_route_maps:
           {% for rtmaps in redis_rtmaps | sort(attribute='attributes.src') %}
@@ -81,26 +101,36 @@
         {% endif %}
         {# OSPF Class #}
         {% set ospf_policies = {
-          'ospf_interface_profile_name': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.name')
+          'ospf_interface_profile_name': [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('ospfExtP', 'defined')
+            | map(attribute='ospfExtP.attributes.name')
             | first | default(''),
           'area': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaId')
+            | flatten | list | selectattr('ospfExtP', 'defined')
+            | map(attribute='ospfExtP.attributes.areaId')
             | first | default(''),
-          'area_type': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaType')
+          'area_type': [l3o] | selectattr('children', 'defined') | map(attribute='children')
+            | flatten | list | selectattr('ospfExtP', 'defined')
+            | map(attribute='ospfExtP.attributes.areaType')
             | first | default('') | replace('regular', ''),
           'area_type': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaCost')
+            | flatten | list | selectattr('ospfExtP', 'defined')
+            | map(attribute='ospfExtP.attributes.areaCost')
             | first | default('') | replace('1', ''),
-          'area_control_redistribute': 'true' if 'redistribute' in [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaCtrl')
+          'area_control_redistribute': 'true' if 'redistribute' in [l3o]
+            | selectattr('children', 'defined') | map(attribute='children') 
+            | flatten | list | selectattr('ospfExtP', 'defined')
+            | map(attribute='ospfExtP.attributes.areaCtrl')
             | first | default('') else '',
-          'area_control_summary': 'true' if 'summary' in [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaCtrl')
+          'area_control_summary': 'true' if 'summary' in [l3o] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaCtrl')
             | first | default('') else '',
-          'area_control_suppress_fa': 'true' if 'suppress-fa' in [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaCtrl')
+          'area_control_suppress_fa': 'true' if 'suppress-fa' in [l3o]
+            | selectattr('children', 'defined') | map(attribute='children') 
+            | flatten | list | selectattr('ospfExtP', 'defined')
+            | map(attribute='ospfExtP.attributes.areaCtrl')
             | first | default('') else '',
         }%}
         {% if ospf_policies.values() | select('!=', '' ) | list | length > 0 %}
@@ -109,9 +139,10 @@
             {{ policy }}: {{ value }}
           {% endfor %}
         {% endif %}
-        {% set rtctrl_rtmaps = [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('rtctrlProfile', 'defined') | map(attribute='rtctrlProfile')
-            | default('') %}
+        {% set rtctrl_rtmaps = [l3o] | selectattr('children', 'defined')
+          | map(attribute='children')  | flatten | list
+          | selectattr('rtctrlProfile', 'defined') | map(attribute='rtctrlProfile')
+          | default('') %}
         {# {{ rtctrl_rtmaps | to_nice_json }} #}
         {% if rtctrl_rtmaps | length > 0 %}
           route_maps:
@@ -130,8 +161,9 @@
               {{ policy }}: {{ value }}
               {% endif %}
             {% endfor %}
-            {% set contexts = [rtmap] | selectattr('children', 'defined') | map(attribute='children') 
-              | flatten | list | selectattr('rtctrlCtxP', 'defined') | map(attribute='rtctrlCtxP')
+            {% set contexts = [rtmap] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten | list
+              | selectattr('rtctrlCtxP', 'defined') | map(attribute='rtctrlCtxP')
               | default('')
             %}
             {% if contexts | length > 0 %}
@@ -142,14 +174,17 @@
                   'action': context.attributes.action | replace('permit', ''),
                   'description': context.attributes.descr | default(''),
                   'order': context.attributes.order | default('') | replace('0', ''),
-                  'set_rule': [context] | selectattr('children', 'defined') | map(attribute='children') 
-                    | flatten | list | selectattr('rtctrlScope', 'defined') | map(attribute='rtctrlScope')
-                    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+                  'set_rule': [context] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('rtctrlScope', 'defined') | map(attribute='rtctrlScope')
+                    | selectattr('children', 'defined') | map(attribute='children')
+                    | flatten | list
                     | selectattr('rtctrlRsScopeToAttrP', 'defined')
                     | map(attribute='rtctrlRsScopeToAttrP.attributes.tnRtctrlAttrPName')
                     | first | default(''),
-                  'match_rules': [context] | selectattr('children', 'defined') | map(attribute='children') 
-                    | flatten | list | selectattr('rtctrlRsCtxPToSubjP', 'defined')
+                  'match_rules': [context] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('rtctrlRsCtxPToSubjP', 'defined')
                     | map(attribute='rtctrlRsCtxPToSubjP.attributes.tnRtctrlSubjPName')
                     | default('')
                 } %}
