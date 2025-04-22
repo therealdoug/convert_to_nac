@@ -1,0 +1,42 @@
+{% set node_profiles = [l3o]
+  | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+  | selectattr('l3extLNodeP', 'defined') | map(attribute='l3extLNodeP')
+  | list | default([]) %}
+        {% if node_profiles | length > 0 %}
+          node_profiles:
+          {% for np in node_profiles %}
+          {% set bgp_policy = [np]
+            | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+            | selectattr('bgpProtP', 'defined') | map(attribute='bgpProtP')
+            | first | default([]) %}
+            {% set npp = {
+              'name': np.attributes.name,
+              'alias': np.attributes.nameAlias | default(''),
+              'description': np.attributes.descr | default(''),
+            }%}
+            {% for policy, value in npp.items() if value != '' %}
+              {% if loop.first %}
+            - {{ policy }}: {{ value }}
+              {% else %}
+              {{ policy }}: {{ value }}
+              {% endif %}
+            {% endfor %}
+            {% if bgp_policy | length > 0 %}
+              bgp:
+                {% set bgpp = {
+                'name': bgp_policy.attributes.name | default(''),
+                'timer_policy': [bgp_policy] | map(attribute='children') | flatten
+                  | selectattr('bgpRsBgpNodeCtxPol', 'defined')
+                  | map(attribute='bgpRsBgpNodeCtxPol.attributes.tnBgpCtxPolName')
+                  | first | default(''),
+                'as_path_policy': [bgp_policy] | map(attribute='children') | flatten
+                  | selectattr('bgpRsBestPathCtrlPol', 'defined')
+                  | map(attribute='bgpRsBestPathCtrlPol.attributes.tnBgpBestPathCtrlPolName')
+                  | first | default(''),
+                }%}
+                {% for policy, value in bgpp.items() if value != '' %}
+                {{ policy }}: {{ value }}
+                {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
