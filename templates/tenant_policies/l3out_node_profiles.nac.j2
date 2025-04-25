@@ -5,10 +5,11 @@
         {% if node_profiles | length > 0 %}
           node_profiles:
           {% for np in node_profiles %}
-          {% set bgp_policy = [np]
-            | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-            | selectattr('bgpProtP', 'defined') | map(attribute='bgpProtP')
-            | first | default([]) %}
+            {# bgp class for apic.tenants.l3outs.node_profiles.bgp #}
+            {% set bgp_policy = [np]
+              | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+              | selectattr('bgpProtP', 'defined') | map(attribute='bgpProtP')
+              | first | default([]) %}
             {% set npp = {
               'name': np.attributes.name,
               'alias': np.attributes.nameAlias | default(''),
@@ -38,5 +39,51 @@
                 {{ policy }}: {{ value }}
                 {% endfor %}
             {% endif %}
+            {# nodes list for apic.tenants.l3outs.node_profiles.nodes #}
+            {% set nodes = [np]
+              | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+              | selectattr('l3extRsNodeL3OutAtt', 'defined') | map(attribute='l3extRsNodeL3OutAtt')
+              | default([])
+            %}
+            {% if nodes | length > 0 %}
+              nodes:
+              {% for node in nodes %}
+                {% set node_data = {
+                  'node_id': node.attributes.tDn 
+                    | regex_replace('^topology/[^/]+/node-([0-9]+)$', '\\1'),
+                  'pod_id': node.attributes.tDn
+                    | regex_replace('^topology/pod-(\d{1,2})/node-[0-9]+$', '\\1')
+                    | default(''),
+                  'router_id': node.attributes.rtrId,
+                  'router_id_as_loopback': 'false' if node.attributes.rtrIdLoopBack != 'yes' else ''
+                    | default(''),
+                  'loopbacks': [node] | selectattr('children', 'defined') | map(attribute='children')
+                    | flatten | list | selectattr('l3extLoopBackIfP', 'defined')
+                    | map(attribute='l3extLoopBackIfP.attributes.addr')
+                    | list | default([]),
+                }%}
+                {% for policy, value in node_data.items() if value != '' and value != [] %}
+                  {% if loop.first %}
+                - {{ policy }}: {{ value }}
+                  {% else %}
+                    {% if policy == 'loopbacks' %}
+                  loopbacks:
+                    {% for loopback in value %}
+                    - {{ loopback }}
+                    {% endfor %}
+                    {% elif policy == 'static_routes' %}
+                  static_routes:
+                    {{ value | to_nice_json }}
+                    {% endif %}
+                  {{ policy }}: {{ value }}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+            {% endif %}
+            {# bgp_peers list for apic.tenants.l3outs.node_profiles.bgp_peers #}
+            {% set node_peers = [np]
+              | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+              | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP')
+            %}
           {% endfor %}
         {% endif %}

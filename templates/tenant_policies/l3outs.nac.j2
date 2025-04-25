@@ -1,6 +1,12 @@
-    {% set l3outs = this_tenant.children 
-      | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') 
-      | selectattr('attributes.mplsEnabled', 'equalto', 'no') | flatten | list %}
+    {# 
+      `mplsEnabled` flag is only for 5.0+ fabrics. So we need to account
+      for older configuration 
+     #}
+    {% set l3extOut_list = this_tenant.children 
+      | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') %}
+    {% set l3outs = l3extOut_list | selectattr('attributes.mplsEnabled', 'defined')
+      | selectattr('attributes.mplsEnabled', 'equalto', 'no') | list
+      + (l3extOut_list | selectattr('attributes.mplsEnabled', 'undefined') | list) | default([]) %}
     {% if l3outs | length > 0 %}
 
       l3outs:
@@ -139,6 +145,7 @@
             {{ policy }}: {{ value }}
           {% endfor %}
         {% endif %}
+        {# Route Maps - Use `route_maps` or `['import_route_maps', 'export_route_maps'] #}
         {% set rtctrl_rtmaps = [l3o] | selectattr('children', 'defined')
           | map(attribute='children')  | flatten | list
           | selectattr('rtctrlProfile', 'defined') | map(attribute='rtctrlProfile')
