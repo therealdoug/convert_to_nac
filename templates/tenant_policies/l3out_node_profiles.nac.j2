@@ -47,8 +47,37 @@
             %}
             {% if nodes | length > 0 %}
               nodes:
+              {% set nodens = namespace(nodes=[]) %}
               {% for node in nodes %}
-                {% set node_data = {
+              {% set srns = namespace(static_routes=[]) %}
+              {% set nhns = namespace(next_hops=[]) %}
+                {% for sr in [node] | selectattr('children', 'defined') | map(attribute='children')
+                    | flatten | list | selectattr('ipRouteP', 'defined')
+                    | map(attribute='ipRouteP') | default([]) %}
+                    {% for nh in [sr] | selectattr('children', 'defined')
+                        | map(attribute='children') | flatten | list
+                        | selectattr('ipNexthopP', 'defined')
+                        | map(attribute='ipNexthopP') | default([]) %}
+                      {% set nhns.next_hops = nhns.next_hops + [{
+                        'ip': nh.attributes.nhAddr,
+                        'description': nh.attributes.descr,
+                        'preference': nh.attributes.pref
+                          | regex_replace('^(1|unspecified)', ''),
+                        'type': nh.attributes.type
+                          | replace('prefix', ''),
+                      }]%}
+                    {% endfor %}
+                  {% set srns.static_routes = srns.static_routes + [{
+                    'prefix': sr.attributes.ip,
+                    'description': sr.attributes.descr,
+                    'preference': sr.attributes.pref
+                      | regex_replace('^(1|unspecified)', ''),
+                    'bfd': 'true' if sr.attributes.rtCtrl == 'yes' else ''
+                      | default(''),
+                    'next_hops': nhns.next_hops,
+                  }] %}
+                {% endfor %}
+               {% set nodens.node = {
                   'node_id': node.attributes.tDn 
                     | regex_replace('^topology/[^/]+/node-([0-9]+)$', '\\1'),
                   'pod_id': node.attributes.tDn
@@ -61,20 +90,40 @@
                     | flatten | list | selectattr('l3extLoopBackIfP', 'defined')
                     | map(attribute='l3extLoopBackIfP.attributes.addr')
                     | list | default([]),
+                  'static_routes': srns.static_routes,
                 }%}
-                {% for policy, value in node_data.items() if value != '' and value != [] %}
+                {% for policy, value in nodens.node.items() if value != '' and value != [] %}
                   {% if loop.first %}
                 - {{ policy }}: {{ value }}
-                  {% else %}
-                    {% if policy == 'loopbacks' %}
+                  {% elif policy == 'loopbacks' %}
                   loopbacks:
-                    {% for loopback in value %}
-                    - {{ loopback }}
+                    {% for lb in value %}
+                      - {{ lb }}
                     {% endfor %}
-                    {% elif policy == 'static_routes' %}
+                  {% elif policy == 'static_routes' %}
                   static_routes:
-                    {{ value | to_nice_json }}
-                    {% endif %}
+                    {% for sr in srns.static_routes %}
+                      {% for policy, value in sr.items() if value != '' and value != [] %}
+                        {% if loop.first %}
+                    - {{ policy }}: {{ value }}
+                        {% elif policy == 'next_hops' %}
+                      next_hops:
+                        {% for nh in value %}
+                          {% for nhpolicy, nhvalue in nh.items() if nhvalue != ''
+                            and nhvalue != [] %}
+                            {% if loop.first %}
+                        - {{ nhpolicy }}: {{ nhvalue }}
+                            {% else %}
+                          {{ nhpolicy }}: {{ nhvalue }}
+                            {% endif %}
+                          {% endfor %}
+                        {% endfor %}
+                        {% else %}
+                      {{ policy }}: {{ value }}
+                        {% endif %}
+                      {% endfor %}
+                    {% endfor %}
+                  {% else %}
                   {{ policy }}: {{ value }}
                   {% endif %}
                 {% endfor %}
@@ -85,5 +134,77 @@
               | selectattr('children', 'defined') | map(attribute='children') | flatten | list
               | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP')
             %}
+            {% if node_peers | length > 0 %}
+
+              bgp_peers:
+              {% for np in node_peers | sort(attribute='attributes.addr') %}
+                {% set peers = {
+                  'ip': np.attributes.addr,
+                  'description': np.attributes.descr,
+                  'alias': np.attributes.nameAlias,
+                  'remote_as': [np]| selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('bgpAsP', 'defined')
+                    | map(attribute='bgpAsP.attributes.asn')
+                    | first | default(''),
+                  'allow_self_as': 'true' if 'allow-self-as' in np.attributes.ctrl else '',
+                  'as_override': 'true' if 'as-override' in np.attributes.ctrl else '',
+                  'disable_peer_as_check': 'true' if 'dis-peer-as-check' in np.attributes.ctrl else '',
+                  'next_hop_self': 'true' if 'nh-self' in np.attributes.ctrl else '',
+                  'send_community': 'true' if 'send-com' in np.attributes.ctrl else '',
+                  'send_ext_community': 'true' if 'send-ext-com' in np.attributes.ctrl else '',
+                  'password': np.attributes.password | default(''),
+                  'bfd': 'true' if 'bfd' in np.attributes.peerCtrl else '',
+                  'disable_connected_check': 'true' if 'dis-conn-check' in np.attributes.peerCtrl else '',
+                  'ttl': np.attributes.ttl | replace('1', ''),
+                  'weight': np.attributes.weight
+                    | replace('0', ''),
+                  'remove_all_private_as': 'true' if 'remove-all' in np.attributes.privateASctrl else '',
+                  'remove_private_as': 'true' if 'remove-exclusive' in np.attributes.privateASctrl else '',
+                  'replace_private_as_with_local_as': 'true' if 'replace-as' in np.attributes.privateASctrl else '',
+                  'unicast_address_family': 'false' if 'af-ucast' not in np.attributes.addrTCtrl else '',
+                  'multicast_address_family': 'false' if 'af-mcast' not in np.attributes.addrTCtrl else '',
+                  'local_as': [np] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('bgpLocalAsnP', 'defined')
+                    | map(attribute='bgpLocalAsnP.attributes.localAsn')
+                    | first | default(''),
+                  'as_propagate': [np] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('bgpLocalAsnP', 'defined')
+                    | map(attribute='bgpLocalAsnP.attributes.asnPropagate')
+                    | first | default('') | replace('none', ''),
+                  'peer_prefix_policy': [np] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('bgpRsPeerPfxPol', 'defined')
+                    | map(attribute='bgpRsPeerPfxPol.attributes.tnBgpPeerPfxPolName')
+                    | first | default(''),
+                  'export_route_control': [np] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('bgpRsPeerToProfile', 'defined')
+                    | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'export')
+                    | map(attribute='bgpRsPeerToProfile.attributes.tDn')
+                    | first | default('')
+                    | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
+                  'import_route_control': [np] | selectattr('children', 'defined')
+                    | map(attribute='children') | flatten | list
+                    | selectattr('bgpRsPeerToProfile', 'defined')
+                    | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'import')
+                    | map(attribute='bgpRsPeerToProfile.attributes.tDn')
+                    | first | default('')
+                    | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
+                  'admin_state': 'false' if np.attributes.adminSt == 'disabled' else '' | default(''),
+                  'allowed_self_as_count': np.attributes.allowedSelfAsCnt
+                    | replace('3', ''),
+                } %}
+                {% for policy, value in peers.items() if value != '' %}
+                  {% if loop.first %}
+                - {{ policy }}: {{ value }}
+                  {% else %}
+                  {{ policy }}: {{ value }}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+            {% endif %}
           {% endfor %}
         {% endif %}
