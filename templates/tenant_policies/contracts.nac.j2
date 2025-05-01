@@ -1,86 +1,67 @@
-    {% set contracts = this_tenant.children | selectattr('vzBrCP', 'defined') 
-      | map(attribute='vzBrCP') | flatten | list %}
-    {% set imp_contracts = this_tenant.children | selectattr('vzCPIf', 'defined')
-      | map(attribute='vzCPIf') | flatten | list | default([]) %}
-    {#- Contracts -#}
-    {% if contracts | length > 0 %}
-      contracts:
-      {% for con in contracts | sort(attribute='attributes.name') %}
-        - name: {{ con.attributes.name }}
-        {% if con.attributes.descr != "" %}
-          description: {{ con.attributes.descr }}
-        {% endif %}
-        {% if con.attributes.scope != "context" %}
-          scope: {{ con.attributes.scope }}
-        {% endif %}
-        {% if con.attributes.prio != "unspecified" %}
-          qos_class: {{ con.attributes.prio }}
-        {% endif %}
-        {% if con.attributes.targetDscp != "unspecified" %}
-          target_dscp: {{ con.attributes.targetDscp }}
-        {% endif %}
-        {% set subjects = con.children | selectattr('vzSubj','defined') | map(attribute='vzSubj')
-          | list if con.children is defined %}
-        {% if subjects | length > 0  %}
-          subjects:
-          {% for subj in subjects | sort(attribute='attributes.name') %}
-            - name: {{ subj.attributes.name }}
-            {% if subj.attributes.descr != "" %}
-              description: {{ subj.attributes.descr }}
-            {% endif %}
-            {% if subj.attributes.prio != "unspecified" %}
-              qos_class: {{ subj.attributes.prio }}
-            {% endif %}
-            {% if subj.attributes.targetDscp != "unspecified" %}
-              target_dscp: {{ subj.attributes.targetDscp }}
-            {% endif %}
-            {% if subj.children | selectattr('vzRsSubjGraphAtt','defined')
-              | map(attribute='vzRsSubjGraphAtt') | list | length > 0 %}
-            {% for sg in subj.children | selectattr('vzRsSubjGraphAtt','defined')
-              | map(attribute='vzRsSubjGraphAtt')
-              | sort(attribute='attributes.tnVnsAbsGraphName')
-            %}
-              service_graph: {{ sg.attributes.tnVnsAbsGraphName }}
-            {% endfor %}
-            {% endif %}
-            {% if subj.children | selectattr('vzRsSubjFiltAtt', 'defined')
-              | map(attribute='vzRsSubjFiltAtt') | list | length > 0 %}
-              filters:
-              {% for fltr in subj.children | selectattr('vzRsSubjFiltAtt', 'defined')
-                | map(attribute='vzRsSubjFiltAtt')
-                | sort(attribute='attributes.tnVzFilterName')
-              %}
-                - filter: {{ fltr.attributes.tnVzFilterName }}
-                {% if fltr.attributes.action != "permit" %}
-                  action: {{ fltr.attributes.action }}
-                {% endif %}
-                {% if fltr.attributes.priorityOverride != "default" %}
-                  priority: {{ fltr.attributes.priorityOverride }}
-                {% endif %}
-                {% if "log" in fltr.attributes.directives.split(',') | list %}
-                  log: true
-                {% endif %}
-                {% if "not_stats" in fltr.attributes.directives.split(',') | list %}
-                  no_stats: true
-                {% endif %}
-              {% endfor %}
-            {% endif%}
-          {% endfor %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {#- Being Imported Contracts -#}
-    {% if imp_contracts | length > 0 %}
+{% import 'macro_handler.j2' as helper %}
+{% set contracts = this_tenant.children | selectattr('vzBrCP', 'defined')
+  | map(attribute='vzBrCP') | default([]) | flatten %}
+{% set imp_contracts = this_tenant.children | selectattr('vzCPIf', 'defined')
+  | map(attribute='vzCPIf') | flatten | list | default([]) %}
+{% set contractns = namespace(contracts=[]) %}
+{% for con in contracts | sort(attribute='attributes.name') %}
+  {% set subjectns = namespace(subjects=[]) %}
+  {% for subject in [con]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('vzSubj','defined') | map(attribute='vzSubj')
+    | list | default([]) %}
+    {% set filterns = namespace(filters=[]) %}
+    {% for filter in [subject]
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('vzRsSubjFiltAtt','defined') | map(attribute='vzRsSubjFiltAtt')
+      | list | default([]) %}
+      {% set filterns.filters = filterns.filters +
+        [{
+          'filter': filter.attributes.tnVzFilterName,
+          'action': filter.attributes.action | default('')
+            | replace('permit', ''),
+          'priority': filter.attributes.priorityOverride | default('')
+            | replace('default', ''),
+          'log': 'true' if 'log' in filter.attributes.directives
+            | default('') else '',
+          'no_stats': 'true' if 'no_stats' in filter.attributes.directives
+            | default('') else '',
+        }] %}
+    {% endfor %} {# filter #}
+    {% set subjectns.subjects = subjectns.subjects +
+      [{
+        'name': subject.attributes.name,
+        'alias': subject.attributes.nameAlias | default(''),
+        'description': subject.attributes.descr | default(''),
+        'service_graph': '',
+        'qos_class': subject.attributes.prio | default('')
+          | replace('unspecified', ''),
+        'target_dscp': subject.attributes.targetDscp | default('')
+          | replace('unspecified', ''),
+        'reverse_filter_ports': 'false' if subject.attributes.revFltPorts == 'no' else ''
+          | default(''),
+        'filters': filterns.filters | default([]),
+        'consumer_to_provider_service_graph': '',
+        'consumer_to_provider_qos_class': '',
+        'consumer_to_provider_target_dscp': '',
+        'consumer_to_provider_filters': [],
+        'provider_to_consumer_service_graph': '',
+        'provider_to_consumer_qos_class': '',
+        'provider_to_consumer_target_dscp': '',
+        'provider_to_consumer_filters': [],
+      }] %}
+  {% endfor %}{# subject #}
+  {% set contractns.contracts = contractns.contracts +
+    [{
+    'name': con.attributes.name,
+    'alias': con.attributes.nameAlias | default(''),
+    'description': con.attributes.descr | default(''),
+    'scope': con.attributes.scope | default('') | replace('context', ''),
+    'qos_class': con.attributes.prio | default('') | replace('unspecified', ''),
+    'target_dscp': con.attributes.targetDscp | default('') | replace('unspecified', ''),
+    'subjects': subjectns.subjects | default([]),
+    }] %}
+{% endfor %}{#- con #}
 
-      imported_contracts:
-      {% for con in imp_contracts | sort(attribute='attributes.name' ) %}
-        {% set src_tdn = [con] | selectattr('children', 'defined') | map(attribute='children')
-          | flatten | list
-          | selectattr('vzRsIf', 'defined') | map(attribute='vzRsIf.attributes.tDn')
-          | first | default('')
-        %}
-        - name: {{ con.attributes.name }}
-          tenant: {{ src_tdn | regex_replace('^uni/tn-(.*?)/brc-.*', '\\1') }}
-          contract: {{ src_tdn | regex_replace('^.*brc-(.*)$', '\\1') }}
-      {% endfor %}
-    {% endif %}
+{{ 'contracts:' | indent(6, first=True)}}
+{{ helper.remove_empty(contractns.contracts) | indent(8, first=True)}}
