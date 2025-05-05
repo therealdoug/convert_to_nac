@@ -6,12 +6,12 @@
   | selectattr('l3extOut', 'defined') | map(attribute='l3extOut')
   | selectattr('attributes.mplsEnabled', 'defined')
   | selectattr('attributes.mplsEnabled', 'equalto', 'no') | list
-  + 
+  +
   ([this_tenant]
   | selectattr('children', 'defined') | map(attribute='children') | flatten
   | selectattr('l3extOut', 'defined') | map(attribute='l3extOut')
   | selectattr('attributes.mplsEnabled', 'undefined') | list)
-  | default([]) 
+  | default([])
   | sort(attribute='attributes.name') %}
   {% set ospfns = namespace(ospf={}) %}
   {% set dfrtleakns = namespace(def_rtleak={}) %}
@@ -267,8 +267,8 @@
             in npeer.attributes.privateASctrl else '',
           'unicast_address_family': 'false' if 'af-ucast'
             not in npeer.attributes.addrTCtrl else '',
-          'multicast_address_family': 'true' if 'af-mcast'
-            in npeer.attributes.addrTCtrl else '',
+          'multicast_address_family': 'false' if 'af-mcast'
+            not in npeer.attributes.addrTCtrl else '',
           'local_as': [npeer] | selectattr('children', 'defined')
             | map(attribute='children') | flatten | list
             | selectattr('bgpLocalAsnP', 'defined')
@@ -341,12 +341,43 @@
           }] %}
       {% endfor %}
       {% set interfacesns = namespace(interfaces=[]) %}
-      {% for intf in [int_prof] | selectattr('children', 'defined')
+      {% set interface_profiles = [int_prof] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | list
         | selectattr('l3extRsPathL3OutAtt', 'defined')
         | map(attribute='l3extRsPathL3OutAtt')
-        | default([]) %}
+        +
+        [int_prof] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten | list
+        | selectattr('l3extVirtualLIfP', 'defined')
+        | map(attribute='l3extVirtualLIfP')
+        | default([])
+      %}
+      {#- Floating SVI Interface -#}
+      {#- Physical Interface -#}
+      {% for intf in interface_profiles %}
         {#- Set Interface Paths -#}
+        {% set interfacepathsns = namespace(paths=[]) %}
+        {% for path in [intf] | selectattr('children', 'defined')
+          | map(attribute='children' ) | flatten
+          | selectattr('l3extRsDynPathAtt', 'defined')
+          | map(attribute='l3extRsDynPathAtt')
+          | list | default('') %}
+          {% set interfacepathsns.paths = interfacepathsns.paths + [{
+            'floating_ip': path.attributes.floatingAddr,
+            'physical_domain': path.attributes.tDn
+              | replace('uni/phys-', '') if 'uni/phys-' in path.attributes.tDn
+              else '',
+            'vmware_vmm_domain': path.attributes.tDn
+              | replace('uni/vmmp-VMware/dom-', '') if 'vmmp-VMware/dom-'
+              in path.attributes.tDn else '',
+            'vlan': path.attributes.encap
+              | replace('vlan-', '')
+              | replace('unspecified', '')
+              | replace('unknown', ''),
+            'elag': '',
+          }] %}
+        {% endfor %}
+        {#- Set Interface Peers -#}
         {% set interfacepeers = namespace(peers=[]) %}
         {% for peer in [intf] | selectattr('children', 'defined')
           | map(attribute='children' ) | flatten
@@ -354,7 +385,7 @@
           | list | default('')
           %}
           {% set interfacepeers.peers = interfacepeers.peers + [{
-            'ip': peer.attributes.addr,
+            'ip': peer.attributes.addr | regex_replace('::$', '::0'),
             'alias': peer.attributes.nameAlias | default(''),
             'description': peer.attributes.descr | default(''),
             'remote_as': [peer] | selectattr('children', 'defined')
@@ -425,7 +456,8 @@
           'ip': intf.attributes.addr | replace('0.0.0.0', ''),
           'svi': 'true' if intf.attributes.ifInstT == 'ext-svi' else ''
             | default(''),
-          'floating_svi': none,
+          'floating_svi': 'true' if [intf] | map(attribute='attributes.nodeDn')
+            | first | default('') else '',
           'description': intf.attributes.descr,
           'vlan': intf.attributes.encap
             | regex_replace('^vlan-(\d+)$', '\\1') | default(''),
@@ -433,34 +465,56 @@
           'mac': intf.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
           'mode': intf.attributes.mode | replace('regular', ''),
           'mtu': intf.attributes.mtu | default('') | replace('inherit', ''),
-          'pod_id': intf.attributes.tDn | default('')
+          'pod_id': [intf] | map(attribute='attributes.tDn')
+            | first
             | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\1')
-            | replace('1', ''),
-          'node_id': intf.attributes.tDn | default('')
-            | regex_replace(
+            | replace('1', '')
+              if [intf] | selectattr('attributes.tDn', 'defined')
+                | map(attribute='attributes.tDn')
+              else
+                [intf] | selectattr('attributes.nodeDn', 'defined')
+                | map(attribute='attributes.nodeDn')
+                | first
+                | regex_replace('^topology\/pod-(\d+)\/node-(\d+)$', '\\1')
+                | replace('1', ''),
+          'node_id': [intf] | selectattr('attributes.tDn', 'defined')
+            | map(attribute='attributes.tDn')
+            | first | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-              '\\2'),
-          'node2_id': intf.attributes.tDn | default('')
+              '\\2')
+              if [intf] | selectattr('attributes.tDn', 'defined')
+                | map(attribute='attributes.tDn')
+              else
+                [intf] | selectattr('attributes.nodeDn', 'defined')
+                | map(attribute='attributes.nodeDn')
+                | first
+                | regex_replace('^topology\/pod-(\d+)\/node-(\d+)$', '\\2'),
+          'node2_id': [intf] | map(attribute='attributes.tDn')
+            | first | default('')
             | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\3'),
-          'channel': intf.attributes.tDn | default('')
+          'channel': [intf] | map(attribute='attributes.tDn')
+            | first | default('')
             | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\4')
             | regex_replace('^eth.*', ''),
-          'module': intf.attributes.tDn | default('')
+          'module': [intf] | map(attribute='attributes.tDn')
+            | first | default('')
             | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\5')
             | replace('1', ''),
-          'port': intf.attributes.tDn | default('')
+          'port': [intf] | map(attribute='attributes.tDn')
+            | first | default('')
             | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\6'),
-          'sub_port': intf.attributes.tDn | default('')
+          'sub_port': [intf] | map(attribute='attributes.tDn')
+            | first | default('')
             | regex_replace(
             '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\7'),
@@ -492,8 +546,8 @@
             | default(''),
           'micro_bfd_destination_ip': '',
           'micro_bfd_start_timer': '',
-          'paths': ['@@'],
           'bgp_peers': interfacepeers.peers | default([]),
+          'paths': interfacepathsns.paths | default([]),
         }] %}
       {% endfor %}
       {% set intprofns.int_profs = intprofns.int_profs + [{
