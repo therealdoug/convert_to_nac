@@ -35,7 +35,7 @@ apic:
       | selectattr('infraPortBlk', 'defined') | map(attribute='infraPortBlk') %}
     {% if port_blocks | length > 0 %}
             port_blocks:
-      {% for block in port_blocks 
+      {% for block in port_blocks
         | sort(attribute='attributes.fromCard,attributes.fromPort') %}
               - name: {{ block.attributes.name }}
         {% if block.attributes.descr != "" %}

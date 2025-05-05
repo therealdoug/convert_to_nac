@@ -14,12 +14,12 @@
           | replace('yes', 'true'),
         'remote_location': export | selectattr('children', 'defined') | map(attribute='children')
           | flatten | list
-          | selectattr('configRsRemotePath', 'defined') 
+          | selectattr('configRsRemotePath', 'defined')
           | map(attribute='configRsRemotePath.attributes.tnFileRemotePathName')
           | first | default(''),
         'scheduler': export | selectattr('children', 'defined') | map(attribute='children')
           | flatten | list
-          | selectattr('configRsExportScheduler', 'defined') 
+          | selectattr('configRsExportScheduler', 'defined')
           | map(attribute='configRsExportScheduler.attributes.tnTrigSchedPName')
           | first | default(''),
       }%}

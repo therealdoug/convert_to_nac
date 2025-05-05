@@ -1,13 +1,13 @@
   {% set sr_mpls = {
-    'sr_global_block_minimum': polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') 
-    | selectattr('attributes.name', 'equalto', 'infra') 
+    'sr_global_block_minimum': polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
+    | selectattr('attributes.name', 'equalto', 'infra')
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
     | selectattr('mplsLabelPol', 'defined') | map(attribute='mplsLabelPol')
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
     | selectattr('mplsSrgbLabelPol', 'defined') | map(attribute='mplsSrgbLabelPol.attributes.minSrgbLabel')
     | first | default('') | replace('16000',''),
-    'sr_global_block_maximum': polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant') 
-    | selectattr('attributes.name', 'equalto', 'infra') 
+    'sr_global_block_maximum': polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
+    | selectattr('attributes.name', 'equalto', 'infra')
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
     | selectattr('mplsLabelPol', 'defined') | map(attribute='mplsLabelPol')
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
