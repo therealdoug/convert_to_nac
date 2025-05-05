@@ -63,5 +63,5 @@
     }] %}
 {% endfor %}{#- con #}
 
-{{ 'contracts:' | indent(6, first=True)}}
+{{ 'contracts:' | indent(6, first=True) if contractns.contracts }}
 {{ helper.remove_empty(contractns.contracts) | indent(8, first=True)}}

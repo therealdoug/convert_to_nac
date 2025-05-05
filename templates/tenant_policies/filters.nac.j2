@@ -1,47 +1,40 @@
-{% set filters = this_tenant.children | selectattr('vzFilter', 'defined')
-  | map(attribute='vzFilter') | flatten | list %}
-{% if filters | length > 0 %}
-
-      filters:
-        {% for fltr in filters | sort(attribute='attributes.name') %}
-        - name: {{ fltr.attributes.name }}
-          {% if fltr.attributes.nameAlias != "" %}
-          alias: {{ fltr.attributes.nameAlias }}
-          {% endif %}
-          {% if fltr.attributes.descr != "" %}
-          description: {{ fltr.attributes.descr }}
-          {% endif %}
-          {% if [fltr] | selectattr('children', 'defined') | map(attribute='children')
-            | flatten | list | selectattr('vzEntry','defined') | map(attribute='vzEntry')
-            | list | length > 0 %}
-          entries:
-            {% for entry in fltr.children | selectattr('vzEntry','defined')
-              | map(attribute='vzEntry') | sort(attribute='attributes.name') %}
-            - name: {{ entry.attributes.name }}
-              {% if entry.attributes.etherT != "ip" %}
-              ethertype: {{ entry.attributes.etherT }}
-              {% endif %}
-              {% if entry.attributes.prot != "ip" %}
-              protocol: {{ entry.attributes.prot }}
-              {% endif %}
-              {% if entry.attributes.sFromPort != "unspecified" %}
-              source_from_port: {{ entry.attributes.sFromPort }}
-              {% endif %}
-              {% if entry.attributes.sToPort != "unspecified"
-                and entry.attributes.sToPort != entry.attributes.sFromPort %}
-              source_to_port: {{ entry.attributes.sToPort }}
-              {% endif %}
-              {% if entry.attributes.dFromPort != "unspecified" %}
-              destination_from_port: {{ entry.attributes.dFromPort }}
-              {% endif %}
-              {% if entry.attributes.dToPort != "unspecified"
-                and entry.attributes.dToPort != entry.attributes.dFromPort %}
-              destination_to_port: {{ entry.attributes.dToPort }}
-              {% endif %}
-              {% if entry.attributes.stateful != "no" %}
-              stateful: true
-              {% endif %}
-            {% endfor %}
-          {% endif %}
-        {% endfor %}
-{% endif %}
+{% import 'macro_handler.j2' as helper %}
+{% set filterns = namespace(filters=[])%}
+{% for fltr in [this_tenant] | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('vzFilter', 'defined')
+  | map(attribute='vzFilter') | flatten | default([])
+  | sort(attribute='attributes.name') %}
+  {% set entryns = namespace(entries=[]) %}
+  {% for entry in [fltr] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vzEntry','defined')
+    | map(attribute='vzEntry') | sort(attribute='attributes.name')%}
+    {% set entryns.entries = entryns.entries + [{
+      'name': entry.attributes.name,
+      'alias': entry.attributes.nameAlias | default(''),
+      'description': entry.attributes.descr | default(''),
+      'ethertype': entry.attributes.etherT | default('') | replace('ip', ''),
+      'protocol': entry.attributes.prot | default('') | replace('tcp', ''),
+      'source_from_port': entry.attributes.sFromPort | default('')
+        | replace('unspecified', ''),
+      'source_to_port': entry.attributes.sToPort | default('')
+        | replace('unspecified', '')
+        | replace(entry.attributes.sFromPort, ''),
+      'destination_from_port': entry.attributes.dFromPort | default('')
+        | replace('unspecified', ''),
+      'destination_to_port': entry.attributes.dToPort | default('')
+        | replace('unspecified', '')
+        | replace(entry.attributes.dFromPort, ''),
+      'stateful': 'true' if entry.attributes.stateful != 'no' else '',
+    }] %}
+  {% endfor %}
+  {% set filterns.filters = filterns.filters + [{
+    'name': fltr.attributes.name,
+    'alias': fltr.attributes.nameAlias | default(''),
+    'description': fltr.attributes.descr | default(''),
+    'entries': entryns.entries | default([]),
+  }] %}
+{% endfor %}
+{{ 'filters:' | indent(width=6, first=True) if filterns.filters }}
+{{ helper.remove_empty(filterns.filters) | indent(width=8, first=True) }}

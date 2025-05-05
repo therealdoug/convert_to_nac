@@ -1,217 +1,653 @@
-    {# 
-      `mplsEnabled` flag is only for 5.0+ fabrics. So we need to account
-      for older configuration 
-     #}
-    {% set l3extOut_list = this_tenant.children 
-      | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') %}
-    {% set l3outs = l3extOut_list | selectattr('attributes.mplsEnabled', 'defined')
-      | selectattr('attributes.mplsEnabled', 'equalto', 'no') | list
-      + (l3extOut_list | selectattr('attributes.mplsEnabled', 'undefined') | list) | default([]) %}
-    {% if l3outs | length > 0 %}
+{%- import 'macro_handler.j2' as helper -%}
+{%- set l3outns = namespace(l3outs=[]) -%}
+{#- ACI <5.0 doesn't have mplsEnabled attribute -#}
+{% for l3o in [this_tenant]
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('l3extOut', 'defined') | map(attribute='l3extOut')
+  | selectattr('attributes.mplsEnabled', 'defined')
+  | selectattr('attributes.mplsEnabled', 'equalto', 'no') | list
+  + 
+  ([this_tenant]
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('l3extOut', 'defined') | map(attribute='l3extOut')
+  | selectattr('attributes.mplsEnabled', 'undefined') | list)
+  | default([]) 
+  | sort(attribute='attributes.name') %}
+  {% set ospfns = namespace(ospf={}) %}
+  {% set dfrtleakns = namespace(def_rtleak={}) %}
+  {% set redisrm_ns = namespace(redistribution_route_maps=[]) %}
+  {% set rmns = namespace(route_maps=[]) -%}
+  {#- Set ospf: -#}
+  {% set _ = ospfns.ospf.__setitem__('ospf_interface_profile_name', [l3o]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.name')
+    | first | default('') ) %}
+  {% set _ = ospfns.ospf.__setitem__('area', [l3o]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.areaId')
+    | first | default('') ) %}
+  {% set _ = ospfns.ospf.__setitem__('area_type', [l3o]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.areaType')
+    | first | default('') | replace('regular', '') ) %}
+  {% set _ = ospfns.ospf.__setitem__('area_cost', [l3o]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.areaCost')
+    | first | default('') | replace('1', '')) %}
+  {% set _ = ospfns.ospf.__setitem__('area_control_redistribute',
+    'true' if 'redistribute' in [l3o]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.areaCtrl')
+    | first | default('') else '') %}
+  {% set _ = ospfns.ospf.__setitem__('area_control_summary',
+    'true' if 'summary' in [l3o] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.areaCtrl')
+    | first | default('') else '' ) %}
+  {% set _ = ospfns.ospf.__setitem__('area_control_suppress_fa',
+    'true' if 'suppress-fa' in [l3o]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('ospfExtP', 'defined')
+    | map(attribute='ospfExtP.attributes.areaCtrl')
+    | first | default('') else '') -%}
 
-      l3outs:
-      {% for l3o in l3outs | sort(attribute='attributes.name') %}
-        {% set l3o_policy = {
-          'name': l3o.attributes.name,
-          'vrf': [l3o] | selectattr('children', 'defined') | map(attribute='children')
-            | flatten | list | selectattr('l3extRsEctx', 'defined') 
-            | map(attribute='l3extRsEctx.attributes.tnFvCtxName')
-            | flatten | first | default(''),
-          'domain': [l3o] | selectattr('children', 'defined') | map(attribute='children')
-            | flatten | list | selectattr('l3extRsL3DomAtt', 'defined')
-            | map(attribute='l3extRsL3DomAtt.attributes.tDn')
-            | flatten | first | default('') | replace('uni/l3dom-', ''),
-          'description': l3o.attributes.descr | default(''),
-          'alias': l3o.attributes.alias | default(''),
-          'import_route_control_enforcement': 'true' if 'import'
-            in l3o.attributes.enforceRtctrl else ''
-            | default(''),
-          'export_route_control_enforcement': 'false' if 'export' not 
-            in l3o.attributes.enforceRtctrl else ''
-            | default(''),
-          'target_dscp': l3o.attributes.targetDscp | default('') | replace('unspecified', ''),
-          'interleak_route_map': [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('l3extRsInterleakPol', 'defined')
-            | map(attribute='l3extRsInterleakPol.attributes.tnRtctrlProfileName')
-            | first | default(''),
-          'l3_multicast_ipv4': 'true' if [l3o] | selectattr('children', 'defined')
-            | map(attribute='children')
-            | flatten | list | selectattr('pimExtP', 'defined')
-            | selectattr('pimExtP.attributes.enabledAf', 'equalto', 'ipv4-mcast')
-            | map(attribute='pimExtP.attributes.enabledAf') | first
-            | default('') == 'ipv4-mcast' else '',
-          'dampening_ipv4_route_map': [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('l3extRsDampeningPol', 'defined')
-            | selectattr('l3extRsDampeningPol.attributes.af', 'equalto', 'ipv4-ucast')
-            | map(attribute='l3extRsDampeningPol.attributes.tnRtctrlProfileName')
-            | first | default(''),
-          'dampening_ipv6_route_map': [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('l3extRsDampeningPol', 'defined')
-            | selectattr('l3extRsDampeningPol.attributes.af', 'equalto', 'ipv6-ucast')
-            | map(attribute='l3extRsDampeningPol.attributes.tnRtctrlProfileName')
-            | first | default(''),
-          'multipod': 'true' if [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('bgpExtP', 'defined') is defined
-            and this_tenant.attributes.name == 'infra' else '',
-        }%}
-        {% for policy, value in l3o_policy.items() if value != '' and value != [] %}
-          {% if loop.first %}
-        - {{ policy }}: {{ value }}
-          {% else %}
-          {{ policy }}: {{ value }}
-          {% endif %}
-        {% endfor %}
-        {# default_route_leak_policy #}
-        {% set def_rtleak_policy = {
-          'always': 'true' if [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined')
-            | map(attribute='l3extDefaultRouteLeakP.attributes.always')
-            | first | default('') == 'yes' else '',
-          'criteria': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('l3extDefaultRouteLeakP', 'defined')
-            | map(attribute='l3extDefaultRouteLeakP.attributes.criteria')
-            | first | default('') | replace('only', ''),
-          'context_scope': 'true' if 'ctx' in [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined')
-            | map(attribute='l3extDefaultRouteLeakP.attributes.always')
-            | first | default('') else '',
-          'outside_scope': 'false' if 'l3-out' not in [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('l3extDefaultRouteLeakP', 'defined')
-            | map(attribute='l3extDefaultRouteLeakP.attributes.always')
-            | first | default('') else '',
-        }%}
-        {% if def_rtleak_policy.values() | select('!=', '' ) | list | length > 0 %}
-          default_route_leak_policy:
-          {% for policy, value in def_rtleak_policy.items() if value != '' %}
-            {{ policy }}: {{ value }}
-          {% endfor %}
-        {% endif %}
-        {# redistribution_route_maps #}
-        {% set redis_rtmaps = [l3o] | selectattr('children', 'defined')
-          | map(attribute='children') | flatten | list
-          | selectattr('l3extRsRedistributePol', 'defined')
-          | map(attribute='l3extRsRedistributePol') %}
-        {% if redis_rtmaps | length > 0 %}
-          redistribution_route_maps:
-          {% for rtmaps in redis_rtmaps | sort(attribute='attributes.src') %}
-            - source: {{ rtmaps.attributes.src }}
-              route_map: {{ rtmaps.attributes.tnRtctrlProfileName }}
-          {% endfor %}
-        {% endif %}
-        {# OSPF Class #}
-        {% set ospf_policies = {
-          'ospf_interface_profile_name': [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('ospfExtP', 'defined')
-            | map(attribute='ospfExtP.attributes.name')
-            | first | default(''),
-          'area': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined')
-            | map(attribute='ospfExtP.attributes.areaId')
-            | first | default(''),
-          'area_type': [l3o] | selectattr('children', 'defined') | map(attribute='children')
-            | flatten | list | selectattr('ospfExtP', 'defined')
-            | map(attribute='ospfExtP.attributes.areaType')
-            | first | default('') | replace('regular', ''),
-          'area_type': [l3o] | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined')
-            | map(attribute='ospfExtP.attributes.areaCost')
-            | first | default('') | replace('1', ''),
-          'area_control_redistribute': 'true' if 'redistribute' in [l3o]
-            | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined')
-            | map(attribute='ospfExtP.attributes.areaCtrl')
-            | first | default('') else '',
-          'area_control_summary': 'true' if 'summary' in [l3o] | selectattr('children', 'defined')
-            | map(attribute='children') | flatten | list
-            | selectattr('ospfExtP', 'defined') | map(attribute='ospfExtP.attributes.areaCtrl')
-            | first | default('') else '',
-          'area_control_suppress_fa': 'true' if 'suppress-fa' in [l3o]
-            | selectattr('children', 'defined') | map(attribute='children') 
-            | flatten | list | selectattr('ospfExtP', 'defined')
-            | map(attribute='ospfExtP.attributes.areaCtrl')
-            | first | default('') else '',
-        }%}
-        {% if ospf_policies.values() | select('!=', '' ) | list | length > 0 %}
-          ospf:
-          {% for policy, value in ospf_policies.items() if value != '' %}
-            {{ policy }}: {{ value }}
-          {% endfor %}
-        {% endif %}
-        {# Route Maps - Use `route_maps` or `['import_route_maps', 'export_route_maps'] #}
-        {% set rtctrl_rtmaps = [l3o] | selectattr('children', 'defined')
-          | map(attribute='children')  | flatten | list
-          | selectattr('rtctrlProfile', 'defined') | map(attribute='rtctrlProfile')
-          | default('') %}
-        {# {{ rtctrl_rtmaps | to_nice_json }} #}
-        {% if rtctrl_rtmaps | length > 0 %}
-          route_maps:
-          {% for rtmap in rtctrl_rtmaps | sort(attribute='attributes.name') %}
-            {% set map = {
-              'name': rtmap.attributes.name,
-              'type': rtmap.attributes.type | replace('global', ''),
-              'description': rtmap.attributes.descr | default(''),
-              'auto_continue': 'true' if rtmap.attributes.autoContinue == 'yes'
-                and rtmap.attributes.name in ['default-import', 'default-export'] else '',
-            } %}
-            {% for policy, value in map.items() if value != '' and value != [] %}
-              {% if loop.first %}
-            - {{ policy }}: {{ value }}
-              {% else %}
-              {{ policy }}: {{ value }}
-              {% endif %}
+  {#- Set default_route_leak_policy -#}
+  {% set _ = dfrtleakns.def_rtleak.__setitem__('always',
+    'true' if [l3o] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('l3extDefaultRouteLeakP', 'defined')
+    | map(attribute='l3extDefaultRouteLeakP.attributes.always')
+    | first | default('') == 'yes' else '' )%}
+  {% set _ = dfrtleakns.def_rtleak.__setitem__('criteria',
+    [l3o] | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('l3extDefaultRouteLeakP', 'defined')
+    | map(attribute='l3extDefaultRouteLeakP.attributes.criteria')
+    | first | default('') | replace('only', '')) %}
+  {% set _ = dfrtleakns.def_rtleak.__setitem__('context_scope',
+    'true' if 'ctx' in [l3o] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('l3extDefaultRouteLeakP', 'defined')
+    | map(attribute='l3extDefaultRouteLeakP.attributes.scope')
+    | first | default('') else '' ) %}
+  {% set _ = dfrtleakns.def_rtleak.__setitem__('outside_scope',
+    'false' if 'l3-out' not in [l3o] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('l3extDefaultRouteLeakP', 'defined')
+    | map(attribute='l3extDefaultRouteLeakP.attributes.scope')
+    | first | default('') else '' ) -%}
+
+  {#- Set external_endpoint_groups: -#}
+  {% set eepgns = namespace(eepgs=[]) %}
+  {% for eepg in [l3o] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('l3extInstP', 'defined') | map(attribute='l3extInstP')
+    | default('') %}
+    {% set eepgsubnetns = namespace(subnets=[])%}
+    {% for subnet in [eepg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('l3extSubnet', 'defined') | map(attribute='l3extSubnet')
+      | list | default([]) %}
+      {% set eepgsubnetns.subnets = [{
+        'prefix': subnet.attributes.ip,
+        'name': subnet.attributes.name | default(''),
+        'description': subnet.attributes.descr | default(''),
+        'alias': subnet.attributes.alias | default(''),
+        'import_security': 'false' if 'import-security' not
+            in subnet.attributes.scope else '',
+        'shared_security': 'true' if 'shared-security'
+            in subnet.attributes.scope else '',
+        'shared_route_control': 'true' if 'shared-rtctrl'
+            in subnet.attributes.scope else '',
+        'export_route_control': 'true' if 'export-rtctrl'
+            in subnet.attributes.scope else '',
+        'import_route_control': 'true' if 'import-rtctrl'
+            in subnet.attributes.scope else '',
+        'aggregate_export_route_control': 'true' if 'export-rtctrl'
+            in subnet.attributes.aggregate else '',
+        'aggregate_import_route_control': 'true' if 'import-rtctrl'
+            in subnet.attributes.aggregate else '',
+        'aggregate_shared_route_control': 'true' if 'shared-rtctrl'
+            in subnet.attributes.aggregate else '',
+        'bgp_route_summarization': 'true' if 'bgprtsum' in [subnet]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('l3extRsSubnetToRtSumm', 'defined')
+          | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn')
+          | first | default('') else '',
+        'bgp_route_summarization_policy': [subnet]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('l3extRsSubnetToRtSumm', 'defined')
+          | selectattr('l3extRsSubnetToRtSumm.attributes.tDn', 'search', 'bgprtsum')
+          | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn')
+          | first | default('') | regex_replace('^.*bgprtsum-', ''),
+        'ospf_route_summarization': 'true' if 'ospfrtsumm' in [subnet]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('l3extRsSubnetToRtSumm', 'defined')
+          | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn') | first
+          | default('') else '',
+        'eigrp_route_summarization': 'true' if 'eigrprtsumm' in [subnet]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('l3extRsSubnetToRtSumm', 'defined')
+          | map(attribute='l3extRsSubnetToRtSumm.attributes.tDn')
+          | first | default('') else '',
+      }] %}
+    {% endfor %}
+    {% set contractns = namespace(contracts={}) %}
+    {% set _=contractns.contracts.__setitem__('providers', [eepg]
+      | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | selectattr('fvRsProv', 'defined')
+      | map(attribute='fvRsProv.attributes.tnVzBrCPName')
+      | list | default('')) %}
+    {% set _=contractns.contracts.__setitem__('consumers', [eepg]
+      | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | selectattr('fvRsCons', 'defined')
+      | map(attribute='fvRsCons.attributes.tnVzBrCPName')
+      | list | default('')) %}
+    {% set _=contractns.contracts.__setitem__('imported_consumers', [eepg]
+      | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | selectattr('fvRsConsIf', 'defined')
+      | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
+      | list | default('')) %}
+    {% set eepgns.eepgs = eepgns.eepgs + [{
+      'name': eepg.attributes.name,
+      'description': eepg.attributes.descr | default(''),
+      'alias': eepg.attributes.alias | default(''),
+      'preferred_group': 'true' if eepg.attributes.prefGrMemb == 'include'
+        else '' | default(''),
+      'target_dscp': eepg.attributes.targetDscp | default('')
+        | replace('unspecified', ''),
+      'qos_class': eepg.attributes.prio | default('')
+        | replace('unspecified', ''),
+      'subnets': eepgsubnetns.subnets | default([]),
+      'contracts': contractns.contracts | default([]),
+    }] %}
+  {% endfor %}
+  {#- Set node_profiles: -#}
+  {% set npns = namespace(np=[]) %}
+  {% for np in [l3o]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('l3extLNodeP', 'defined') | map(attribute='l3extLNodeP')
+    | list | default([]) if np %}
+    {% set bgpns = namespace(bgp={}) %}
+    {% set nodens = namespace(nodes=[]) %}
+    {% set peersns = namespace(peers=[]) -%}
+    {% set intprofns = namespace(int_profs=[]) %}
+
+    {% for bgp in [np]
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('bgpProtP', 'defined') | map(attribute='bgpProtP')
+      | default('') %}
+        {% set _= bgpns.bgp.__setitem__('name', (bgp.attributes.name)) %}
+        {% set _= bgpns.bgp.__setitem__('timer_policy', ([bgp]
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('bgpRsBgpNodeCtxPol', 'defined')
+          | map(attribute='bgpRsBgpNodeCtxPol.attributes.tnBgpCtxPolName')
+          | first | default('')))%}
+        {% set _= bgpns.bgp.__setitem__('as_path_policy', ([bgp]
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('bgpRsBestPathCtrlPol', 'defined')
+          | map(attribute='bgpRsBestPathCtrlPol.attributes.tnBgpBestPathCtrlPolName')
+          | first | default('')))%}
+    {% endfor -%}
+
+    {% for node in [np]
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('l3extRsNodeL3OutAtt', 'defined')
+      | map(attribute='l3extRsNodeL3OutAtt')
+      | default([]) | sort(attribute='attributes.tDn') %}
+      {% set srns = namespace(static_routes=[]) %}
+      {% set nhns = namespace(next_hops=[]) %}
+        {% for sr in [node] | selectattr('children', 'defined') | map(attribute='children')
+            | flatten | list | selectattr('ipRouteP', 'defined')
+            | map(attribute='ipRouteP') | default([])
+            | sort(attribute='attributes.ip') %}
+            {% for nh in [sr] | selectattr('children', 'defined')
+                | map(attribute='children') | flatten | list
+                | selectattr('ipNexthopP', 'defined')
+                | map(attribute='ipNexthopP') | default([])
+                | sort(attribute='attributes.nhAddr') %}
+              {% set nhns.next_hops = nhns.next_hops + [{
+                'ip': nh.attributes.nhAddr,
+                'description': nh.attributes.descr,
+                'preference': nh.attributes.pref
+                  | regex_replace('^(1|unspecified)$', ''),
+                'type': nh.attributes.type
+                  | replace('prefix', ''),
+              }]%}
             {% endfor %}
-            {% set contexts = [rtmap] | selectattr('children', 'defined')
-              | map(attribute='children') | flatten | list
-              | selectattr('rtctrlCtxP', 'defined') | map(attribute='rtctrlCtxP')
-              | default('')
-            %}
-            {% if contexts | length > 0 %}
-              contexts:
-              {% for context in contexts | sort(attribute='attributes.name') %}
-                {% set ctx = {
-                  'name': context.attributes.name,
-                  'action': context.attributes.action | replace('permit', ''),
-                  'description': context.attributes.descr | default(''),
-                  'order': context.attributes.order | default('') | replace('0', ''),
-                  'set_rule': [context] | selectattr('children', 'defined')
-                    | map(attribute='children') | flatten | list
-                    | selectattr('rtctrlScope', 'defined') | map(attribute='rtctrlScope')
-                    | selectattr('children', 'defined') | map(attribute='children')
-                    | flatten | list
-                    | selectattr('rtctrlRsScopeToAttrP', 'defined')
-                    | map(attribute='rtctrlRsScopeToAttrP.attributes.tnRtctrlAttrPName')
-                    | first | default(''),
-                  'match_rules': [context] | selectattr('children', 'defined')
-                    | map(attribute='children') | flatten | list
-                    | selectattr('rtctrlRsCtxPToSubjP', 'defined')
-                    | map(attribute='rtctrlRsCtxPToSubjP.attributes.tnRtctrlSubjPName')
-                    | default('')
-                } %}
-                {% for policy, value in ctx.items() if value != '' and value != [] %}
-                  {% if loop.first %}
-                - {{ policy }}: {{ value }}
-                  {% elif policy == 'match_rules' and value | length > 0 %}
-                  match_rules:
-                  {% for match in value | sort %}
-                    - {{ match }}
-                  {% endfor %}
-                  {% else %}
-                  {{ policy }}: {{ value }}
-                  {% endif %}
-                {% endfor %}
-              {% endfor %}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-{% include "tenant_policies/external_endpoint_groups.nac.j2" %}
-{% include "tenant_policies/l3out_node_profiles.nac.j2" %}
-      {% endfor %}# End of L3out Config 
-    {% endif %}
+          {% set srns.static_routes = srns.static_routes + [{
+            'prefix': sr.attributes.ip,
+            'description': sr.attributes.descr,
+            'preference': sr.attributes.pref
+              | regex_replace('^(1|unspecified)$', ''),
+            'bfd': 'true' if sr.attributes.rtCtrl == 'yes' else ''
+              | default(''),
+            'next_hops': nhns.next_hops,
+          }] %}
+        {% endfor -%}
+
+      {% for npeer in [np]
+        | selectattr('children', 'defined') | map(attribute='children')| flatten
+        | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP') %}
+        {% set peerns.peers = peerns.peers + [{
+          'ip': npeer.attributes.addr,
+          'description': npeer.attributes.descr,
+          'alias': npeer.attributes.nameAlias,
+          'remote_as': [npeer]| selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpAsP', 'defined')
+            | map(attribute='bgpAsP.attributes.asn')
+            | first | default(''),
+          'allow_self_as': 'true' if 'allow-self-as' in npeer.attributes.ctrl else '',
+          'as_override': 'true' if 'as-override' in npeer.attributes.ctrl else '',
+          'disable_peer_as_check': 'true' if 'dis-peer-as-check'
+            in npeer.attributes.ctrl else '',
+          'next_hop_self': 'true' if 'nh-self' in npeer.attributes.ctrl else '',
+          'send_community': 'true' if 'send-com' in npeer.attributes.ctrl else '',
+          'send_ext_community': 'true' if 'send-ext-com' in npeer.attributes.ctrl else '',
+          'password': npeer.attributes.password | default(''),
+          'bfd': 'true' if 'bfd' in npeer.attributes.peerCtrl else '',
+          'disable_connected_check': 'true' if 'dis-conn-check'
+            in npeer.attributes.peerCtrl else '',
+          'ttl': npeer.attributes.ttl | replace('1', ''),
+          'weight': npeer.attributes.weight
+            | replace('0', ''),
+          'remove_all_private_as': 'true' if 'remove-all'
+            in npeer.attributes.privateASctrl else '',
+          'remove_private_as': 'true' if 'remove-exclusive'
+            in npeer.attributes.privateASctrl else '',
+          'replace_private_as_with_local_as': 'true'if 'replace-as'
+            in npeer.attributes.privateASctrl else '',
+          'unicast_address_family': 'false' if 'af-ucast'
+            not in npeer.attributes.addrTCtrl else '',
+          'multicast_address_family': 'true' if 'af-mcast'
+            in npeer.attributes.addrTCtrl else '',
+          'local_as': [npeer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpLocalAsnP', 'defined')
+            | map(attribute='bgpLocalAsnP.attributes.localAsn')
+            | first | default(''),
+          'as_propagate': [npeer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpLocalAsnP', 'defined')
+            | map(attribute='bgpLocalAsnP.attributes.asnPropagate')
+            | first | default('') | replace('none', ''),
+          'peer_prefix_policy': [npeer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpRsPeerPfxPol', 'defined')
+            | map(attribute='bgpRsPeerPfxPol.attributes.tnBgpPeerPfxPolName')
+            | first | default(''),
+          'export_route_control': [npeer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpRsPeerToProfile', 'defined')
+            | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'export')
+            | map(attribute='bgpRsPeerToProfile.attributes.tDn')
+            | first | default('')
+            | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
+          'import_route_control': [npeer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpRsPeerToProfile', 'defined')
+            | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'import')
+            | map(attribute='bgpRsPeerToProfile.attributes.tDn')
+            | first | default('')
+            | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
+          'admin_state': 'false' if npeer.attributes.adminSt == 'disabled' else ''
+            | default(''),
+          'allowed_self_as_count': npeer.attributes.allowedSelfAsCnt
+            | replace('3', ''),
+        }] %}
+      {% endfor %}
+      {% set nodens.nodes = nodens.nodes + [{
+        'node_id': node.attributes.tDn
+          | regex_replace('^topology/[^/]+/node-([0-9]+)$', '\\1'),
+        'pod_id': node.attributes.tDn
+          | regex_replace('^topology/pod-(\d{1,2})/node-[0-9]+$', '\\1')
+          | default('') | replace('1', ''),
+        'router_id': node.attributes.rtrId,
+        'router_id_as_loopback': 'false' if node.attributes.rtrIdLoopBack != 'yes'
+          else '' | default(''),
+        'loopbacks': [node] | selectattr('children', 'defined')
+          | map(attribute='children')
+          | flatten | selectattr('l3extLoopBackIfP', 'defined')
+          | map(attribute='l3extLoopBackIfP.attributes.addr')
+          | list | default([]),
+        'static_routes': srns.static_routes,
+      }] %}
+    {% endfor -%}
+    {% for int_prof in [np]
+      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+      | selectattr('l3extLIfP', 'defined') | map(attribute='l3extLIfP')
+      | default([]) | sort(attribute='attributes.name') %}
+      {% set dhcplabelsns = namespace(labels=[]) %}
+      {% for label in [int_prof] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten | list
+        | selectattr('dhcpLbl', 'defined') | map(attribute='dhcpLbl')
+        | default([]) %}
+        {% set dhcplabelsns.labels = dhcplabelsns.labels + [{
+          'dhcp_relay_policy': label.attributes.name,
+          'scope': label.attributes.owner,
+          'dhcp_option_policy': [label] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('dhcpRsDhcpOptionPol', 'defined')
+            | map(attribute='dhcpRsDhcpOptionPol.attributes.tnDhcpOptionPolName')
+            | first | default(''),
+          }] %}
+      {% endfor %}
+      {% set interfacesns = namespace(interfaces=[]) %}
+      {% for intf in [int_prof] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten | list
+        | selectattr('l3extRsPathL3OutAtt', 'defined')
+        | map(attribute='l3extRsPathL3OutAtt')
+        | default([]) %}
+        {#- Set Interface Paths -#}
+        {% set interfacepeers = namespace(peers=[]) %}
+        {% for peer in [intf] | selectattr('children', 'defined')
+          | map(attribute='children' ) | flatten
+          | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP')
+          | list | default('')
+          %}
+          {% set interfacepeers.peers = interfacepeers.peers + [{
+            'ip': peer.attributes.addr,
+            'alias': peer.attributes.nameAlias | default(''),
+            'description': peer.attributes.descr | default(''),
+            'remote_as': [peer] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten
+              | selectattr('bgpAsP', 'defined')
+              | map(attribute='bgpAsP.attributes.asn')
+              | first | default(''),
+            'local_as': [peer] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten
+              | selectattr('bgpLocalAsnP', 'defined')
+              | map(attribute='bgpLocalAsnP.attributes.localAsn')
+              | first | default(''),
+            'as_propagate': [peer] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten
+              | selectattr('bgpLocalAsnP', 'defined')
+              | map(attribute='bgpLocalAsnP.attributes.asnPropagate')
+              | first | default('') | replace('none', ''),
+            'peer_prefix_policy': [peer] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten
+              | selectattr('bgpRsPeerPfxPol', 'defined')
+              | map(attribute='bgpRsPeerPfxPol.attributes.tnBgpPeerPfxPolName')
+              | first | default(''),
+            'export_route_control': [peer] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten
+              | selectattr('bgpRsPeerToProfile', 'defined')
+              | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'export')
+              | map(attribute='bgpRsPeerToProfile.attributes.tDn')
+              | first | default('')
+              | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
+            'password': peer.attributes.password | default(''),
+            'bfd': 'true' if 'bfd' in peer.attributes.peerCtrl else '',
+            'disable_connected_check': 'true' if 'dis-conn-check'
+              in peer.attributes.peerCtrl else '',
+            'import_route_control': [peer] | selectattr('children', 'defined')
+              | map(attribute='children') | flatten
+              | selectattr('bgpRsPeerToProfile', 'defined')
+              | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'import')
+              | map(attribute='bgpRsPeerToProfile.attributes.tDn')
+              | first | default('')
+              | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
+            'admin_state': 'false' if peer.attributes.adminSt == 'disabled' else ''
+              | default(''),
+            'allow_self_as': 'true' if 'allow-self-as' in peer.attributes.ctrl else '',
+            'as_override': 'true' if 'as-override' in peer.attributes.ctrl else '',
+            'disable_peer_as_check': 'true' if 'dis-peer-as-check'
+              in peer.attributes.ctrl else '',
+            'next_hop_self': 'true' if 'nh-self' in peer.attributes.ctrl else '',
+            'send_community': 'true' if 'send-com' in peer.attributes.ctrl else '',
+            'send_ext_community': 'true' if 'send-ext-com'
+              in peer.attributes.ctrl else '',
+            'transport_data_plane': 'true' if 'segment-routing-disable'
+              in peer.attributes.ctrl else '',
+            'ttl': peer.attributes.ttl | replace('1', ''),
+            'weight': peer.attributes.weight | replace('0', ''),
+            'remove_all_private_as': 'true' if 'remove-all'
+              in peer.attributes.privateASctrl else '',
+            'remove_private_as': 'true' if 'remove-exclusive'
+              in peer.attributes.privateASctrl else '',
+            'replace_private_as_with_local_as': 'true' if 'replace-as'
+              in peer.attributes.privateASctrl else '',
+            'unicast_address_family': 'false' if 'af-ucast'
+              not in peer.attributes.addrTCtrl else '',
+            'multicast_address_family': 'false' if 'af-mcast'
+              not in peer.attributes.addrTCtrl else '',
+          }] %}
+        {% endfor %}
+        {% set interfacesns.interfaces = interfacesns.interfaces + [{
+          'ip': intf.attributes.addr | replace('0.0.0.0', ''),
+          'svi': 'true' if intf.attributes.ifInstT == 'ext-svi' else ''
+            | default(''),
+          'floating_svi': none,
+          'description': intf.attributes.descr,
+          'vlan': intf.attributes.encap
+            | regex_replace('^vlan-(\d+)$', '\\1') | default(''),
+          'autostate': 'true' if intf.attributes.autostate == 'enabled' else '' | default(''),
+          'mac': intf.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
+          'mode': intf.attributes.mode | replace('regular', ''),
+          'mtu': intf.attributes.mtu | default('') | replace('inherit', ''),
+          'pod_id': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\1')
+            | replace('1', ''),
+          'node_id': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\2'),
+          'node2_id': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\3'),
+          'channel': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\4')
+            | regex_replace('^eth.*', ''),
+          'module': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\5')
+            | replace('1', ''),
+          'port': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\6'),
+          'sub_port': intf.attributes.tDn | default('')
+            | regex_replace(
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+              '\\7'),
+          'ip_a': [intf] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extMember', 'defined')
+            | selectattr('l3extMember.attributes.side', '==', 'A')
+            | map(attribute='l3extMember.attributes.addr')
+            | first | default(''),
+          'ip_b': [intf] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extMember', 'defined')
+            | selectattr('l3extMember.attributes.side', '==', 'B')
+            | map(attribute='l3extMember.attributes.addr')
+            | first | default(''),
+          'ip_shared': [intf] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('l3extMember', 'defined')
+            | selectattr('l3extMember.attributes.side', '==', 'A')
+            | map(attribute='l3extMember')
+            | selectattr('children', 'defined') | map(attribute='children') | flatten
+            | selectattr('l3extIp', 'defined')
+            | map(attribute='l3extIp.attributes.addr')
+            | first | default(''),
+          'lladdr': intf.attributes.llAddr | default('') | replace('::', ''),
+          'multipod_direct': 'true' if intf | map(attribute='attributes.isMultiPodDirect') == 'yes' else ''
+            | default(''),
+          'scope': 'vrf' if intf.attributes.encapScope == 'ctx' else ''
+            | default(''),
+          'micro_bfd_destination_ip': '',
+          'micro_bfd_start_timer': '',
+          'paths': ['@@'],
+          'bgp_peers': interfacepeers.peers | default([]),
+        }] %}
+      {% endfor %}
+      {% set intprofns.int_profs = intprofns.int_profs + [{
+      'name': int_prof.attributes.name,
+      'description': int_prof.attributes.descr,
+      'alias': int_prof.attributes.nameAlias,
+      'qos_class': int_prof.attributes.prio | replace('unspecified', ''),
+      'bfd_policy': [int_prof]
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('bfdIfP', 'defined') | map(attribute='bfdIfP')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('bfdRsIfPol', 'defined')
+        | map(attribute='bfdRsIfPol.attributes.tnBfdIfPolName')
+        | first | default(''),
+      'pim_policy': [int_prof]
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('pimIfP', 'defined') | map(attribute='pimIfP')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('pimRsIfPol', 'defined')
+        | map(attribute='pimRsIfPol.attributes.tDn')
+        | first | default('')
+        | regex_replace('^uni/tn-.*/pimifpol-(.*?)$', '\\1'),
+      'igmp_interface_policy': [int_prof]
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('igmpIfP', 'defined') | map(attribute='igmpIfP')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('igmpRsIfPol', 'defined')
+        | map(attribute='igmpRsIfPol.attributes.tDn')
+        | first | default('')
+        | regex_replace('^uni/tn-.*/igmpIfPol-(.*?)$', '\\1'),
+      'custom_qos_policy': [int_prof]
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('l3extRsLIfPCustQosPol', 'defined')
+        | map(attribute='l3extRsLIfPCustQosPol.attributes.tnQosCustomPolName')
+        | first | default(''),
+      'ospf': {
+        'ospf_interface_profile_name': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('ospfIfP', 'defined')
+          | map(attribute='ospfIfP.attributes.name')
+          | first | default(''),
+        'auth_type': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('ospfIfP', 'defined')
+          | map(attribute='ospfIfP.attributes.authType')
+          | first | default('') | replace('none', ''),
+        'auth_key': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('ospfIfP', 'defined')
+          | map(attribute='ospfIfP.attributes.authKey')
+          | first | default(''),
+        'auth_key_id': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('ospfIfP', 'defined')
+          | map(attribute='ospfIfP.attributes.authKeyId')
+          | first | default('') | replace('1', ''),
+        'policy': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('ospfIfP', 'defined') | map(attribute='ospfIfP')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('ospfRsIfPol', 'defined')
+          | map(attribute='ospfRsIfPol.attributes.tnOspfIfPolName')
+          | first | default(''),
+      },
+      'eigrp': {
+        'interface_profile_name': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('eigrpIfP', 'defined') | map(attribute='eigrpIfP.attributes.name')
+          | first | default(''),
+        'interface_policy': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('bfdeigrpIfPIfP', 'defined') | map(attribute='eigrpIfP')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('eigrpRsIfPol', 'defined')
+          | map(attribute='eigrpRsIfPol.attributes.tnEigrpIfPolName')
+          | first | default(''),
+        'keychain_policy': [int_prof]
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('eigrpAuthIfP', 'defined') | map(attribute='eigrpAuthIfP')
+          | selectattr('children', 'defined') | map(attribute='children') | flatten
+          | selectattr('eigrpRsKeyChainPol', 'defined')
+          | map(attribute='eigrpRsKeyChainPol.attributes.tnFvKeyChainPolName')
+          | first | default('')
+      },
+      'dhcp_labels': dhcplabelsns.labels | default([]),
+      'interfaces': interfacesns.interfaces | default([]),
+      }] %}
+    {% endfor %}
+    {% set npns.np = npns.np + [{
+      'name': np.attributes.name,
+      'alias': np.attributes.nameAlias | default(''),
+      'description': np.attributes.descr | default(''),
+      'bgp': bgpns.bgp | default(''),
+      'bgp_peers': peersns.peers | default([]),
+      'nodes': nodens.nodes | default([]),
+      'interface_profiles': intprofns.int_profs | default([]),
+    }]%}
+  {% endfor %}
+  {#- Set l3outs: -#}
+  {% set l3outns.l3outs = l3outns.l3outs + [{
+    'name': l3o.attributes.name,
+    'vrf': [l3o] | selectattr('children', 'defined')
+      | map(attribute='children')
+      | flatten | selectattr('l3extRsEctx', 'defined')
+      | map(attribute='l3extRsEctx.attributes.tnFvCtxName')
+      | flatten | first | default(''),
+    'domain': [l3o] | selectattr('children', 'defined')
+      | map(attribute='children')
+      | flatten | selectattr('l3extRsL3DomAtt', 'defined')
+      | map(attribute='l3extRsL3DomAtt.attributes.tDn')
+      | flatten | first | default('') | replace('uni/l3dom-', ''),
+    'description': l3o.attributes.descr | default(''),
+    'alias': l3o.attributes.alias | default(''),
+    'import_route_control_enforcement': 'true' if 'import' in l3o.attributes.enforceRtctrl else ''
+      | default(''),
+    'export_route_control_enforcement': 'false' if 'export' not in l3o.attributes.enforceRtctrl else ''
+      | default(''),
+    'target_dscp': l3o.attributes.targetDscp | default('')
+      | replace('unspecified', ''),
+    'interleak_route_map': [l3o] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('l3extRsInterleakPol', 'defined')
+      | map(attribute='l3extRsInterleakPol.attributes.tnRtctrlProfileName')
+      | first | default(''),
+    'l3_multicast_ipv4': 'true' if [l3o] | selectattr('children', 'defined')
+      | map(attribute='children')
+      | flatten | selectattr('pimExtP', 'defined')
+      | selectattr('pimExtP.attributes.enabledAf', 'equalto', 'ipv4-mcast')
+      | map(attribute='pimExtP.attributes.enabledAf') | first
+      | default('') == 'ipv4-mcast' else '',
+    'dampening_ipv4_route_map': [l3o] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('l3extRsDampeningPol', 'defined')
+      | selectattr('l3extRsDampeningPol.attributes.af', 'equalto', 'ipv4-ucast')
+      | map(attribute='l3extRsDampeningPol.attributes.tnRtctrlProfileName')
+      | first | default(''),
+    'dampening_ipv6_route_map': [l3o] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('l3extRsDampeningPol', 'defined')
+      | selectattr('l3extRsDampeningPol.attributes.af', 'equalto', 'ipv6-ucast')
+      | map(attribute='l3extRsDampeningPol.attributes.tnRtctrlProfileName')
+      | first | default(''),
+    'multipod': 'true' if [l3o] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('bgpExtP', 'defined') is defined and this_tenant.attributes.name == 'infra' else '',
+    'redistribution_route_maps': redisrm_ns.redistribution_route_maps
+      | default([]),
+    'default_route_leak_policy': dfrtleakns.def_rtleak
+      | default([]),
+    'ospf': ospfns.ospf | default([]),
+    'route_maps': rmns.route_maps | default([]),
+    'external_endpoint_groups': eepgns.eepgs | default([]),
+    'node_profiles': npns.np | default([]),
+  }] %}
+{% endfor %}
+{{ 'l3outs:' | indent(width=6, first=True) if l3outns.l3outs }}
+{{ helper.remove_empty(l3outns.l3outs) | indent(width=8, first=True) if l3outns.l3outs }}

@@ -1,31 +1,31 @@
 {% import 'macro_handler.j2' as helper %}
-{% set node_profiles = [l3o]
+{% set node_profiles =  %}
+{% set npns = namespace(np=[]) %}
+{% for np in [l3o]
   | selectattr('children', 'defined') | map(attribute='children') | flatten | list
   | selectattr('l3extLNodeP', 'defined') | map(attribute='l3extLNodeP')
-  | list | default([]) %}
-{% set npns = namespace(np=[]) %}
-{% for np in node_profiles if np %}
-  {% set bgpns = namespace(bgp=[]) %}
+  | list | default([]) if np %}
+  {% set bgpns = namespace(bgp={}) %}
   {% set nodens = namespace(nodes=[]) %}
   {% set peersns = namespace(peers=[]) -%}
 
   {% for bgp in [np]
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('bgpProtP', 'defined') | map(attribute='bgpProtP')
-    | first | default([]) if bgp %}
-      {% set bgpns.bgp = bgpns.bgp + [{
-        'name': bgp.attributes.name | default(''),
-        'timer_policy': [bgp] | selectattr('children', 'defined')
-          | map(attribute='children') | flatten
-          | selectattr('bgpRsBgpNodeCtxPol', 'defined')
-          | map(attribute='bgpRsBgpNodeCtxPol.attributes.tnBgpCtxPolName')
-          | first | default(''),
-        'as_path_policy': [bgp] | selectattr('children', 'defined')
-          | map(attribute='children') | flatten
-          | selectattr('bgpRsBestPathCtrlPol', 'defined')
-          | map(attribute='bgpRsBestPathCtrlPol.attributes.tnBgpBestPathCtrlPolName')
-          | first | default(''),
-      }] %}
+    | default('') %}
+      {% set _= bgpns.bgp.__setitem__('name', (bgp.attributes.name)) %}
+      {% set _= bgpns.bgp.__setitem__('timer_policy', ([bgp]
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('bgpRsBgpNodeCtxPol', 'defined')
+        | map(attribute='bgpRsBgpNodeCtxPol.attributes.tnBgpCtxPolName')
+        | first | default('')))%}
+      {% set _= bgpns.bgp.__setitem__('as_path_policy', ([bgp]
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('bgpRsBestPathCtrlPol', 'defined')
+        | map(attribute='bgpRsBestPathCtrlPol.attributes.tnBgpBestPathCtrlPolName')
+        | first | default('')))%}
   {% endfor -%}
 
   {% for node in [np]
@@ -38,7 +38,7 @@
       {% for sr in [node] | selectattr('children', 'defined') | map(attribute='children')
           | flatten | list | selectattr('ipRouteP', 'defined')
           | map(attribute='ipRouteP') | default([])
-          | sort(attribute='attributes.prefix') %}
+          | sort(attribute='attributes.ip') %}
           {% for nh in [sr] | selectattr('children', 'defined')
               | map(attribute='children') | flatten | list
               | selectattr('ipNexthopP', 'defined')
@@ -63,7 +63,7 @@
           'next_hops': nhns.next_hops,
         }] %}
       {% endfor -%}
-    
+
     {% for np in [np]
       | selectattr('children', 'defined') | map(attribute='children')| flatten
       | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP') %}
@@ -181,11 +181,11 @@
             | replace('1', ''),
           'node_id': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$', 
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\2'),
           'node2_id': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$', 
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\3'),
           'channel': intf.attributes.tDn | default('')
             | regex_replace(
@@ -199,11 +199,11 @@
             | replace('1', ''),
           'port': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$', 
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\6'),
           'sub_port': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$', 
+            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\7'),
           'ip_a': [intf] | selectattr('children', 'defined')
             | map(attribute='children') | flatten | list
@@ -233,8 +233,8 @@
             | default(''),
           'micro_bfd_destination_ip': '',
           'micro_bfd_start_timer': '',
-          'paths': [],
-          'bgp_peers': [],
+          'paths': ['@@'],
+          'bgp_peers': ['@@'],
         }] | reject('==', '') %}
       {% endfor %}
       {% set intprofns.int_profs = intprofns.int_profs + [{
@@ -346,11 +346,11 @@
     'name': np.attributes.name,
     'alias': np.attributes.nameAlias | default(''),
     'description': np.attributes.descr | default(''),
-    'bgp': bgpns.bgp | default([]),
+    'bgp': bgpns.bgp | default(''),
     'bgp_peers': peersns.peers | default([]),
     'nodes': nodens.nodes | default([]),
     'interface_profiles': intprofns.interface_profiles | default([]),
   }]%}
 {% endfor %}
-{{ 'node_profiles:' | indent(10, first=True) }}
+{{ 'node_profiles:' | indent(10, first=True) if npns.np }}
 {{ helper.remove_empty(npns.np) | indent(12, first=True) }}
