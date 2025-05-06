@@ -236,7 +236,7 @@
       {% for npeer in [np]
         | selectattr('children', 'defined') | map(attribute='children')| flatten
         | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP') %}
-        {% set peerns.peers = peerns.peers + [{
+        {% set peersns.peers = peersns.peers + [{
           'ip': npeer.attributes.addr,
           'description': npeer.attributes.descr,
           'alias': npeer.attributes.nameAlias,
