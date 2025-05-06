@@ -1,5 +1,5 @@
   {% set remotes = fabricInst_children | selectattr('fileRemotePath', 'defined')
-    | map(attribute='fileRemotePath') 
+    | map(attribute='fileRemotePath')
     | list | default([])
   %}
   {% if remotes | length > 0 %}

@@ -242,13 +242,13 @@
                   'description': subnet.attributes.descr | default(''),
                   'primary_ip': 'true' if subnet.attributes.preferred == 'yes' else ''
                     | default(''),
-                  'virtual': 'true' if subnet.attributes.virtual == 'yes' else '' 
+                  'virtual': 'true' if subnet.attributes.virtual == 'yes' else ''
                     | default(''),
-                  'public': 'true' if 'public' in subnet.attributes.scope else '' 
+                  'public': 'true' if 'public' in subnet.attributes.scope else ''
                     | default(''),
-                  'shared': 'true' if 'shared' in subnet.attributes.scope else '' 
+                  'shared': 'true' if 'shared' in subnet.attributes.scope else ''
                     | default(''),
-                  'no_default_gateway': 'true' if 'no-default-gateway' 
+                  'no_default_gateway': 'true' if 'no-default-gateway'
                     in subnet.attributes.ctrl else ''
                     | default(''),
                   'igmp_querier': 'true' if 'querier' in subnet.attributes.ctrl else ''
@@ -331,25 +331,25 @@
               | selectattr('fvRsConsIf', 'defined')
               | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
               | list | default([]) %}
-            {% set fvRsProv = [epg] | selectattr('children', 'defined') 
+            {% set fvRsProv = [epg] | selectattr('children', 'defined')
               | map(attribute='children') | flatten | list
               | selectattr('fvRsProv', 'defined')
               | map(attribute='fvRsProv.attributes.tnVzBrCPName')
               | list | default([]) %}
-            {% set fvRsIntraEpg = [epg] | selectattr('children', 'defined') 
+            {% set fvRsIntraEpg = [epg] | selectattr('children', 'defined')
               | map(attribute='children') | flatten | list
-              | selectattr('fvRsIntraEpg', 'defined') 
-              | map(attribute='fvRsIntraEpg.attributes.tnVzBrCPName') 
+              | selectattr('fvRsIntraEpg', 'defined')
+              | map(attribute='fvRsIntraEpg.attributes.tnVzBrCPName')
               | list | default([]) %}
-            {% set fvRsSecInherited = [epg] | selectattr('children', 'defined') 
+            {% set fvRsSecInherited = [epg] | selectattr('children', 'defined')
               | map(attribute='children') | flatten | list
-              | selectattr('fvRsSecInherited', 'defined') 
-              | map(attribute='fvRsSecInherited.attributes.tDn') 
+              | selectattr('fvRsSecInherited', 'defined')
+              | map(attribute='fvRsSecInherited.attributes.tDn')
               | list | default([]) %}
-            {% if fvRsCon | length 
-                + fvRsConIf | length 
-                + fvRsProv | length 
-                + fvRsIntraEpg | length 
+            {% if fvRsCon | length
+                + fvRsConIf | length
+                + fvRsProv | length
+                + fvRsIntraEpg | length
                 + fvRsSecInherited | length > 0 %}
               contracts:
               {% if fvRsCon | length > 0 %}
@@ -381,7 +381,7 @@
                 {% for contract in fvRsSecInherited | sort %}
                   - endpoint_group: {{ contract | regex_replace('^.*/epg-', '') }}
                     {% if ap.attributes.name not in contract %}
-                    application_profile: {{ contract 
+                    application_profile: {{ contract
                                           | regex_replace('^.*/ap-(.*?)/epg.*$', '\\1') }}
                     {% endif %}
                 {% endfor %}
@@ -390,7 +390,7 @@
             {# Tags #}
             {% set tags = [epg] | selectattr('children', 'defined') | map(attribute='children')
               | flatten | list
-              | selectattr('tagInst', 'defined') | map(attribute='tagInst.attributes.name') 
+              | selectattr('tagInst', 'defined') | map(attribute='tagInst.attributes.name')
               | list | default([]) %}
             {% if tags | length > 0 %}
               tags:
@@ -401,7 +401,7 @@
             {# l4l7_virtual_ips #}
             {% set vips = [epg] | selectattr('children', 'defined') | map(attribute='children')
               | flatten | list
-              | selectattr('fvVip', 'defined') | map(attribute='fvVip') 
+              | selectattr('fvVip', 'defined') | map(attribute='fvVip')
               | list | default([]) %}
             {% if vips | length > 0 %}
               l4l7_virtual_ips:

@@ -1,0 +1,32 @@
+{%- macro remove_empty(item) -%}
+  {%- if item and item is string -%}
+{{ item }}
+  {% elif item and item is sequence and item is not mapping -%}
+    {%- for seq in item if seq -%}
+- {{ remove_empty(seq) | indent(2) }}
+    {%- endfor -%}
+  {%- elif item and item is mapping -%}
+    {%- for policy, value in item.items() if value -%}
+      {%- if value and value is string -%}
+{{ policy }}: {{ remove_empty(value) | indent(2) }}
+      {%- elif value and value is sequence and value is not mapping -%}
+{{ policy }}:
+{{ remove_empty(value) | indent(2, True) }}
+      {%- elif value.values()
+        | reject('==', [])
+        | reject('==', {})
+        | reject('==', '')
+        | length > 0 -%}
+{{ policy }}:
+        {% for p,v in value.items() if v %}
+        {%- if v and v is string -%}
+{{ p | indent(2, True)}}: {{ remove_empty(v) }}
+        {%- else -%}
+{{ p | indent(2, True)}}:
+{{ remove_empty(v) | indent(4, True) }}
+        {%- endif -%}
+        {%- endfor -%}
+      {% endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endmacro -%}

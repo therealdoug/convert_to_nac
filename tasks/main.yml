@@ -1,5 +1,16 @@
 ---
-- hosts: opc
+- hosts: 
+    # - lab
+    - prod
+    # - sandbox
+    # - opc
+    - atl_mkt
+    # - pdx
+    # - wdc
+    # - dal
+    # - atl
+    # - chy5
+    # - lss
   connection: local
   gather_facts: false
   become: false
@@ -7,7 +18,7 @@
   environment: "{{ proxy_env | default('') }}"
 
   vars:
-    create_access_policies: true
+    create_access_policies: false
     create_tenant_policies: true
     create_fabric_policies: true
     create_pod_policies: true

@@ -236,7 +236,7 @@ apic:
           {% if range.attributes.descr != "" %}
             description: {{ range.attributes.descr }}
           {% endif %}
-          {% if range.attributes.allocMode != "inherit" 
+          {% if range.attributes.allocMode != "inherit"
               and range.attributes.allocMode != vlpool.attributes.allocMode
           %}
             allocation: {{ range.attributes.allocMode }}

@@ -1,4 +1,4 @@
-{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp') 
+{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp')
   | flatten | list
 %}
     {% if aps | length > 0 %}

@@ -1,5 +1,5 @@
-{% set l3outs = this_tenant.children 
-  | selectattr('l3extOut', 'defined') | map(attribute='l3extOut') 
+{% set l3outs = this_tenant.children
+  | selectattr('l3extOut', 'defined') | map(attribute='l3extOut')
   | selectattr('attributes.mplsEnabled', 'equalto', 'yes') | flatten | list %}
       {% if l3outs | length > 0 %}
 
