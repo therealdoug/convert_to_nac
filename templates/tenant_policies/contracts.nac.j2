@@ -1,4 +1,4 @@
-{% import 'macro_handler.j2' as helper %}
+{%- import 'macro_handler.j2' as helper -%}
 {% set contracts = this_tenant.children | selectattr('vzBrCP', 'defined')
   | map(attribute='vzBrCP') | default([]) | flatten %}
 {% set imp_contracts = this_tenant.children | selectattr('vzCPIf', 'defined')
@@ -27,7 +27,7 @@
           'no_stats': 'true' if 'no_stats' in filter.attributes.directives
             | default('') else '',
         }] %}
-    {% endfor %} {# filter #}
+    {% endfor %}{#- filter -#}
     {% set subjectns.subjects = subjectns.subjects +
       [{
         'name': subject.attributes.name,
@@ -50,7 +50,7 @@
         'provider_to_consumer_target_dscp': '',
         'provider_to_consumer_filters': [],
       }] %}
-  {% endfor %}{# subject #}
+  {% endfor %}{#- subject -#}
   {% set contractns.contracts = contractns.contracts +
     [{
     'name': con.attributes.name,
@@ -61,7 +61,6 @@
     'target_dscp': con.attributes.targetDscp | default('') | replace('unspecified', ''),
     'subjects': subjectns.subjects | default([]),
     }] %}
-{% endfor %}{#- con #}
-
+{% endfor %}{#- con -#}
 {{ 'contracts:' | indent(6, first=True) if contractns.contracts }}
 {{ helper.remove_empty(contractns.contracts) | indent(8, first=True)}}

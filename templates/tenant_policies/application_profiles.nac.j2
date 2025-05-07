@@ -9,7 +9,7 @@
           alias: {{ ap.attributes.nameAlias }}
         {% endif %}
         {% if ap.attributes.descr != '' %}
-          description: {{ ap.attributes.descr }}
+          description: '{{ ap.attributes.descr }}'
         {% endif %}
 {% include "tenant_policies/endpoint_groups.nac.j2" %}
       {% endfor %}
