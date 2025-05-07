@@ -1,15 +1,15 @@
-{% import 'macro_handler.j2' as helper %}
-{% set filterns = namespace(filters=[])%}
-{% for fltr in [this_tenant] | selectattr('children', 'defined')
+{%- import 'macro_handler.j2' as helper -%}
+{%- set filterns = namespace(filters=[]) -%}
+{%- for fltr in [this_tenant] | selectattr('children', 'defined')
   | map(attribute='children') | flatten
   | selectattr('vzFilter', 'defined')
   | map(attribute='vzFilter') | flatten | default([])
   | sort(attribute='attributes.name') %}
-  {% set entryns = namespace(entries=[]) %}
+  {% set entryns = namespace(entries=[]) -%}
   {% for entry in [fltr] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('vzEntry','defined')
-    | map(attribute='vzEntry') | sort(attribute='attributes.name')%}
+    | map(attribute='vzEntry') | sort(attribute='attributes.name') %}
     {% set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name,
       'alias': entry.attributes.nameAlias | default(''),
@@ -27,14 +27,15 @@
         | replace('unspecified', '')
         | replace(entry.attributes.dFromPort, ''),
       'stateful': 'true' if entry.attributes.stateful != 'no' else '',
-    }] %}
-  {% endfor %}
+    }] -%}
+  {% endfor -%}
   {% set filterns.filters = filterns.filters + [{
     'name': fltr.attributes.name,
     'alias': fltr.attributes.nameAlias | default(''),
     'description': fltr.attributes.descr | default(''),
     'entries': entryns.entries | default([]),
   }] %}
-{% endfor %}
+{% endfor -%}
 {{ 'filters:' | indent(width=6, first=True) if filterns.filters }}
-{{ helper.remove_empty(filterns.filters) | indent(width=8, first=True) }}
+{{ helper.remove_empty(filterns.filters)
+  | indent(width=8, first=True) if filterns.filters }}
