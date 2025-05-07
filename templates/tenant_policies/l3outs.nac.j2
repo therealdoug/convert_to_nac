@@ -382,7 +382,7 @@
         {% for peer in [intf] | selectattr('children', 'defined')
           | map(attribute='children' ) | flatten
           | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP')
-          | list | default('')
+          | list | sort(attribute='attributes.addr') | default('')
           %}
           {% set interfacepeers.peers = interfacepeers.peers + [{
             'ip': peer.attributes.addr | regex_replace('::$', '::0'),
