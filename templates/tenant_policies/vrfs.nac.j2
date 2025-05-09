@@ -30,7 +30,7 @@
       'destinations': pfxdestsns.dests | default([]),
     }] %}
   {% endfor -%}{#- Leaked Internal Prefix -#}
-  
+
   {%- set leakedextpfxsns = namespace(prefix=[] ) -%}
   {% for pfx in vrf.children | selectattr('leakRoutes', 'defined')
     | map(attribute='leakRoutes')
@@ -59,7 +59,7 @@
       'destinations': pfxdestsns.dests | default([]),
     }] %}
   {% endfor %}{#- Leaked External Prefix -#}
-  
+
   {%- set vrfcontractsns = namespace(contracts={}) -%}
   {% set vrfcontractsns.contracts = {
     'providers': vrf.children | selectattr('vzAny', 'defined')
@@ -116,7 +116,7 @@
       | selectattr('bgpRtTarget.attributes.type', 'match', 'export')
       | map(attribute='bgpRtTarget.attributes.rt')
       | default(''),
-    'ipv6_import_route_target': vrf.children 
+    'ipv6_import_route_target': vrf.children
       | selectattr('bgpRtTargetP', 'defined')
       | map(attribute='bgpRtTargetP')
       | selectattr('attributes.af', 'match', 'ipv6-ucast')
@@ -168,7 +168,7 @@
       | flatten | list |default([]) %}
       {% set staticrpns.static_rps = staticrpns.static_rps + [{
         'ip': rp.attributes.rpIp,
-        'multicast_route_map': [rp] 
+        'multicast_route_map': [rp]
           | selectattr('children', 'defined') | map(attribute='children')
           | flatten | selectattr('pimRPGrpRangePol', 'defined')
           | map(attribute='pimRPGrpRangePol') | selectattr('children', 'defined')
@@ -186,7 +186,7 @@
       | flatten | default([]) %}
       {% set fabricrpns.fabric_rps = fabricrpns.fabric_rps + [{
         'ip': rp.attributes.rpIp,
-        'multicast_route_map': [rp] 
+        'multicast_route_map': [rp]
           | selectattr('children', 'defined') | map(attribute='children')
           | flatten | selectattr('pimRPGrpRangePol', 'defined')
           | map(attribute='pimRPGrpRangePol') | selectattr('children', 'defined')

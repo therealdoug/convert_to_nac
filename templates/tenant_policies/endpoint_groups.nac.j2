@@ -180,7 +180,7 @@
               {% for port in static_ports | sort(attribute='attributes.tDn') %}
                 {% if '/paths' in port.attributes.tDn %}
                   {% set pod_id, node_id, path = port.attributes.tDn
-                    | regex_replace('^topology\/pod-(\d)\/paths-(\d+)\/pathep-\[(.*?)\]$',
+                    | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[(.*?)\]$',
                                     '\\1,\\2,\\3')
                     | split(',') %}
                 - node_id: {{ node_id }}
@@ -206,7 +206,7 @@
                   {% endif %}
                 {% elif '/protpaths' in port.attributes.tDn %}
                   {% set pod_id, node_id, node2_id, channel = port.attributes.tDn
-                    | regex_replace('^topology\/pod-(\d)\/protpaths-(\d+)-(\d+)\/pathep-\[(.*?)\]$',
+                    | regex_replace('^topology\/pod-(\d+)\/protpaths-(\d+)-(\d+)\/pathep-\[(.*?)\]$',
                                     '\\1,\\2,\\3,\\4')
                     | split(',') %}
                 - node_id: {{ node_id }}
