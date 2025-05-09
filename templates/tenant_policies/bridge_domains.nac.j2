@@ -80,5 +80,5 @@
   }] %}
 {% endfor -%}
 {{ 'bridge_domains:' | indent(6, first=True) if bdns.bridge_domains }}
-{{ helper.remove_empty(bdns.bridge_domains) | indent(8, first=True) 
+{{ helper.remove_empty(bdns.bridge_domains) | indent(8, first=True)
   if bdns.bridge_domains }}
