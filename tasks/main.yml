@@ -1,16 +1,22 @@
 ---
 - hosts: 
-    # - lab
+    - lab
     - prod
-    # - sandbox
-    # - opc
-    - atl_mkt
+    - sandbox
+    - opc
     # - pdx
     # - wdc
     # - dal
     # - atl
     # - chy5
     # - lss
+    - pedc
+    # - useast1
+    # - useast2
+    # - uswest1
+    # - uswest2
+    # - uscentral1
+
   connection: local
   gather_facts: false
   become: false
@@ -19,8 +25,8 @@
 
   vars:
     create_access_policies: false
-    create_tenant_policies: true
-    create_fabric_policies: true
+    create_tenant_policies: false
+    create_fabric_policies: false
     create_pod_policies: true
 
   tasks:
