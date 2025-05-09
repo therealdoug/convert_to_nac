@@ -1,39 +1,76 @@
 #jinja2: lstrip_blocks: True
 ---
-{% set ctrlrInst = polUni | selectattr('ctrlrInst', 'defined') | map(attribute='ctrlrInst')
-  | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-{% set pod_policy = ctrlrInst | selectattr('fabricSetupPol', 'defined')
-  | map(attribute='fabricSetupPol') | selectattr('children', 'defined')
-  | map(attribute='children') | flatten | list %}
-{% set pods = pod_policy | selectattr('fabricSetupP', 'defined') | map(attribute='fabricSetupP')
-  | list %}
 apic:
   pod_policies:
-  {% if pods | length > 0 %}
-    pods:
-    {% for pod in pods | sort(attribute='attributes.podId') %}
-      - id: {{ pod.attributes.podId }}
-      {% if pod.attributes.tepPool != "" %}
-        tep_pool: {{ pod.attributes.tepPool }}
-      {% endif %}
-      {% if pod.attributes.podType != "physical" %}
-        pod_type: {{ pod.attributes.podType }}
-      {% endif %}
-      {% set ext_tep_pools = pod.children | selectattr('fabricExtRoutablePodSubnet', 'defined')
-        | map(attribute='fabricExtRoutablePodSubnet')
-        | flatten | list if pod.children is defined else [] %}
-      {% if ext_tep_pools | length > 0 %}
-        external_tep_pools:
-        {% for pool in ext_tep_pools | sort(attribute='attributes.pool') %}
-          - prefix: {{ pool.attributes.pool }}
-          {% if pool.attributes.reserveAddressCount != "" %}
-            reserved_address_count: {{ pool.attributes.reserveAddressCount }}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-    {# TODO: data_plane_tep attribute. Comes from aci-external-connectivity-policy #}
-    {# TODO: unicast_tep attribute. Comes from aci-external-connectivity-policy #}
-    {# TODO: policy attribute. I don't know where this is referenced #}
-    {# TODO: remote_pools. I don't have an example to use #}
-    {% endfor %}
-  {% endif %}
+{% import 'macro_handler.j2' as helper -%}
+{% set podpolns = namespace(pods=[]) -%}
+{%- for pod in polUni | selectattr('ctrlrInst', 'defined')
+  | map(attribute='ctrlrInst') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('fabricSetupPol', 'defined')
+  | map(attribute='fabricSetupPol') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('fabricSetupP', 'defined') | map(attribute='fabricSetupP')
+  | list | default([]) -%}
+
+  {%- set extteppoolsns = namespace(pools=[]) -%}
+  {% for pool in [pod]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fabricExtRoutablePodSubnet', 'defined')
+    | map(attribute='fabricExtRoutablePodSubnet')
+    | flatten | list | default([]) %}
+    {% set extteppoolsns.pools = extteppoolsns.pools + [{
+      'prefix': pool.attributes.pool | default(''),
+      'reserved_address_count': pool.attributes.reserveAddressCount
+        | default(''),
+    }] %}
+  {%- endfor -%}
+
+  {%- set remotepoolsns = namespace(pools=[]) -%}
+  {% for pool in [pod]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fabricExtSetupP', 'defined')
+    | map(attribute='fabricExtSetupP')
+    | flatten | list | default([]) %}
+    {% set remotepoolsns.pools = remotepoolsns.pools + [{
+      'id': pool.attributes.extPoolId | default(''),
+      'remote_pool': pool.attributes.tepPool
+        | default(''),
+    }] %}
+  {%- endfor -%}
+
+  {% set podpolns.pods = podpolns.pods + [{
+    'id': pod.attributes.podId,
+    'tep_pool': pod.attributes.tepPool | default(''),
+    'pod_type': pod.attributes.podType | default('') | replace('physical', ''),
+    'unicast_tep': polUni | selectattr('fvTenant', 'defined')
+    | selectattr('fvTenant.attributes.name', 'match', 'infra')
+    | map(attribute='fvTenant')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvFabricExtConnP', 'defined') | map(attribute='fvFabricExtConnP')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvPodConnP', 'defined') 
+    | selectattr('fvPodConnP.attributes.id', 'match', pod.attributes.podId)
+    | map(attribute='fvPodConnP')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvExtRoutableUcastConnP', 'defined')
+    | map(attribute='fvExtRoutableUcastConnP.attributes.addr')
+    | first | default(''),
+    'data_plane_tep': polUni | selectattr('fvTenant', 'defined')
+    | selectattr('fvTenant.attributes.name', 'match', 'infra')
+    | map(attribute='fvTenant')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvFabricExtConnP', 'defined') | map(attribute='fvFabricExtConnP')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvPodConnP', 'defined') 
+    | selectattr('fvPodConnP.attributes.id', 'match', pod.attributes.podId)
+    | map(attribute='fvPodConnP')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvIp', 'defined') | map(attribute='fvIp.attributes.addr')
+    | first | default(''),
+    'external_tep_pools': extteppoolsns.pools | default([]),
+    'remote_pools': remotepoolsns.pools | default([]),
+  }] %}
+{%- endfor -%}
+{{ 'pods:' | indent(4,true) if podpolns.pods }}
+{{ helper.remove_empty(podpolns.pods) | indent(6,true) if podpolns.pods}}
