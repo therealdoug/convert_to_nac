@@ -15,7 +15,7 @@
         'key': prov.attributes.key | default(''),
         'port': prov.attributes.port | default('') | replace('49', ''),
         'timeout': prov.attributes.timeout | default('') | replace('5', ''),
-        'retries': prov.attributes.retries | default('') | replace('1', ''),
+        'retries': prov.attributes.retries | default('') | regex_replace('^1$', ''),
         'monitoring_username': prov.attributes.monitoringUser | default('') | replace('default', ''),
         'monitoring_password': prov.attributes.monitoringPassword | default(''),
         'monitoring': prov.attributes.monitorServer | default('') | replace('disabled', '')

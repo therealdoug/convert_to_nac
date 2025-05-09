@@ -13,6 +13,46 @@
     | list | default([]) if np %}
     {%- set nodens = namespace(nodes=[]) -%}
     {%- set intprofns = namespace(int_profs=[]) -%}
+    {%- set bgpinfrapeersns = namespace(peers=[]) -%}
+    {% for peer in [np]
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('bgpInfraPeerP', 'defined')
+      | map(attribute='bgpInfraPeerP')
+      | default([]) | sort(attribute='attributes.addr') %}
+      {%- set bgpinfrapeersns.peers = bgpinfrapeersns.peers + [{
+        'ip': peer.attributes.addr,
+        'description': peer.attributes.descr,
+        'alias': peer.attributes.nameAlias,
+        'remote_as': [peer]| selectattr('children', 'defined')
+          | map(attribute='children') | flatten | list
+          | selectattr('bgpAsP', 'defined')
+          | map(attribute='bgpAsP.attributes.asn')
+          | first | default(''),
+        'allow_self_as': 'true' if 'allow-self-as' in peer.attributes.ctrl else '',
+        'disable_peer_as_check': 'true' if 'dis-peer-as-check'
+            in peer.attributes.ctrl else '',
+        'bfd': 'true' if 'bfd' in peer.attributes.peerCtrl else '',
+        'ttl': peer.attributes.ttl | regex_replace('^2$', ''),
+        'local_as': [peer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpLocalAsnP', 'defined')
+            | map(attribute='bgpLocalAsnP.attributes.localAsn')
+            | first | default(''),
+        'as_propagate': [peer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpLocalAsnP', 'defined')
+            | map(attribute='bgpLocalAsnP.attributes.asnPropagate')
+            | first | default('') | replace('none', ''),
+        'peer_prefix_policy': [peer] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten | list
+            | selectattr('bgpRsPeerPfxPol', 'defined')
+            | map(attribute='bgpRsPeerPfxPol.attributes.tnBgpPeerPfxPolName')
+            | first | default(''),
+        'admin_state': 'false' if peer.attributes.adminSt == 'disabled' else ''
+            | default(''),
+      }]
+      -%}
+    {%- endfor -%}
 
     {%- for node in [np]
       | selectattr('children', 'defined') | map(attribute='children') | flatten
@@ -295,7 +335,7 @@
         | default(''),
       'nodes': nodens.nodes | default([]),
       'interface_profiles': intprofns.int_profs | default([]),
-      'evpn_connectivity': [],
+      'evpn_connectivity': bgpinfrapeersns.peers | default([]),
     }] -%}
   {% endfor -%}
 

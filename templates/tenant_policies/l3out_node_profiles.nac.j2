@@ -87,7 +87,7 @@
         'bfd': 'true' if 'bfd' in np.attributes.peerCtrl else '',
         'disable_connected_check': 'true' if 'dis-conn-check'
           in np.attributes.peerCtrl else '',
-        'ttl': np.attributes.ttl | replace('1', ''),
+        'ttl': np.attributes.ttl | regex_replace('^1$', ''),
         'weight': np.attributes.weight
           | replace('0', ''),
         'remove_all_private_as': 'true' if 'remove-all'
@@ -176,34 +176,34 @@
           'mtu': intf.attributes.mtu | default('') | replace('inherit', ''),
           'pod_id': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\1')
-            | replace('1', ''),
+            | regex_replace('^1$', ''),
           'node_id': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\2'),
           'node2_id': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\3'),
           'channel': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\4')
             | regex_replace('^eth.*', ''),
           'module': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\5')
-            | replace('1', ''),
+            | regex_replace('^1$', ''),
           'port': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\6'),
           'sub_port': intf.attributes.tDn | default('')
             | regex_replace(
-            '^topology\/pod-(\d)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
               '\\7'),
           'ip_a': [intf] | selectattr('children', 'defined')
             | map(attribute='children') | flatten | list
@@ -290,7 +290,7 @@
             | selectattr('children', 'defined') | map(attribute='children') | flatten
             | selectattr('ospfIfP', 'defined')
             | map(attribute='ospfIfP.attributes.authKeyId')
-            | first | default('') | replace('1', ''),
+            | first | default('') | regex_replace('^1$', ''),
           'policy': [int_prof]
             | selectattr('children', 'defined') | map(attribute='children') | flatten
             | selectattr('ospfIfP', 'defined') | map(attribute='ospfIfP')
@@ -329,7 +329,7 @@
         | regex_replace('^topology/[^/]+/node-([0-9]+)$', '\\1'),
       'pod_id': node.attributes.tDn
         | regex_replace('^topology/pod-(\d{1,2})/node-[0-9]+$', '\\1')
-        | default('') | replace('1', ''),
+        | default('') | regex_replace('^1$', ''),
       'router_id': node.attributes.rtrId,
       'router_id_as_loopback': 'false' if node.attributes.rtrIdLoopBack != 'yes'
         else '' | default(''),
