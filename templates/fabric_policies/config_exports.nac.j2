@@ -1,34 +1,28 @@
-  {% set cfg_exports = fabricInst_children | selectattr('configExportP', 'defined')
-    | map(attribute='configExportP')
-    | list | default([])
-  %}
-  {% if cfg_exports | length > 0 %}
-
-    config_exports:
-    {% for export in cfg_exports | sort(attribute='attributes.name') %}
-      {% set policy = {
-        'name': export.attributes.name,
-        'description': export.attributes.descr | default(''),
-        'format': export.attributes.format | default('') | replace('json',''),
-        'snapshot': export.attributes.snapshot | default('') | replace('no','')
-          | replace('yes', 'true'),
-        'remote_location': export | selectattr('children', 'defined') | map(attribute='children')
-          | flatten | list
-          | selectattr('configRsRemotePath', 'defined')
-          | map(attribute='configRsRemotePath.attributes.tnFileRemotePathName')
-          | first | default(''),
-        'scheduler': export | selectattr('children', 'defined') | map(attribute='children')
-          | flatten | list
-          | selectattr('configRsExportScheduler', 'defined')
-          | map(attribute='configRsExportScheduler.attributes.tnTrigSchedPName')
-          | first | default(''),
-      }%}
-      {% for pol, value in policy.items() if value != '' %}
-        {% if loop.first %}
-      - {{ pol }}: {{ value }}
-        {% else %}
-        {{ pol }}: {{ value }}
-        {% endif %}
-      {% endfor %}
-    {% endfor %}
-  {% endif %}
+{% import 'macro_handler.j2' as helper %}
+{% set fabconfigs = namespace(config_exports=[]) %}
+{% for export in polUni | selectattr('fabricInst', 'defined')
+  | map(attribute='fabricInst') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('configExportP', 'defined') | map(attribute='configExportP')
+  | sort(attribute='attributes.name') %}
+  {% set fabconfigs.config_exports = fabconfigs.config_exports + [{
+    'name': export.attributes.name,
+    'description': export.attributes.descr | default(''),
+    'format': export.attributes.format | default('') | replace('json',''),
+    'snapshot': export.attributes.snapshot | default('') | replace('no','')
+      | replace('yes', 'true'),
+    'remote_location': export | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | list
+      | selectattr('configRsRemotePath', 'defined')
+      | map(attribute='configRsRemotePath.attributes.tnFileRemotePathName')
+      | first | default(''),
+    'scheduler': export | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | list
+      | selectattr('configRsExportScheduler', 'defined')
+      | map(attribute='configRsExportScheduler.attributes.tnTrigSchedPName')
+      | first | default(''),
+  }] %}
+{% endfor %}
+{{ 'config_exports:' | indent(4, true) if fabconfigs.config_exports }}
+{{ helper.remove_empty(fabconfigs.config_exports)
+  | indent(6, true) if fabconfigs.config_exports }}
