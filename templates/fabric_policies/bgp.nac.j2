@@ -15,7 +15,7 @@
     | selectattr('bgpExtRRP', 'defined') | map(attribute='bgpExtRRP')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('bgpRRNodePEp', 'defined') | map(attribute='bgpRRNodePEp.attributes.id')
-    | default([]) ) %}
+    | sort | default([]) ) %}
   {% set _=fabbgpns.bgp_policies.__setitem__('fabric_bgp_rr', polUni
     | selectattr('fabricInst', 'defined') | map(attribute='fabricInst')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
@@ -23,6 +23,7 @@
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('bgpRRP', 'defined') | map(attribute='bgpRRP')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
-    | selectattr('bgpRRNodePEp', 'defined') | map(attribute='bgpRRNodePEp.attributes.id')
-    | default([]) ) %}
+    | selectattr('bgpRRNodePEp', 'defined')
+    | map(attribute='bgpRRNodePEp.attributes.id')
+    | sort | default([]) ) %}
 {{ helper.remove_empty(fabbgpns.bgp_policies) | indent(4, true) if fabbgpns.bgp_policies }}
