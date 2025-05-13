@@ -61,7 +61,7 @@
       | default('') else '',
     'clear_remote_mac_entries': 'true' if 'yes' in bd.attributes.epClear
       | default('')  else '',
-    'limit_ip_learn_to_subnets': 'true' if 'yes' in bd.attributes.limitIpLearnToSubnets
+    'limit_ip_learn_to_subnets': 'false' if 'no' in bd.attributes.limitIpLearnToSubnets
       | default('')  else '',
     'mac': bd.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
     'virtual_mac': bd.attributes.vmac | default('')
