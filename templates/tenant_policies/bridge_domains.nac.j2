@@ -59,9 +59,21 @@
       | default('') else '',
     'ip_dataplane_learning': 'false' if 'no' in bd.attributes.ipLearning
       | default('') else '',
+    'clear_remote_mac_entries': 'true' if 'yes' in bd.attributes.epClear
+      | default('')  else '',
+    'limit_ip_learn_to_subnets': 'true' if 'yes' in bd.attributes.limitIpLearnToSubnets
+      | default('')  else '',
     'mac': bd.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
     'virtual_mac': bd.attributes.vmac | default('')
       | replace('not-applicable', ''),
+    'ep_move_detection': 'true' if 'garp' in bd.attributes.epMoveDetectode
+      | default('')  else '',
+    'l3_multicast': 'true' if 'yes' in bd.attributes.mcastAllow
+      | default('')  else '',
+    'multicast_arp_drop': 'true' if 'yes' in bd.attributes.mcastARPDrop
+      | default('')  else '',
+    'pim_source_filter': '',
+    'pim_destination_filter': '',
     'unicast_routing': 'false' if 'no' in bd.attributes.unicastRoute
       | default('') else '',
     'multi_destination_flooding': bd.attributes.multiDstPktAct | default('')
@@ -70,6 +82,25 @@
       | replace('proxy', ''),
     'unknown_ipv4_multicast': bd.attributes.unkMcastAct | default('')
       | regex_replace('^flood$', ''),
+    'unknown_ipv6_multicast': bd.attributes.v6unkMcastAct | default('')
+      | regex_replace('^flood$', ''),
+    'igmp_interface_policy': [bd] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('igmpIfP', 'defined') | map(attribute='igmpIfP')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('igmpRsIfPol', 'defined')
+      | map(attribute='igmpRsIfPol.attbributes.tDn') | first 
+      | default('') | regex_replace('^.*igmpIfPol-(.*?)$', '\\1'),
+    'igmp_snooping_policy': [bd] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('fvRsIgmpsn', 'defined')
+      | map(attribute='fvRsIgmpsn.attributes.tnIgmpSnoopPolName') | first
+      | default(''),
+    'nd_interface_policy': [bd] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('fvRsBDToNdP', 'defined')
+      | map(attribute='fvRsBDToNdP.attributes.tnNdIfPolName') | first
+      | default(''),
     'subnets': subnetns.subnets | default([]),
     'l3outs': bd | selectattr('children', 'defined')
       | map(attribute='children') | flatten
