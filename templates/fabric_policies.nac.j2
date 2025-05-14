@@ -1,5 +1,7 @@
 #jinja2: lstrip_blocks: True
 ---
+{% import 'macro_handler.j2' as helper %}
+{% set fabpolns = namespace(fabric_policies={}) %}
 {% set fabricInst_children = polUni | selectattr('fabricInst', 'defined')
   | map(attribute='fabricInst') | selectattr('children', 'defined')
   | map(attribute='children') | flatten | list %}
@@ -7,12 +9,231 @@
   | map(attribute='aaaUserEp') | selectattr('children', 'defined')
   | map(attribute='children') | flatten | list %}
 apic:
-  fabric_policies:
-  {% set conn_pref = fabricInst_children | selectattr('mgmtConnectivityPrefs', 'defined')
-    | map(attribute='mgmtConnectivityPrefs') | first | default('') %}
-  {% if conn_pref != '' and conn_pref.attributes.interfacePref != 'inband' %}
-    apic_conn_pref: "{{ conn_pref.attributes.interfacePref }}"
-  {% endif %}
+{{ 'fabric_policies:' | indent(2, true) }}
+{% set _=fabpolns.fabric_policies.__setitem__('apic_conn_pref',
+    fabricInst_children | selectattr('mgmtConnectivityPrefs', 'defined')
+      | map(attribute='mgmtConnectivityPrefs.attributes.interfacePref') | first | default(''))
+      | replace('inband', '') %}
+{% set _=fabpolns.fabric_policies.__setitem__('coop_group_policy',
+    fabricInst_children | selectattr('coopPol', 'defined')
+      | map(attribute='coopPol.attributes.type') | first | default(''))
+      | replace('strict', '') %}
+{% set _=fabpolns.fabric_policies.__setitem__('fabric_isis_bfd',
+    'true' if fabricInst_children | selectattr('l3IfPol', 'defined')
+      | map(attribute='l3IfPol.attributes.bfdIsis')
+      | first == 'enabled' else '' | default('')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('ignore_acked_faults',
+  'true' if fabricInst_children | selectattr('healthPolCont', 'defined')
+    | map(attribute='healthPolCont') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('healthEvalP', 'defined')
+    | map(attribute='healthEvalP.attributes.ignoreAckedFaults')
+    | first == 'yes' else '' | default('')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('ip_aging',
+  'false' if polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('edrErrDisRecoverPol', 'defined')
+    | map(attribute='edrErrDisRecoverPol.attributes.errDisRecovIntvl')
+    | first == 'disabled' else '' | default('')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('fabric_isis_redistribute_metric',
+    fabricInst_children | selectattr('isisDomPol', 'defined')
+    | map(attribute='isisDomPol.attributes.redistribMetric')
+    | first | default('') | replace('60', '')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('date_time_format', {
+    'display_format': fabricInst_children | selectattr('datetimeFormat', 'defined')
+      | map(attribute='datetimeFormat.attributes.displayFormat') | first | default('')
+      | replace('local', ''),
+    'timezone': fabricInst_children | selectattr('datetimeFormat', 'defined')
+      | map(attribute='datetimeFormat.attributes.tz') | first | default('')
+      | replace('p0_UTC', ''),
+    'show_offset': 'false' if 'disabled' in fabricInst_children
+      | selectattr('datetimeFormat', 'defined')
+      | map(attribute='datetimeFormat.attributes.showOffset') | first
+      | default('') else '',
+}) %}
+{% set _=fabpolns.fabric_policies.__setitem__('ep_loop_protection', {
+    'admin_state': 'false' if polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('epLoopProtectP', 'defined')
+      | map(attribute='epLoopProtectP.attributes.adminSt')
+      | first == 'disabled' else '',
+    'detection_interval': polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('epLoopProtectP', 'defined')
+      | map(attribute='epLoopProtectP.attributes.loopDetectIntvl')
+      | first | default('') | regex_replace('^60$', ''),
+    'detection_multiplier': polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('epLoopProtectP', 'defined')
+      | map(attribute='epLoopProtectP.attributes.loopDetectMult')
+      | first | default('') | regex_replace('^4$', ''),
+    'bd_learn_disable': 'false' if 'bd-learn-disable' not in polUni
+      | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('epLoopProtectP', 'defined')
+      | map(attribute='epLoopProtectP.attributes.action')
+      | first else '' | default(''),
+    'port_disable': 'true' if 'port-disable' in polUni
+      | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('epLoopProtectP', 'defined')
+      | map(attribute='epLoopProtectP.attributes.action')
+      | first else '' | default('')
+}) %}
+{% set _=fabpolns.fabric_policies.__setitem__('err_disabled_recovery', {
+    'interval': polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrErrDisRecoverPol', 'defined')
+      | map(attribute='edrErrDisRecoverPol.attributes.errDisRecovIntvl')
+      | default('') | first | regex_replace('^300$', ''),
+    'mcp_loop': 'true' if 'yes' in polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrErrDisRecoverPol', 'defined')
+      | map(attribute='edrErrDisRecoverPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrEventP', 'defined')
+      | selectattr('edrEventP.attributes.event', 'match', 'event-mcp-loop')
+      | map(attribute='edrEventP.attributes.recover') 
+      | default('') else '',
+    'ep_move': 'true' if 'yes' in polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrErrDisRecoverPol', 'defined')
+      | map(attribute='edrErrDisRecoverPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrEventP', 'defined')
+      | selectattr('edrEventP.attributes.event', 'match', 'event-ep-move')
+      | map(attribute='edrEventP.attributes.recover') 
+      | default('') else '',
+    'bpdu_guard': 'true' if 'yes' in polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrErrDisRecoverPol', 'defined')
+      | map(attribute='edrErrDisRecoverPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('edrEventP', 'defined')
+      | selectattr('edrEventP.attributes.event', 'match', 'event-bpduguard')
+      | map(attribute='edrEventP.attributes.recover') 
+      | default('') else '',
+}) %}
+{% set _=fabpolns.fabric_policies.__setitem__('global_settings', {
+    'domain_validation': 'false' if polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.domainValidation')
+      | first == 'no' else '' | default(''),
+    'enforce_subnet_check': 'false' if polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.enforceSubnetCheck')
+      | first == 'no' else '' | default(''),
+    'opflex_authentication': 'true' if polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.opflexpAuthenticateClients')
+      | first == 'yes' else '' | default(''),
+    'disable_remote_endpoint_learn': 'true' if polUni
+      | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.unicastXrEpLearnDisable')
+      | first == 'yes' else '' | default(''),
+    'overlapping_vlan_validation': 'false' if polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.validateOverlappingVlans')
+      | first == 'no' else '' | default(''),
+    'remote_leaf_direct': 'false' if polUni | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.enableRemoteLeafDirect')
+      | first == 'no' else '' | default(''),
+    'reallocate_gipo': 'true' if polUni
+      | selectattr('infraInfra', 'defined')
+      | map(attribute='infraInfra') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraSetPol', 'defined')
+      | map(attribute='infraSetPol.attributes.reallocateGipo')
+      | first == 'yes' else '' | default(''),
+}) %}
+{% set qosDscpTransPol = polUni | selectattr('fvTenant', 'defined')
+  | selectattr('fvTenant.attributes.name', 'match', 'infra')
+  | map(attribute='fvTenant') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('qosDscpTransPol', 'defined')
+  | map(attribute='qosDscpTransPol')
+  | first | default('')
+%}
+{% set _=fabpolns.fabric_policies.__setitem__('infra_dscp_translation_policy', {
+  'admin_state': 'true' if qosDscpTransPol.attributes.adminSt == 'enabled' |default(''),
+  'control_plane': qosDscpTransPol.attributes.control | replace('CS7', ''),
+  'policy_plane': qosDscpTransPol.attributes.policy | replace('CS4', ''),
+  'span': qosDscpTransPol.attributes.span | replace('CS1', ''),
+  'traceroute': qosDscpTransPol.attributes.traceroute | replace('CS2', ''),
+  'level_1': qosDscpTransPol.attributes.level1 | replace('EF', ''),
+  'level_2': qosDscpTransPol.attributes.level2 | replace('CS3', ''),
+  'level_3': qosDscpTransPol.attributes.level3 | replace('CS0', ''),
+  'level_4': qosDscpTransPol.attributes.level4 | replace('AF11', ''),
+  'level_5': qosDscpTransPol.attributes.level5 | replace('AF21', ''),
+  'level_6': qosDscpTransPol.attributes.level6 | replace('AF31', ''),
+}) %}
+
+{#- Fabric DNS Policies -#}
+{% set fabdns_ns = namespace(dns_policies=[]) %}
+{% for policy in fabricInst_children | selectattr('dnsProfile', 'defined')
+  | map(attribute='dnsProfile') | flatten | default([]) %}
+  {#- DNS Providers -#}
+  {% set dnsprovns = namespace(dns_providers=[]) %}
+  {% for provider in [policy] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('dnsProv', 'defined') | map(attribute='dnsProv')
+    | sort(attribute='attributes.addr') | default([]) %}
+    {% set dnsprovns.dns_providers = dnsprovns.dns_providers + [{
+      'ip': provider.attributes.addr,
+      'preferred': 'false' if provider.attributes.preferred == 'no' else ''
+        | default(''),
+    }] %}
+  {% endfor %}
+  {#- DNS domains -#}
+  {% set dnsdomns = namespace(dns_domains=[]) %}
+  {% for domain in [policy] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('dnsDomain', 'defined') | map(attribute='dnsDomain')
+    | sort(attribute='attributes.name') | default([]) %}
+    {% set dnsdomns.dns_domains = dnsdomns.dns_domains + [{
+      'name': domain.attributes.name,
+      'default': 'false' if domain.attributes.isDefault == 'no' else ''
+        | default(''),
+    }] %}
+  {% endfor %}
+  {% set fabdns_ns.dns_policies = fabdns_ns.dns_policies + [{
+    'name': policy.attributes.name,
+    'mgmt_epg': 'inb' if '/inb-' in [policy] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('dnsRsProfileToEpg', 'defined')
+      | map(attribute='dnsRsProfileToEpg.attributes.tDn') else '' | default(''),
+    'providers': dnsprovns.dns_providers | default(''),
+    'domains': dnsdomns.dns_domains | default(''),
+  }] %}
+{% endfor %}
+{% set _=fabpolns.fabric_policies.__setitem__('dns_policies', fabdns_ns.dns_policies )%}
+{#- END Fabric DNS Policies -#}
+{{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
+{% include "fabric_policies/fabric_pod_policies.nac.j2" %}
 {% include "fabric_policies/banner.nac.j2" %}
 {% include "fabric_policies/aaa.nac.j2" %}
 {% include "fabric_policies/remote_location.nac.j2" %}
