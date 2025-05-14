@@ -1,5 +1,18 @@
-  {% set aaa_policies = {
-    'remote_user_login_policy': aaaUserEp | selectattr('aaaAuthRealm', 'defined')
+{% import 'macro_handler.j2' as helper%}
+{% set fabaaans = namespace(aaa={}) %}
+{% set fabaasec = namespace(security_domains=[]) %}
+{% for domain in aaaUserEp | selectattr('aaaDomain', 'defined')
+  | map(attribute='aaaDomain') | selectattr('attributes.name','!=','all')
+  | flatten | sort(attribute='attributes.name') | default([]) %}
+  {% set fabaasec.security_domains = fabaasec.security_domains + [{
+    'name': domain.attributes.name,
+    'description': domain.attributes.descr | default(''),
+    'restricted_rbac_domain': 'true' if 'yes' in domain.attributes.restrictedRbacDomain else ''
+      | default('')
+  }] %}
+{% endfor %}
+{% set _=fabaaans.aaa.__setitem__('aaa', {
+  'remote_user_login_policy': aaaUserEp | selectattr('aaaAuthRealm', 'defined')
       | map(attribute='aaaAuthRealm.attributes.defRolePolicy')
       | first | default('') | replace('no-login', ''),
     'default_fallback_check': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
@@ -22,34 +35,35 @@
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
       | selectattr('aaaConsoleAuth', 'defined') | map(attribute='aaaConsoleAuth.attributes.providerGroup')
       | first | default(''),
-  }%}
-  {% if aaa_policies.values() | select('!=', '') | list | length > 0 %}
-
-    aaa:
-    {% for policy, value in aaa_policies.items() if value != ''%}
-      {{ policy }}: {{ value }}
-    {% endfor %}
-    {# TODO: More testing of this part #}
-    {% set mgmt_settings = {
-      'password_strength_check': polUni | selectattr('aaaUserEp', 'defined') | map(attribute='aaaUserEp.attributes.pwdStrengthCheck')
+    'security_domains': fabaasec.security_domains | default([]),
+    'management_settings': {
+      'password_strength_check': polUni | selectattr('aaaUserEp', 'defined')
+        | map(attribute='aaaUserEp.attributes.pwdStrengthCheck')
         | first | default('') | replace('yes', 'true') | replace('no', ''),
-      'password_change_during_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined') | map(attribute='aaaPwdProfile.attributes.changeDuringInterval')
+      'password_change_during_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+        | map(attribute='aaaPwdProfile.attributes.changeDuringInterval')
         | first | default('') | replace('disable', 'false') | replace('enable', ''),
-      'password_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined') | map(attribute='aaaPwdProfile.attributes.changeInterval')
+      'password_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+        | map(attribute='aaaPwdProfile.attributes.changeInterval')
         | first | default('') | replace('48', ''),
-      'password_change_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined') | map(attribute='aaaPwdProfile.attributes.changeCount')
+      'password_change_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+        | map(attribute='aaaPwdProfile.attributes.changeCount')
         | first | default('') | replace('2', ''),
-      'password_no_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined') | map(attribute='aaaPwdProfile.attributes.noChangeInterval')
+      'password_no_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+        | map(attribute='aaaPwdProfile.attributes.noChangeInterval')
         | first | default('') | replace('24', ''),
-      'password_history_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined') | map(attribute='aaaPwdProfile.attributes.historyCount')
+      'password_history_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+        | map(attribute='aaaPwdProfile.attributes.historyCount')
         | first | default('') | replace('5', ''),
       'web_token_timeout': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
         | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-        | selectattr('pkiWebTokenData', 'defined') | map(attribute='pkiWebTokenData.attributes.webtokenTimeoutSeconds')
+        | selectattr('pkiWebTokenData', 'defined')
+        | map(attribute='pkiWebTokenData.attributes.webtokenTimeoutSeconds')
         | first | default('') | replace('600', ''),
       'web_token_max_validity': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
         | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-        | selectattr('pkiWebTokenData', 'defined') | map(attribute='pkiWebTokenData.attributes.maximumValidityPeriod')
+        | selectattr('pkiWebTokenData', 'defined')
+        | map(attribute='pkiWebTokenData.attributes.maximumValidityPeriod')
         | first | default('') | replace('24', ''),
       'web_session_idle_timeout': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
         | selectattr('children', 'defined') | map(attribute='children') | flatten | list
@@ -71,14 +85,7 @@
       'login_max_failed_attempts_window': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
         | map(attribute='aaaBlockLoginProfile.attributes.maxFailedAttemptsWindow')
         | first | default('') | replace('5', ''),
-    }%}
-    {% if mgmt_settings.values() | select('!=', '') | list | length > 0 %}
-      management_settings:
-      {% for policy, value in mgmt_settings.items() if value != '' and value != [] %}
-        {{ policy }}: {{ value }}
-      {% endfor %}
-      {# TODO: Testing of the pwd_profile logic once the sandbox apic comes back #}
-      {% set pwd_profile = {
+      'password_strength_profile': {
         'password_minimum_length': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
           | map(attribute='aaaPwdStrengthProfile.attributes.pwdMinLength')
           | first | default('') | replace('8', ''),
@@ -92,33 +99,10 @@
         'password_class_flags': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
           | map(attribute='aaaPwdStrengthProfile.attributes.pwdClassFlags')
           | first | default(''),
-      }%}
-      {% if pwd_profile.values() | select('!=', '') | list | length > 0 %}
-        password_strength_profile:
-        {% for policy, value in pwd_profile.items() if value != '' and value != [] %}
-          {% if policy == 'password_class_flags' and value | length > 0  %}
-          {{ policy }}:
-            {% for flag in value.split(',') %}
-            - {{ flag }}
-            {% endfor %}
-          {% else %}
-          {{ policy }}: {{ value }}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-    {% endif %}
-    {% set domains = aaaUserEp | selectattr('aaaDomain', 'defined') | map(attribute='aaaDomain')
-      | selectattr('attributes.name','!=','all') | flatten | list | default([])
-    %}
-    {% if domains | length > 0 %}
-      security_domains:
-      {% for domain in domains | sort(attribute='attributes.name') %}
-        - name: "{{ domain.attributes.name }}"
-        {% if domain | map(attribute='attributes.restrictedRbacDomain') | default('') == 'yes' %}
-          restricted_rbac_domain: true
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-  {% endif %}
+      },
+    },
+  })
+%}
 {% include "fabric_policies/tacacs.nac.j2" %}
 {% include "fabric_policies/radius.nac.j2" %}
+{{ helper.remove_empty(fabaaans.aaa) | indent(4, true) if fabaaans.aaa}}

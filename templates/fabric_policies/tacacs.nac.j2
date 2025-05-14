@@ -1,4 +1,3 @@
-{% import 'macro_handler.j2' as helper %}
 {% set fabtacacsns = namespace(tacacs_providers=[]) %}
 {% for prov in aaaUserEp | selectattr('aaaTacacsPlusEp', 'defined')
   | map(attribute='aaaTacacsPlusEp')
@@ -29,6 +28,4 @@
       | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
   }] %}
 {% endfor %}
-{{ 'tacacs_providers:' | indent(6, true) if fabtacacsns.tacacs_providers }}
-{{ helper.remove_empty(fabtacacsns.tacacs_providers)
-  | indent(8, true) if fabtacacsns.tacacs_providers }}
+{% set _=fabaaans.aaa.aaa.__setitem__('tacacs_providers', fabtacacsns.tacacs_providers) %}
