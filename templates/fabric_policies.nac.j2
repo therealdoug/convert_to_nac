@@ -53,21 +53,29 @@ apic:
     | map(attribute='l2InstPol.attributes.fabricMtu')
     | first | default('') | replace('9000', '')) %}
 {% set _=fabpolns.fabric_policies.__setitem__('system_performance', {
-    'admin_state': 'true' if 'enabled' in fabricInst_children 
+    'admin_state': 'true' if 'enabled' in fabricInst_children
+      | selectattr('commPol', 'defined') | map(attribute='commPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('commApiRespTime', 'defined')
       | map(attribute='commApiRespTime.attributes.enableCalculation')
       | first | default('') else '' ,
-    'response_threshold': fabricInst_children 
+    'response_threshold': fabricInst_children
+      | selectattr('commPol', 'defined') | map(attribute='commPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('commApiRespTime', 'defined')
       | map(attribute='commApiRespTime.attributes.respTimeThreshold')
       | first | default('') | regex_replace('^85000$', ''),
     'top_slowest_requests': fabricInst_children
+      | selectattr('commPol', 'defined') | map(attribute='commPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('commApiRespTime', 'defined')
       | map(attribute='commApiRespTime.attributes.topNRequests')
       | first | default('') | regex_replace('^5$', ''),
     'calculation_window': fabricInst_children
+      | selectattr('commPol', 'defined') | map(attribute='commPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('commApiRespTime', 'defined')
-      | map(attribute='commApiRespTime.attributes.topNRequests')
+      | map(attribute='commApiRespTime.attributes.calcWindow')
       | first | default('') | regex_replace('^300$', ''),
 }) %}
 {% set _=fabpolns.fabric_policies.__setitem__('date_time_format', {
@@ -131,7 +139,7 @@ apic:
       | map(attribute='children') | flatten
       | selectattr('edrEventP', 'defined')
       | selectattr('edrEventP.attributes.event', 'match', 'event-mcp-loop')
-      | map(attribute='edrEventP.attributes.recover') 
+      | map(attribute='edrEventP.attributes.recover')
       | default('') else '',
     'ep_move': 'true' if 'yes' in polUni | selectattr('infraInfra', 'defined')
       | map(attribute='infraInfra') | selectattr('children', 'defined')
@@ -141,7 +149,7 @@ apic:
       | map(attribute='children') | flatten
       | selectattr('edrEventP', 'defined')
       | selectattr('edrEventP.attributes.event', 'match', 'event-ep-move')
-      | map(attribute='edrEventP.attributes.recover') 
+      | map(attribute='edrEventP.attributes.recover')
       | default('') else '',
     'bpdu_guard': 'true' if 'yes' in polUni | selectattr('infraInfra', 'defined')
       | map(attribute='infraInfra') | selectattr('children', 'defined')
@@ -151,7 +159,7 @@ apic:
       | map(attribute='children') | flatten
       | selectattr('edrEventP', 'defined')
       | selectattr('edrEventP.attributes.event', 'match', 'event-bpduguard')
-      | map(attribute='edrEventP.attributes.recover') 
+      | map(attribute='edrEventP.attributes.recover')
       | default('') else '',
 }) %}
 {% set _=fabpolns.fabric_policies.__setitem__('global_settings', {
@@ -235,7 +243,6 @@ apic:
 {% endfor %}
 {% set _=fabpolns.fabric_policies.__setitem__('l2_mtu_policies', fabl2mtuns.l2_mtu_policies )%}
 {#- END L2 MTU Policies -#}
-
 {#- Fabric DNS Policies -#}
 {% set fabdns_ns = namespace(dns_policies=[]) %}
 {% for policy in fabricInst_children | selectattr('dnsProfile', 'defined')
