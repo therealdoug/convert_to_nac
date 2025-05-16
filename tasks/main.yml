@@ -1,16 +1,20 @@
 ---
 - hosts: 
-    - lab
-    - prod
-    - sandbox
-    - opc
+    # - lab
+    # - prod
+    # - sandbox
+    # - opc
     # - pdx
     # - wdc
+    # - chi
     # - dal
     # - atl
+    - chy
+    # - chy1
+    # - chy2
     # - chy5
     # - lss
-    - pedc
+    # - pedc
     # - useast1
     # - useast2
     # - uswest1
@@ -24,9 +28,9 @@
   environment: "{{ proxy_env | default('') }}"
 
   vars:
-    create_access_policies: false
-    create_tenant_policies: false
-    create_fabric_policies: false
+    # create_access_policies: true
+    # create_tenant_policies: true
+    create_fabric_policies: true
     create_pod_policies: true
 
   tasks:
@@ -35,16 +39,16 @@
 
     - name: Generate Access Policies
       ansible.builtin.include_tasks: access_policies.yml
-      when: create_access_policies == true
+      when: create_access_policies is defined and create_access_policies == true
 
     - name: Generate Tenant Policies
       ansible.builtin.include_tasks: tenant_policies.yml
-      when: create_tenant_policies == true
+      when: create_tenant_policies is defined and create_tenant_policies == true
 
     - name: Generate Pod Policies
       ansible.builtin.include_tasks: pod_policies.yml
-      when: create_pod_policies == true
+      when: create_pod_policies is defined and create_pod_policies == true
 
     - name: Generate Fabric Policies
       ansible.builtin.include_tasks: fabric_policies.yml
-      when: create_fabric_policies == true
+      when: create_fabric_policies is defined and create_fabric_policies == true

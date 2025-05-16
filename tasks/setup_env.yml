@@ -17,28 +17,72 @@
 
 - name: Download Fabric Policies
   cisco.aci.aci_rest:
-    path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,polUni,fvTenant,fabricInst,infraInfra,ctrlrInst,aaaUserEp&rsp-subtree=full&rsp-prop-include=config-only"
+    path: "/api/class/{{item}}.json?&rsp-subtree=full&rsp-prop-include=config-only"
     method: get
     host: "{{ ansible_host }}"
     user: "{{ ansible_user }}"
     password: "{{ ansible_password }}"
     validate_certs: no
-  register: query_result
+  register: class_query_result
   timeout: 120
   retries: 3
   delay: 30
   when: read_mode == "online"
-
-- name: Copy to inventory host_vars directory
-  ansible.builtin.copy:
-    content: '{{ fabric_policy | to_nice_json }}'
-    dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
+  loop: "{{ classes }}"
   vars:
-    fabric_policy: '{ "polUni": {{ query_result.imdata }} }'
+    classes:
+      - physDomP
+      - l3extDomP
+      # - vmmProvP
+      - fvTenant
+      - fabricInst
+      - infraInfra
+      - ctrlrInst
+      - aaaUserEp
+
+- name: fact
+  set_fact:
+    policy_combine: "{{ policy_combine + item.imdata }}"
+  loop: "{{class_query_result.results}}"
+  loop_control:
+    label: "Combining classes"
+  when: read_mode == "online"
+  vars:
+    policy_combine: []
+
+- name: Copy Test
+  ansible.builtin.copy:
+    content: '{ "polUni": {{ policy_combine | to_nice_json }} }'
+    dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
+  # vars:
+  #   fabric_policy: '{ "polUni": {{ policy_combine }} }'
+    # fabric_policy: '{{ class_query_result }}'
   when: read_mode == "online"
 
-- name: Sleep to wait for slow I/O to pick up host_vars files.  Adjust as necessary.
-  ansible.builtin.wait_for:
-    timeout: 15
-  delegate_to: localhost
-  when: read_mode == "online"
+# - name: Download Fabric Policies
+#   cisco.aci.aci_rest:
+#     path: "/api/mo/uni.json?query-target=subtree&target-subtree-class=physDomP,l3extDomP,vmmProvP,fvTenant,fabricInst,infraInfra,ctrlrInst,aaaUserEp&rsp-subtree=full&rsp-prop-include=config-only"
+#     method: get
+#     host: "{{ ansible_host }}"
+#     user: "{{ ansible_user }}"
+#     password: "{{ ansible_password }}"
+#     validate_certs: no
+#   register: query_result
+#   timeout: 120
+#   retries: 3
+#   delay: 30
+#   when: read_mode == "online"
+
+# - name: Copy to inventory host_vars directory
+#   ansible.builtin.copy:
+#     content: '{{ fabric_policy | to_nice_json }}'
+#     dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
+#   vars:
+#     fabric_policy: '{ "polUni": {{ query_result.imdata }} }'
+#   when: read_mode == "online"
+
+# - name: Sleep to wait for slow I/O to pick up host_vars files.  Adjust as necessary.
+#   ansible.builtin.wait_for:
+#     timeout: 15
+#   delegate_to: localhost
+#   when: read_mode == "online"
