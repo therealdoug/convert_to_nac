@@ -1,0 +1,16 @@
+{% set fabaaakrns = namespace(key_rings=[]) -%}
+{%- for kr in aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+  | selectattr('pkiKeyRing', 'defined') | map(attribute='pkiKeyRing')
+  | default('') %}
+  {% set fabaaakrns.key_rings = fabaaakrns.key_rings + [{
+    'name': kr.attributes.name,
+    'description': kr.attributes.descr | default(''),
+    'certificate': '|\n' ~ kr.attributes.cert if kr.attributes.cert else ''
+      | default(''),
+    'modulus': kr.attributes.modulus | default('') | replace('mod2048', ''),
+    'ca_certificate': kr.attributes.tp | default(''),
+    'private_key': kr.attributes.key | default(''),
+  }] %}
+{% endfor -%}
+{%- set _=fabaaans.aaa.aaa.__setitem__('key_rings', fabaaakrns.key_rings) %}

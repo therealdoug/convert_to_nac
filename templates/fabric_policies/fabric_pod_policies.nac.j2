@@ -59,4 +59,5 @@
 {% set _=fabpodns.pod_policies.__setitem__('pod_policies', {
   'date_time_policies': dtpolns.date_time_policies,
 } ) %}
+{% include "fabric_policies/management_access_policies.nac.j2" %}
 {{ helper.remove_empty(fabpodns.pod_policies) | indent(4, true) }}

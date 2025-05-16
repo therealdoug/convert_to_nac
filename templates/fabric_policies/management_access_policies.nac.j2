@@ -1,0 +1,200 @@
+{% set fabmgmtaccns = namespace(management_access_policies=[]) -%}
+{% for policy in fabricInst_children | selectattr('commPol', 'defined')
+  | map(attribute='commPol') | default([]) %}
+  {% set fabmgmtaccns.management_access_policies = fabmgmtaccns.management_access_policies + [{
+    'name': policy.attributes.name,
+    'description': policy.attributes.descr | default(''),
+    'alias': policy.attributes.nameAlias | default(''),
+    'ssh': {
+      'admin_state': 'true' if [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.adminSt') | first == 'enabled' else ''
+        | default(''),
+      'password_auth': 'true' if [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.passwordAuth') | first == 'enabled' else ''
+        | default(''),
+      'port': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.port') | first | default('')
+        | replace('22', ''),
+      'aes128_ctr': 'false' if 'aes128-ctr' not in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshCiphers')
+        | first | default('') else '',
+      'aes128_gcm': 'false' if 'aes128-gcm@openssh.com' not in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshCiphers')
+        | first | default('') else '',
+      'aes192_ctr': 'false' if 'aes192-ctr' not in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshCiphers')
+        | first | default('') else '',
+      'aes256_ctr': 'false' if 'aes256-ctr' not in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshCiphers')
+        | first | default('') else '',
+      'aes256_gcm': 'true' if 'aes256-gcm@openssh.com' in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshCiphers')
+        | first | default('') else '',
+      'chacha': 'false' if 'chacha20-poly1305@openssh.com' not in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshCiphers')
+        | first | default('') else '',
+      'hmac_sha1': 'false' if 'hmac-sha1' not in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshMacs')
+        | first  | default('') else '' ,
+      'hmac_sha2_256': 'false' if 'hmac-sha2-256' not in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshMacs')
+        | first | default('') else '',
+      'hmac_sha2_512': 'false' if 'hmac-sha2-512' not in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.sshMacs')
+        | first | default('') else '',
+      'curve25519_sha256': 'true' if 'curve25519-sha256' in [policy]
+        | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'curve25519_sha256_libssh': 'true' if 'curve25519-sha256@libssh.org'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'dh1_sha1': 'true' if 'diffie-hellman-group1-sha1'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'dh14_sha1': 'true' if 'diffie-hellman-group14-sha1'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'dh14_sha256': 'true' if 'diffie-hellman-group14-sha256'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'dh16_sha512': 'true' if 'diffie-hellman-group16-sha512'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'ecdh_sha2_nistp256': 'true' if 'ecdh-sha2-nistp256'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'ecdh_sha2_nistp384': 'true' if 'ecdh-sha2-nistp384'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+      'ecdh_sha2_nistp521': 'true' if 'ecdh-sha2-nistp521'
+        in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commSsh.attributes.kexAlgos')
+        | first | default('') else '',
+    },
+    'telnet': {
+      'admin_state': 'true' if [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commTelnet', 'defined')
+        | map(attribute='commTelnet.attributes.adminSt') | first == 'enabled' else ''
+        | default(''),
+      'port': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commSsh', 'defined')
+        | map(attribute='commTelnet.attributes.port') | first | default('')
+        | replace('23', ''),
+    },
+    'https': {
+      'admin_state': 'true' if [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.adminSt') | first == 'enabled' else ''
+        | default(''),
+      'port': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.port') | first | default('')
+        | replace('443', ''),
+      'allow_origins': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.accessControlAllowOrigins') | first
+        | default(''),
+      'dh': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.dhParam') | first
+        | default('') | replace('none', ''),
+      'tlsv1': 'true' if 'TLSv1' in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.sslProtocols') | first else ''
+        | default(''),
+      'tlsv1_1': 'false' if 'TLSv1.1' not in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.sslProtocols') | first else ''
+        | default(''),
+      'tlsv1_2': 'false' if 'TLSv1.2' not in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.sslProtocols') | first else ''
+        | default(''),
+      'tlsv1_3': 'true' if 'TLSv1.3' in [policy] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps.attributes.sslProtocols') | first else ''
+        | default(''),
+      'key_ring': [policy] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('commHttps', 'defined')
+        | map(attribute='commHttps') | selectattr('children', 'defined')
+        | map(attribute='children') | flatten 
+        | selectattr('commRsKeyRing', 'defined')
+        | map(attribute='commRsKeyRing.attributes.tnPkiKeyRingName')
+        | first | default('') | replace('default', ''),
+    },
+    'http': {
+      'admin_state': 'true' if [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttp', 'defined')
+        | map(attribute='commHttp.attributes.adminSt') | first == 'enabled' else ''
+        | default(''),
+      'port': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttp', 'defined')
+        | map(attribute='commHttp.attributes.port') | first | default('')
+        | replace('80', ''),
+      'allow_origins': [policy] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('commHttp', 'defined')
+        | map(attribute='commHttp.attributes.accessControlAllowOrigins') | first
+        | default(''),
+    },
+  }] %}
+{% endfor %}
+{%- set _=fabpodns.pod_policies.pod_policies.__setitem__('management_access_policies', fabmgmtaccns.management_access_policies) %}

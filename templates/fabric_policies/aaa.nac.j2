@@ -105,4 +105,5 @@
 %}
 {% include "fabric_policies/tacacs.nac.j2" %}
 {% include "fabric_policies/radius.nac.j2" %}
+{% include "fabric_policies/key_rings.nac.j2" %}
 {{ helper.remove_empty(fabaaans.aaa) | indent(4, true) if fabaaans.aaa}}

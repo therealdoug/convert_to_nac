@@ -40,6 +40,11 @@ apic:
     fabricInst_children | selectattr('isisDomPol', 'defined')
     | map(attribute='isisDomPol.attributes.redistribMetric')
     | first | default('') | replace('60', '')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('l2_port_mtu',
+    fabricInst_children | selectattr('l2InstPol', 'defined')
+    | selectattr('l2InstPol.attributes.name', 'match', 'default')
+    | map(attribute='l2InstPol.attributes.fabricMtu')
+    | first | default('') | replace('9000', '')) %}
 {% set _=fabpolns.fabric_policies.__setitem__('date_time_format', {
     'display_format': fabricInst_children | selectattr('datetimeFormat', 'defined')
       | map(attribute='datetimeFormat.attributes.displayFormat') | first | default('')
@@ -191,6 +196,20 @@ apic:
   'level_5': qosDscpTransPol.attributes.level5 | replace('AF21', ''),
   'level_6': qosDscpTransPol.attributes.level6 | replace('AF31', ''),
 }) %}
+
+{#- L2 MTU Policies -#}
+{% set fabl2mtuns = namespace(l2_mtu_policies=[]) %}
+{% for policy in fabricInst_children | selectattr('l2InstPol', 'defined')
+    | rejectattr('l2InstPol.attributes.name', 'match', 'default')
+    | map(attribute='l2InstPol')%}
+    {% set fabl2mtuns.l2_mtu_policies = fabl2mtuns.l2_mtu_policies + [{
+      'name': policy.attributes.name,
+      'port_mtu_size': policy.attributes.fabricMtu | default('')
+        | replace('9000', ''),
+    }] %}
+{% endfor %}
+{% set _=fabpolns.fabric_policies.__setitem__('l2_mtu_policies', fabl2mtuns.l2_mtu_policies )%}
+{#- END L2 MTU Policies -#}
 
 {#- Fabric DNS Policies -#}
 {% set fabdns_ns = namespace(dns_policies=[]) %}
