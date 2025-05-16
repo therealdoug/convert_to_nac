@@ -290,7 +290,8 @@
             | selectattr('l3extIp', 'defined')
             | map(attribute='l3extIp.attributes.addr')
             | first | default(''),
-          'lladdr': intf.attributes.llAddr | default('') | replace('::', ''),
+          'link_local_address': intf.attributes.link_local_address | default('')
+          | replace('::', '') | replace('0.0.0.0', ''),
           'multipod_direct': 'true' if intf | map(attribute='attributes.isMultiPodDirect') == 'yes' else ''
             | default(''),
           'scope': 'vrf' if intf.attributes.encapScope == 'ctx' else ''
@@ -349,8 +350,8 @@
     {% for subnet in [eepg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('l3extSubnet', 'defined') | map(attribute='l3extSubnet')
-      | list | default([]) %}
-      {% set eepgsubnetns.subnets = [{
+      | list | default([]) | sort(attribute='attributes.ip') %}
+      {% set eepgsubnetns.subnets = eepgsubnetns.subnets + [{
         'prefix': subnet.attributes.ip,
         'name': subnet.attributes.name | default(''),
         'description': subnet.attributes.descr | default(''),

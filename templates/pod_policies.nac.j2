@@ -49,7 +49,7 @@ apic:
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fvFabricExtConnP', 'defined') | map(attribute='fvFabricExtConnP')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
-    | selectattr('fvPodConnP', 'defined') 
+    | selectattr('fvPodConnP', 'defined')
     | selectattr('fvPodConnP.attributes.id', 'match', pod.attributes.podId)
     | map(attribute='fvPodConnP')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
@@ -62,7 +62,7 @@ apic:
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fvFabricExtConnP', 'defined') | map(attribute='fvFabricExtConnP')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
-    | selectattr('fvPodConnP', 'defined') 
+    | selectattr('fvPodConnP', 'defined')
     | selectattr('fvPodConnP.attributes.id', 'match', pod.attributes.podId)
     | map(attribute='fvPodConnP')
     | selectattr('children', 'defined') | map(attribute='children') | flatten

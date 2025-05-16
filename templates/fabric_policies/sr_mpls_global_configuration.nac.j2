@@ -1,4 +1,6 @@
-  {% set sr_mpls = {
+{% import 'macro_handler.j2' as helper %}
+{% set srmplsglobns = namespace(sr_mpls_global_configuration={}) %}
+  {% set srmplsglobns.sr_mpls_global_configuration = {
     'sr_global_block_minimum': polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
     | selectattr('attributes.name', 'equalto', 'infra')
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
@@ -15,10 +17,5 @@
     | first | default('') | replace('23999','')
   }
   %}
-  {% if sr_mpls.values() | select('!=', '') | list | length > 0 %}
-
-    sr_mpls_global_configuration:
-    {% for policy, value in sr_mpls.items() if value != '' and value != [] %}
-      {{ policy }}: {{ value }}
-    {% endfor %}
-  {% endif %}
+{% set _=fabpolns.fabric_policies.__setitem__('sr_mpls_global_configuration',
+  srmplsglobns.sr_mpls_global_configuration) %}

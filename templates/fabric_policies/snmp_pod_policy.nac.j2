@@ -1,0 +1,67 @@
+{%- set snmpns = namespace(snmp_policies=[]) %}
+{%- for policy in fabricInst_children | selectattr('snmpPol', 'defined')
+  | map(attribute='snmpPol') %}
+  {% set userns = namespace(users=[]) %}
+  {%- for user in [policy] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('snmpUserP', 'defined') | map(attribute='snmpUserP') %}
+    {% set userns.users = userns.users + [{
+      'name': user.attributes.name,
+      'description': user.attributes.descr | default(''),
+      'privacy_type': user.attributes.privType | default('')
+        | replace('aes-128', ''),
+      'privacy_key': user.attributes.privKey | default(''),
+      'authorization_type': user.attributes.authType | default('')
+        | replace('hmac-sha1-96', ''),
+      'authorization_key': user.attributes.authKey | default('!!!PLEASE_ENTER_MANUALLY!!!'),
+    }] %}
+  {%- endfor %}
+  {% set trapfwdns = namespace(trap_forwarders=[]) %}
+  {% for fwdr in [policy] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('snmpTrapFwdServerP', 'defined')
+    | map(attribute='snmpTrapFwdServerP') %}
+    {% set trapfwdns.trap_forwarders = trapfwdns.trap_forwarders + [{
+      'ip': fwdr.attributes.addr | default(''),
+      'port': fwdr.attributes.port | default('') | regex_replace('^162$', ''),
+    }] %}
+  {% endfor %}
+  {% set clientsns = namespace(clients=[]) %}
+  {% for client in [policy] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('snmpClientGrpP', 'defined')
+    | map(attribute='snmpClientGrpP')%}
+    {% set entryns = namespace(entries=[]) %}
+    {% for entry in [client] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten | selectattr('snmpClientP', 'defined')
+      | map(attribute='snmpClientP') %}
+      {% set entryns.entries = entryns.entries + [{
+        'name': entry.attributes.name,
+        'ip': entry.attributes.addr,
+      }] %}
+    {% endfor %}
+    {% set clientsns.clients = clientsns.clients + [{
+      'name': client.attributes.name,
+      'description': client.attributes.descr | default(''),
+      'mgmt_epg': 'inb' if '/inb-' in [client] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten | selectattr('snmpRsEpg', 'defined')
+        | map(attribute='snmpRsEpg.attributes.tDn') else 'oob',
+      'entries': entryns.entries | default(''),
+    }] %}
+  {% endfor %}
+  {% set snmpns.snmp_policies = snmpns.snmp_policies + [{
+    'name': policy.attributes.name,
+    'admin_state': 'false' if policy.attributes.adminSt == 'disabled' else '',
+    'location': policy.attributes.loc | default(''),
+    'contact': policy.attributes.contact | default(''),
+    'communities': [policy] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('snmpCommunityP', 'defined')
+    | map(attribute='snmpCommunityP.attributes.name')
+    | default(''),
+    'trap_forwarders': trapfwdns.trap_forwarders | default(''),
+    'users': userns.users | default(''),
+    'clients': clientsns.clients | default(''),
+  }] %}
+{%- endfor %}
+{%- set _=fabpodns.pod_policies.pod_policies.__setitem__('snmp_policies', snmpns.snmp_policies) %}

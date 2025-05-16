@@ -1,41 +1,31 @@
-  {% set tacacs_providers = aaaUserEp | selectattr('aaaTacacsPlusEp', 'defined')
-    | map(attribute='aaaTacacsPlusEp')
-    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-    | selectattr('aaaTacacsPlusProvider', 'defined') | map(attribute='aaaTacacsPlusProvider')
-    | list
-  %}
-  {% if tacacs_providers | length > 0 %}
-
-      tacacs_providers:
-    {% for prov in tacacs_providers | sort(attribute='attributes.name') %}
-      {% set policy = {
-        'hostname_ip': prov.attributes.name,
-        'description': prov.attributes.descr | default(''),
-        'protocol': prov.attributes.authProtocol | default('') | replace('pap',''),
-        'key': prov.attributes.key | default(''),
-        'port': prov.attributes.port | default('') | replace('49', ''),
-        'timeout': prov.attributes.timeout | default('') | replace('5', ''),
-        'retries': prov.attributes.retries | default('') | regex_replace('^1$', ''),
-        'monitoring_username': prov.attributes.monitoringUser | default('') | replace('default', ''),
-        'monitoring_password': prov.attributes.monitoringPassword | default(''),
-        'monitoring': prov.attributes.monitorServer | default('') | replace('disabled', '')
-          | replace('enabled', 'true'),
-        'mgmt_epg_type': 'oob' if 'oob' in [prov] | selectattr('children', 'defined')
-          | map(attribute='children') | flatten | list
-          | selectattr('aaaRsSecProvToEpg', 'defined')
-          | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
-          | first | default('') else '',
-        'mgmt_epg_name': [prov] | selectattr('children', 'defined') | map(attribute='children')
-          | flatten | list | selectattr('aaaRsSecProvToEpg', 'defined')
-          | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
-          | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
-      }%}
-      {% for pol, value in policy.items() if value != '' %}
-        {% if loop.first %}
-        - {{ pol }}: {{ value }}
-        {% else %}
-          {{ pol }}: {{ value }}
-        {% endif %}
-      {% endfor %}
-    {% endfor %}
-  {% endif %}
+{% set fabtacacsns = namespace(tacacs_providers=[]) %}
+{% for prov in aaaUserEp | selectattr('aaaTacacsPlusEp', 'defined')
+  | map(attribute='aaaTacacsPlusEp')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('aaaTacacsPlusProvider', 'defined')
+  | map(attribute='aaaTacacsPlusProvider')
+  | list | sort(attribute='attributes.name') %}
+  {% set fabtacacsns.tacacs_providers = fabtacacsns.tacacs_providers + [{
+    'hostname_ip': prov.attributes.name,
+    'description': prov.attributes.descr | default(''),
+    'protocol': prov.attributes.authProtocol | default('') | replace('pap',''),
+    'key': prov.attributes.key | default(''),
+    'port': prov.attributes.port | default('') | replace('49', ''),
+    'timeout': prov.attributes.timeout | default('') | replace('5', ''),
+    'retries': prov.attributes.retries | default('') | regex_replace('^1$', ''),
+    'monitoring_username': prov.attributes.monitoringUser | default('') | replace('default', ''),
+    'monitoring_password': prov.attributes.monitoringPassword | default(''),
+    'monitoring': prov.attributes.monitorServer | default('') | replace('disabled', '')
+      | replace('enabled', 'true'),
+    'mgmt_epg_type': 'oob' if 'oob' in [prov] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten | list
+      | selectattr('aaaRsSecProvToEpg', 'defined')
+      | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
+      | first | default('') else '',
+    'mgmt_epg': [prov] | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | list | selectattr('aaaRsSecProvToEpg', 'defined')
+      | map(attribute='aaaRsSecProvToEpg.attributes.tDn')
+      | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
+  }] %}
+{% endfor %}
+{% set _=fabaaans.aaa.aaa.__setitem__('tacacs_providers', fabtacacsns.tacacs_providers) %}

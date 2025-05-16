@@ -1,0 +1,140 @@
+{% set fabmonns = namespace(monitoring={}) -%}
+{% set snmpns = namespace(snmp_traps=[]) %}
+{% for snmptrap in fabricInst_children | selectattr('snmpGroup', 'defined')
+  | map(attribute='snmpGroup') %}
+  {%- set destns = namespace(destinations=[]) %}
+  {% for dest in [snmptrap] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('snmpTrapDest', 'defined')
+    | map(attribute='snmpTrapDest') | default([]) %}
+    {% set destns.destinations = destns.destinations + [{
+      'hostname_ip': dest.attributes.host,
+      'port': dest.attributes.port | default('') | regex_replace('^162$', ''),
+      'version': dest.attributes.ver | default('') | replace('v2c', ''),
+      'community': dest.attributes.secName | default(''),
+      'security': dest.attributes.v3SecLvl | default('') | replace('priv', ''),
+      'mgmt_epg': 'oob' if '/inb-' in [dest] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fileRsARemoteHostToEpg', 'defined')
+        | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
+        | first else '' | default(''),
+    }] %}
+  {% endfor %}
+  {%- set snmpns.snmp_traps = snmpns.snmp_traps + [{
+    'name': snmptrap.attributes.name,
+    'description': snmptrap.attributes.descr | default(''),
+    'destinations': destns.destinations | default(''),
+  }] %}
+{% endfor %}
+
+{% set syslogns = namespace(syslogs=[]) %}
+{% for syslog in fabricInst_children | selectattr('syslogGroup', 'defined')
+  | map(attribute='syslogGroup') %}
+  {%- set destns = namespace(destinations=[]) %}
+  {% for dest in [syslog] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('syslogRemoteDest', 'defined')
+    | map(attribute='syslogRemoteDest') | default([]) %}
+    {% set destns.destinations = destns.destinations + [{
+      'hostname_ip': dest.attributes.host,
+      'name': dest.attributes.name | default(''),
+      'port': dest.attributes.port | default('') | regex_replace('^162&', ''),
+      'protocol': dest.attributes.protocol | default(''),
+      'format': dest.attributes.format | default('') | replace('aci', '')
+        | replace('rfc5424-ts', 'enhanced-log'),
+      'facility': dest.attributes.forwardingFacility | default('')
+        | replace('local7', ''),
+      'severity': dest.attributes.severity | default('') | replace('warnings', ''),
+      'mgmt_epg': 'oob' if '/inb-' in [dest] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fileRsARemoteHostToEpg', 'defined')
+        | map(attribute='fileRsARemoteHostToEpg.attributes.tDn')
+        | first else '' | default(''),
+    }] %}
+  {% endfor %}
+
+  {%- set syslogns.syslogs = syslogns.syslogs + [{
+    'name': syslog.attributes.name,
+    'description': syslog.attributes.descr | default(''),
+    'format': syslog.attributes.format | default('') | replace('aci', '')
+      | replace('rfc5424-ts', 'enhanced-log'),
+    'show_millisecond': 'true' if 'yes' in syslog.attributes.includeMilliSeconds
+      else '' | default(''),
+    'show_timezone': 'true' if 'yes' in syslog.attributes.includeTimeZone else ''
+      | default(''),
+    'audit': 'false' if 'audit' not in fabricInst_children
+      | selectattr('monFabricPol', 'defined')
+      | map(attribute='monFabricPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogSrc', 'defined')
+      | selectattr('syslogSrc.attributes.name', 'match', syslog.attributes.name)
+      | map(attribute='syslogSrc.attributes.incl')
+      | first | default('')  else '',
+    'events': 'false' if 'audit' not in fabricInst_children
+      | selectattr('monFabricPol', 'defined')
+      | map(attribute='monFabricPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogSrc', 'defined')
+      | selectattr('syslogSrc.attributes.name', 'match', syslog.attributes.name)
+      | map(attribute='syslogSrc.attributes.incl')
+      | first | default('')  else '',
+    'faults': 'false' if 'faults' not in fabricInst_children
+      | selectattr('monFabricPol', 'defined')
+      | map(attribute='monFabricPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogSrc', 'defined')
+      | selectattr('syslogSrc.attributes.name', 'match', syslog.attributes.name)
+      | map(attribute='syslogSrc.attributes.incl')
+      | first | default('')  else '',
+    'session': 'true' if 'session' not in fabricInst_children
+      | selectattr('monFabricPol', 'defined')
+      | map(attribute='monFabricPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogSrc', 'defined')
+      | selectattr('syslogSrc.attributes.name', 'match', syslog.attributes.name)
+      | map(attribute='syslogSrc.attributes.incl')
+      | first | default('')  else '',
+    'minimum_severity': fabricInst_children
+      | selectattr('monFabricPol', 'defined')
+      | map(attribute='monFabricPol') | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogSrc', 'defined')
+      | selectattr('syslogSrc.attributes.name', 'match', syslog.attributes.name)
+      | map(attribute='syslogSrc.attributes.minSev') | first
+      | default('') | replace('warnings', ''),
+    'admin_state': 'false' if 'disabled' in [syslog]
+      | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogProf', 'defined')
+      | map(attribute='syslogProf.attributes.adminState')
+      | first | default('') else '',
+    'local_admin_state': 'false' if 'disabled' in [syslog]
+      | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogFile', 'defined')
+      | map(attribute='syslogFile.attributes.adminState')
+      | first | default('') else '',
+    'local_severity': [syslog]
+      | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogFile', 'defined')
+      | map(attribute='syslogFile.attributes.severity')
+      | first | default('') | replace('information', ''),
+    'console_admin_state': 'false' if 'disabled' in [syslog]
+      | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogConsole', 'defined')
+      | map(attribute='syslogConsole.attributes.adminState')
+      | first | default('') else '',
+    'console_severity': [syslog]
+      | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('syslogConsole', 'defined')
+      | map(attribute='syslogConsole.attributes.severity')
+      | first | default('') | replace('alerts', ''),
+    'destinations': destns.destinations | default(''),
+  }] %}
+{% endfor %}
+{% set _=fabmonns.monitoring.__setitem__('snmp_traps', snmpns.snmp_traps) %}
+{% set _=fabmonns.monitoring.__setitem__('syslogs', syslogns.syslogs) %}
+{% set _=fabpolns.fabric_policies.__setitem__('monitoring', fabmonns.monitoring) %}
