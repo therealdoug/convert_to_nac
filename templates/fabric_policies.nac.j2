@@ -36,6 +36,13 @@ apic:
     | selectattr('edrErrDisRecoverPol', 'defined')
     | map(attribute='edrErrDisRecoverPol.attributes.errDisRecovIntvl')
     | first == 'disabled' else '' | default('')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('use_infra_gipo',
+  'true' if polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fmcastSystemGIPoPol', 'defined')
+    | map(attribute='fmcastSystemGIPoPol.attributes.useConfiguredSystemGIPo')
+    | first == 'enabled' else '' | default('')) %}
 {% set _=fabpolns.fabric_policies.__setitem__('fabric_isis_redistribute_metric',
     fabricInst_children | selectattr('isisDomPol', 'defined')
     | map(attribute='isisDomPol.attributes.redistribMetric')
@@ -45,6 +52,24 @@ apic:
     | selectattr('l2InstPol.attributes.name', 'match', 'default')
     | map(attribute='l2InstPol.attributes.fabricMtu')
     | first | default('') | replace('9000', '')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('system_performance', {
+    'admin_state': 'true' if 'enabled' in fabricInst_children 
+      | selectattr('commApiRespTime', 'defined')
+      | map(attribute='commApiRespTime.attributes.enableCalculation')
+      | first | default('') else '' ,
+    'response_threshold': fabricInst_children 
+      | selectattr('commApiRespTime', 'defined')
+      | map(attribute='commApiRespTime.attributes.respTimeThreshold')
+      | first | default('') | regex_replace('^85000$', ''),
+    'top_slowest_requests': fabricInst_children
+      | selectattr('commApiRespTime', 'defined')
+      | map(attribute='commApiRespTime.attributes.topNRequests')
+      | first | default('') | regex_replace('^5$', ''),
+    'calculation_window': fabricInst_children
+      | selectattr('commApiRespTime', 'defined')
+      | map(attribute='commApiRespTime.attributes.topNRequests')
+      | first | default('') | regex_replace('^300$', ''),
+}) %}
 {% set _=fabpolns.fabric_policies.__setitem__('date_time_format', {
     'display_format': fabricInst_children | selectattr('datetimeFormat', 'defined')
       | map(attribute='datetimeFormat.attributes.displayFormat') | first | default('')
@@ -251,6 +276,7 @@ apic:
 {% endfor %}
 {% set _=fabpolns.fabric_policies.__setitem__('dns_policies', fabdns_ns.dns_policies )%}
 {#- END Fabric DNS Policies -#}
+{% include "fabric_policies/monitoring.nac.j2" %}
 {{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
 {% include "fabric_policies/fabric_pod_policies.nac.j2" %}
 {% include "fabric_policies/banner.nac.j2" %}
