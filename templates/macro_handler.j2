@@ -21,9 +21,13 @@
         {% for p,v in value.items() if v %}
         {%- if v and v is string -%}
 {{ p | indent(2, True)}}: {{ remove_empty(v) }}
-        {%- else -%}
+        {%- elif v is mapping and v.values() | select('!=', '') | length > 0%}
 {{ p | indent(2, True)}}:
 {{ remove_empty(v) | indent(4, True) }}
+        {% elif v is sequence and v is not mapping and v | select('!=', '') | length > 0 %}
+{{ p | indent(2, True)}}:
+{{ remove_empty(v) | indent(4, True) }}
+        {% else %}
         {%- endif -%}
         {%- endfor -%}
       {% endif -%}
