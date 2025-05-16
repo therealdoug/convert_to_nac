@@ -370,7 +370,7 @@
             'vmware_vmm_domain': path.attributes.tDn
               | replace('uni/vmmp-VMware/dom-', '') if 'vmmp-VMware/dom-'
               in path.attributes.tDn else '',
-            'vlan': path.attributes.encap
+            'vlan': path.attributes.encap | default('')
               | replace('vlan-', '')
               | replace('unspecified', '')
               | replace('unknown', ''),
@@ -539,7 +539,8 @@
             | selectattr('l3extIp', 'defined')
             | map(attribute='l3extIp.attributes.addr')
             | first | default(''),
-          'lladdr': intf.attributes.llAddr | default('') | replace('::', ''),
+          'link_local_address': intf.attributes.link_local_address | default('')
+            | replace('::', '') | replace('0.0.0.0', ''),
           'multipod_direct': 'true' if intf | map(attribute='attributes.isMultiPodDirect') == 'yes' else ''
             | default(''),
           'scope': 'vrf' if intf.attributes.encapScope == 'ctx' else ''
