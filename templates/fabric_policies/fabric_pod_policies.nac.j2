@@ -3,7 +3,7 @@
 {% set dtpolns = namespace(date_time_policies=[]) %}
 {% for pol in fabricInst_children | selectattr('datetimePol', 'defined')
   | map(attribute='datetimePol') | sort(attribute='attributes.name') %}
-  
+
   {#- NTP Servers -#}
   {% set ntpserversns = namespace(ntp_servers=[]) %}
   {% for server in [pol] | selectattr('children', 'defined')

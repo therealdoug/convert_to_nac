@@ -89,7 +89,7 @@
       | selectattr('igmpIfP', 'defined') | map(attribute='igmpIfP')
       | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('igmpRsIfPol', 'defined')
-      | map(attribute='igmpRsIfPol.attbributes.tDn') | first 
+      | map(attribute='igmpRsIfPol.attbributes.tDn') | first
       | default('') | regex_replace('^.*igmpIfPol-(.*?)$', '\\1'),
     'igmp_snooping_policy': [bd] | selectattr('children', 'defined')
       | map(attribute='children') | flatten

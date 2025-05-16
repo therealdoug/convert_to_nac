@@ -17,7 +17,7 @@
     | first | default('') | replace('23999','')
   }
   %}
-{{ 'sr_mpls_global_configuration:' 
+{{ 'sr_mpls_global_configuration:'
   | indent(4, true) if srmplsglobns.sr_mpls_global_configuration }}
 {{ helper.remove_empty(srmplsglobns.sr_mpls_global_configuration)
   | indent(6, true) if srmplsglobns.sr_mpls_global_configuration }}

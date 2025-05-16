@@ -176,7 +176,7 @@
         | map(attribute='children') | flatten
         | selectattr('commHttps', 'defined')
         | map(attribute='commHttps') | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
+        | map(attribute='children') | flatten
         | selectattr('commRsKeyRing', 'defined')
         | map(attribute='commRsKeyRing.attributes.tnPkiKeyRingName')
         | first | default('') | replace('default', ''),
