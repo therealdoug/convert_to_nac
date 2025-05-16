@@ -60,4 +60,5 @@
   'date_time_policies': dtpolns.date_time_policies,
 } ) %}
 {% include "fabric_policies/management_access_policies.nac.j2" %}
-{{ helper.remove_empty(fabpodns.pod_policies) | indent(4, true) }}
+{% include "fabric_policies/snmp_pod_policy.nac.j2" %}
+{% set _=fabpolns.fabric_policies.__setitem__('pod_policies', fabpodns.pod_policies.pod_policies) %}

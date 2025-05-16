@@ -15,95 +15,96 @@
   'remote_user_login_policy': aaaUserEp | selectattr('aaaAuthRealm', 'defined')
       | map(attribute='aaaAuthRealm.attributes.defRolePolicy')
       | first | default('') | replace('no-login', ''),
-    'default_fallback_check': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+  'default_fallback_check': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('aaaDefaultAuth', 'defined') | map(attribute='aaaDefaultAuth.attributes.fallbackCheck')
+    | first | default('') | replace('false', ''),
+  'default_realm': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('aaaDefaultAuth', 'defined') | map(attribute='aaaDefaultAuth.attributes.realm')
+    | first | default('') | replace('local', ''),
+  'default_login_domain': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('aaaDefaultAuth', 'defined') | map(attribute='aaaDefaultAuth.attributes.providerGroup')
+    | first | default(''),
+  'console_realm': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('aaaConsoleAuth', 'defined') | map(attribute='aaaConsoleAuth.attributes.realm')
+    | first | default('') | replace('local', ''),
+  'console_login_domain': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('aaaConsoleAuth', 'defined') | map(attribute='aaaConsoleAuth.attributes.providerGroup')
+    | first | default(''),
+  'security_domains': fabaasec.security_domains | default([]),
+  'management_settings': {
+    'password_strength_check': polUni | selectattr('aaaUserEp', 'defined')
+      | map(attribute='aaaUserEp.attributes.pwdStrengthCheck')
+      | first | default('') | replace('yes', 'true') | replace('no', ''),
+    'password_change_during_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+      | map(attribute='aaaPwdProfile.attributes.changeDuringInterval')
+      | first | default('') | replace('disable', 'false') | replace('enable', ''),
+    'password_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+      | map(attribute='aaaPwdProfile.attributes.changeInterval')
+      | first | default('') | replace('48', ''),
+    'password_change_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+      | map(attribute='aaaPwdProfile.attributes.changeCount')
+      | first | default('') | replace('2', ''),
+    'password_no_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+      | map(attribute='aaaPwdProfile.attributes.noChangeInterval')
+      | first | default('') | replace('24', ''),
+    'password_history_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
+      | map(attribute='aaaPwdProfile.attributes.historyCount')
+      | first | default('') | replace('5', ''),
+    'web_token_timeout': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-      | selectattr('aaaDefaultAuth', 'defined') | map(attribute='aaaDefaultAuth.attributes.fallbackCheck')
-      | first | default('') | replace('false', ''),
-    'default_realm': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+      | selectattr('pkiWebTokenData', 'defined')
+      | map(attribute='pkiWebTokenData.attributes.webtokenTimeoutSeconds')
+      | first | default('') | replace('600', ''),
+    'web_token_max_validity': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-      | selectattr('aaaDefaultAuth', 'defined') | map(attribute='aaaDefaultAuth.attributes.realm')
-      | first | default('') | replace('local', ''),
-    'default_login_domain': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+      | selectattr('pkiWebTokenData', 'defined')
+      | map(attribute='pkiWebTokenData.attributes.maximumValidityPeriod')
+      | first | default('') | replace('24', ''),
+    'web_session_idle_timeout': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-      | selectattr('aaaDefaultAuth', 'defined') | map(attribute='aaaDefaultAuth.attributes.providerGroup')
-      | first | default(''),
-    'console_realm': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
+      | selectattr('pkiWebTokenData', 'defined') | map(attribute='pkiWebTokenData.attributes.uiIdleTimeoutSeconds')
+      | first | default('') | replace('1200', ''),
+    'include_refresh_session_records': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-      | selectattr('aaaConsoleAuth', 'defined') | map(attribute='aaaConsoleAuth.attributes.realm')
-      | first | default('') | replace('local', ''),
-    'console_login_domain': aaaUserEp | selectattr('aaaAuthRealm', 'defined') | map(attribute='aaaAuthRealm')
-      | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-      | selectattr('aaaConsoleAuth', 'defined') | map(attribute='aaaConsoleAuth.attributes.providerGroup')
-      | first | default(''),
-    'security_domains': fabaasec.security_domains | default([]),
-    'management_settings': {
-      'password_strength_check': polUni | selectattr('aaaUserEp', 'defined')
-        | map(attribute='aaaUserEp.attributes.pwdStrengthCheck')
-        | first | default('') | replace('yes', 'true') | replace('no', ''),
-      'password_change_during_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
-        | map(attribute='aaaPwdProfile.attributes.changeDuringInterval')
-        | first | default('') | replace('disable', 'false') | replace('enable', ''),
-      'password_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
-        | map(attribute='aaaPwdProfile.attributes.changeInterval')
-        | first | default('') | replace('48', ''),
-      'password_change_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
-        | map(attribute='aaaPwdProfile.attributes.changeCount')
-        | first | default('') | replace('2', ''),
-      'password_no_change_interval': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
-        | map(attribute='aaaPwdProfile.attributes.noChangeInterval')
-        | first | default('') | replace('24', ''),
-      'password_history_count': aaaUserEp | selectattr('aaaPwdProfile', 'defined')
-        | map(attribute='aaaPwdProfile.attributes.historyCount')
-        | first | default('') | replace('5', ''),
-      'web_token_timeout': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
-        | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-        | selectattr('pkiWebTokenData', 'defined')
-        | map(attribute='pkiWebTokenData.attributes.webtokenTimeoutSeconds')
-        | first | default('') | replace('600', ''),
-      'web_token_max_validity': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
-        | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-        | selectattr('pkiWebTokenData', 'defined')
-        | map(attribute='pkiWebTokenData.attributes.maximumValidityPeriod')
-        | first | default('') | replace('24', ''),
-      'web_session_idle_timeout': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
-        | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-        | selectattr('pkiWebTokenData', 'defined') | map(attribute='pkiWebTokenData.attributes.uiIdleTimeoutSeconds')
-        | first | default('') | replace('1200', ''),
-      'include_refresh_session_records': aaaUserEp | selectattr('pkiEp', 'defined') | map(attribute='pkiEp')
-        | selectattr('children', 'defined') | map(attribute='children') | flatten | list
-        | selectattr('pkiWebTokenData', 'defined') | map(attribute='pkiWebTokenData.attributes.sessionRecordFlags')
-        | first | default('') | replace('login,logout,refresh', '') | replace('login,logout', 'false'),
-      'enable_login_block': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
-        | map(attribute='aaaBlockLoginProfile.attributes.enableLoginBlock')
-        | first | default('') | replace('disable', '') | replace('enable', 'true'),
-      'login_block_duration': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
-        | map(attribute='aaaBlockLoginProfile.attributes.blockDuration')
-        | first | default('') | replace('60', ''),
-      'login_max_failed_attempts': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
-        | map(attribute='aaaBlockLoginProfile.attributes.maxFailedAttempts')
-        | first | default('') | replace('5', ''),
-      'login_max_failed_attempts_window': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
-        | map(attribute='aaaBlockLoginProfile.attributes.maxFailedAttemptsWindow')
-        | first | default('') | replace('5', ''),
-      'password_strength_profile': {
-        'password_minimum_length': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
-          | map(attribute='aaaPwdStrengthProfile.attributes.pwdMinLength')
-          | first | default('') | replace('8', ''),
-        'password_maximum_length': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
-          | map(attribute='aaaPwdStrengthProfile.attributes.pwdMaxLength')
-          | first | default('') | replace('64', ''),
-        'password_strength_test_type': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
-          | map(attribute='aaaPwdStrengthProfile.attributes.pwdStrengthTestType')
-          | first | default('') | replace('default', '') | replace('digits,lowercase,uppercase', '')
-          | replace('.*', 'custom'),
-        'password_class_flags': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
-          | map(attribute='aaaPwdStrengthProfile.attributes.pwdClassFlags')
-          | first | default(''),
-      },
+      | selectattr('pkiWebTokenData', 'defined') | map(attribute='pkiWebTokenData.attributes.sessionRecordFlags')
+      | first | default('') | replace('login,logout,refresh', '') | replace('login,logout', 'false'),
+    'enable_login_block': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
+      | map(attribute='aaaBlockLoginProfile.attributes.enableLoginBlock')
+      | first | default('') | replace('disable', '') | replace('enable', 'true'),
+    'login_block_duration': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
+      | map(attribute='aaaBlockLoginProfile.attributes.blockDuration')
+      | first | default('') | replace('60', ''),
+    'login_max_failed_attempts': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
+      | map(attribute='aaaBlockLoginProfile.attributes.maxFailedAttempts')
+      | first | default('') | replace('5', ''),
+    'login_max_failed_attempts_window': aaaUserEp | selectattr('aaaBlockLoginProfile', 'defined')
+      | map(attribute='aaaBlockLoginProfile.attributes.maxFailedAttemptsWindow')
+      | first | default('') | replace('5', ''),
+    'password_strength_profile': {
+      'password_minimum_length': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
+        | map(attribute='aaaPwdStrengthProfile.attributes.pwdMinLength')
+        | first | default('') | replace('8', ''),
+      'password_maximum_length': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
+        | map(attribute='aaaPwdStrengthProfile.attributes.pwdMaxLength')
+        | first | default('') | replace('64', ''),
+      'password_strength_test_type': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
+        | map(attribute='aaaPwdStrengthProfile.attributes.pwdStrengthTestType')
+        | first | default('') | replace('default', '') | replace('digits,lowercase,uppercase', '')
+        | replace('.*', 'custom'),
+      'password_class_flags': aaaUserEp | selectattr('aaaPwdStrengthProfile', 'defined')
+        | map(attribute='aaaPwdStrengthProfile.attributes.pwdClassFlags')
+        | first | default(''),
+    },
     },
   })
 %}
 {% include "fabric_policies/tacacs.nac.j2" %}
 {% include "fabric_policies/radius.nac.j2" %}
 {% include "fabric_policies/key_rings.nac.j2" %}
+{% include "fabric_policies/aaa_users.nac.j2" %}
 {{ helper.remove_empty(fabaaans.aaa) | indent(4, true) if fabaaans.aaa}}

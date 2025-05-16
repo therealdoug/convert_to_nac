@@ -1,0 +1,62 @@
+{% set aaausersns = namespace(users=[]) %}
+{% for user in aaaUserEp | selectattr('aaaUser', 'defined')
+  | map(attribute='aaaUser') %}
+  {% set domainns = namespace(domains=[]) %}
+  {% for domain in [user] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('aaaUserDomain', 'defined')
+    | map(attribute='aaaUserDomain') | default('') %}
+    {% set rolesns = namespace(roles=[]) %}
+    {% for role in [domain] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('aaaUserRole', 'defined')
+      | map(attribute='aaaUserRole') %}
+      {% set rolesns.roles = rolesns.roles + [{
+        'name': role.attributes.name,
+        'privilege_type': role.attributes.privType | default('')
+          | replace('write', ''),
+      }] %}
+    {% endfor %}
+    {% set domainns.domains = domainns.domains + [{
+      'name': domain.attributes.name,
+      'roles': rolesns.roles | default(''),
+    }] %}
+  {% endfor %}
+  {% set certsns = namespace(certificates=[]) %}
+  {% for cert in [user] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('aaaUserCert', 'defined')
+    | map(attribute='aaaUserCert') | default('') %}
+    {% set certns.certificates = certns.certificates + [{
+      'name': cert.attributes.name,
+      'data': cert.attributes.data,
+    }] %}
+  {% endfor %}
+  {% set sshns = namespace(ssh_keys=[]) %}
+  {% for key in [user] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('aaaSshAuth', 'defined')
+    | map(attribute='aaaSshAuth') | default('') %}
+    {% set certns.certificates = certns.certificates + [{
+      'name': key.attributes.name,
+      'data': key.attributes.data,
+    }] %}
+  {% endfor %}
+  {% set aaausersns.users = aaausersns.users + [{
+    'username': user.attributes.name,
+    'password': user.attributes.pwd | default('!!!PLEASE_UPDATE_MANUALLY!!!'),
+    'description': user.attributes.descr | default(''),
+    'first_name': user.attributes.firstName | default(''),
+    'last_name': user.attributes.lastName | default(''),
+    'phone': user.attributes.phone | default(''),
+    'email': user.attributes.email | default(''),
+    'certificate_name': user.attributes.certAttribute | default(''),
+    'status': user.attributes.accountStatus | default('') | replace('active', ''),
+    'expires': 'true' if 'yes' in user.attributes.expires else '' | default(''),
+    'expire_date': user.attributes.expiration | default('') | replace('never', ''),
+    'domains': domainns.domains | default(''),
+    'certificates': certsns.certificates | default(''),
+    'ssh_keys': sshns.ssh_keys | default(''),
+  }] %}
+{% endfor %}
+{% set _=fabaaans.aaa.__setitem__('users', aaausersns.users) %}

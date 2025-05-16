@@ -52,6 +52,136 @@ apic:
     | selectattr('l2InstPol.attributes.name', 'match', 'default')
     | map(attribute='l2InstPol.attributes.fabricMtu')
     | first | default('') | replace('9000', '')) %}
+{% set _=fabpolns.fabric_policies.__setitem__('atomic_counter', {
+  'mode': fabricInst_children | selectattr('dbgOngoingAcMode', 'defined')
+    | map(attribute='dbgOngoingAcMode.attributes.mode')
+    | first | default('') | replace('trail', ''),
+  'admin_state': 'true' if 'enabled' in fabricInst_children
+    | selectattr('dbgOngoingAcMode', 'defined')
+    | map(attribute='dbgOngoingAcMode.attributes.adminSt')
+    | first | default('') else '',
+}) %}
+{% set _=fabpolns.fabric_policies.__setitem__('smart_licensing', {
+  'mode': fabricInst_children | selectattr('licenseLicPolicy', 'defined')
+    | map(attribute='licenseLicPolicy.attributes.mode')
+    | first | default('') | replace('smart-licensing', ''),
+  'registration_token': fabricInst_children
+    | selectattr('licenseLicPolicy', 'defined')
+    | map(attribute='licenseLicPolicy.attributes.regTokenId')
+    | first | default(''),
+  'url': fabricInst_children | selectattr('licenseLicPolicy', 'defined')
+    | map(attribute='licenseLicPolicy.attributes.url')
+    | first | default(''),
+  'proxy': {
+    'hostname_ip': fabricInst_children
+      | selectattr('licenseLicPolicy', 'defined')
+      | map(attribute='licenseLicPolicy.attributes.ipAddr')
+      | first | default(''),
+    'port': fabricInst_children | selectattr('licenseLicPolicy', 'defined')
+      | map(attribute='licenseLicPolicy.attributes.port')
+      | first | default('') | regex_replace('^443$', ''),
+  } | default(''),
+}) %}
+{#- Fabric Scheduler -#}
+{% set schedulerns = namespace(schedulers=[]) %}
+{% for schedule in fabricInst_children | selectattr('trigSchedP', 'defined')
+  | map(attribute='trigSchedP') %}
+  {% set recurns = namespace(recurring_windows=[]) %}
+  {% for window in [schedule] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('trigRecurrWindowP', 'defined')
+    | map(attribute='trigRecurrWindowP')
+  %}
+  {% set recurns.recurring_windows = recurns.recurring_windows + [{
+    'name': window.attributes.name,
+    'day': window.attributes.day | default('') | replace('every-day', ''),
+    'hour': window.attributes.hour | default('') | regex_replace('^0$', ''),
+    'minute': window.attributes.minute | default('') | regex_replace('^0$', ''),
+  }] %}
+  {% endfor %}
+  {% set schedulerns.schedulers = schedulerns.schedulers + [{
+    'name': schedule.attributes.name,
+    'description': schedule.attributes.descr,
+    'recurring_windows': recurns.recurring_windows,
+  }] %}
+{% endfor %}
+{% set _=fabpolns.fabric_policies.__setitem__('schedulers', schedulerns.schedulers) %}
+{% set _=fabpolns.fabric_policies.__setitem__('ptp', {
+  'admin_state': 'true' if fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.state')
+    | first == 'enabled' else '' | default(''),
+  'global_domain': fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.globalDomain')
+    | first | default('') | regex_replace('0', ''),
+  'profile': fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.fabProfileTemplate')
+    | first | default('') | replace('aes67', ''),
+  'announce_interval': fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.fabAnnounceIntvl')
+    | first | default('') | regex_replace('^1$', ''),
+  'announce_timeout': fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.fabAnnounceTimeout')
+    | first | default('') | regex_replace('^3$', ''),
+  'sync_interval': fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.fabSyncIntvl')
+    | first | default('') | regex_replace('^-3$', ''),
+  'delay_interval': fabricInst_children | selectattr('latencyPtpMode', 'defined')
+    | map(attribute='latencyPtpMode.attributes.fabDelayIntvl')
+    | first | default('') | regex_replace('^-2$', ''),
+}) %}
+{% set _=fabpolns.fabric_policies.__setitem__('rogue_ep_control', {
+  'admin_state': 'false' if polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('epControlP', 'defined')
+    | map(attribute='epControlP.attributes.adminSt')
+    | first == 'disabled' else '' | default(''),
+  'detection_interval': polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('epControlP', 'defined')
+    | map(attribute='epControlP.attributes.rogueEpDetectIntvl')
+    | first | default('') | regex_replace('^30$', ''),
+  'detection_multiplier': polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('epControlP', 'defined')
+    | map(attribute='epControlP.attributes.rogueEpDetectMult')
+    | first | default('') | regex_replace('^4$', ''),
+  'hold_interval': polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('epControlP', 'defined')
+    | map(attribute='epControlP.attributes.holdIntvl')
+    | first | default('') | regex_replace('^1800$', ''),
+}) %}
+{% set _=fabpolns.fabric_policies.__setitem__('port_tracking', {
+  'admin_state': 'false' if polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraPortTrackPol', 'defined')
+    | map(attribute='infraPortTrackPol.attributes.adminSt')
+    | first == 'disabled' else '' | default(''),
+  'delay': polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraPortTrackPol', 'defined')
+    | map(attribute='infraPortTrackPol.attributes.delay')
+    | first | default('') | replace('120', ''),
+  'min_links': polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraPortTrackPol', 'defined')
+    | map(attribute='infraPortTrackPol.attributes.minlinks')
+    | first | default('') | regex_replace('0', ''),
+  'include_apic': 'true' if polUni | selectattr('infraInfra', 'defined')
+    | map(attribute='infraInfra') | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraPortTrackPol', 'defined')
+    | map(attribute='infraPortTrackPol.attributes.includeApicPorts')
+    | first == 'enabled' else '' | default(''),
+}) %}
+{#- END Fabric Scheduler -#}
 {% set _=fabpolns.fabric_policies.__setitem__('system_performance', {
     'admin_state': 'true' if 'enabled' in fabricInst_children
       | selectattr('commPol', 'defined') | map(attribute='commPol')
@@ -229,7 +359,6 @@ apic:
   'level_5': qosDscpTransPol.attributes.level5 | replace('AF21', ''),
   'level_6': qosDscpTransPol.attributes.level6 | replace('AF31', ''),
 }) %}
-
 {#- L2 MTU Policies -#}
 {% set fabl2mtuns = namespace(l2_mtu_policies=[]) %}
 {% for policy in fabricInst_children | selectattr('l2InstPol', 'defined')
@@ -284,8 +413,8 @@ apic:
 {% set _=fabpolns.fabric_policies.__setitem__('dns_policies', fabdns_ns.dns_policies )%}
 {#- END Fabric DNS Policies -#}
 {% include "fabric_policies/monitoring.nac.j2" %}
-{{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
 {% include "fabric_policies/fabric_pod_policies.nac.j2" %}
+{{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
 {% include "fabric_policies/banner.nac.j2" %}
 {% include "fabric_policies/aaa.nac.j2" %}
 {% include "fabric_policies/remote_location.nac.j2" %}
