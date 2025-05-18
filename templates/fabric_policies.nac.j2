@@ -412,12 +412,38 @@ apic:
 {% endfor %}
 {% set _=fabpolns.fabric_policies.__setitem__('dns_policies', fabdns_ns.dns_policies )%}
 {#- END Fabric DNS Policies -#}
+{% set _=fabpolns.fabric_policies.__setitem__('fabric_bgp_as', polUni
+  | selectattr('fabricInst', 'defined') | map(attribute='fabricInst')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpInstPol', 'defined') | map(attribute='bgpInstPol')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpAsP', 'defined') | map(attribute='bgpAsP.attributes.asn')
+  | first | default('') ) %}
+{% set _=fabpolns.fabric_policies.__setitem__('fabric_bgp_ext_rr', polUni
+  | selectattr('fabricInst', 'defined') | map(attribute='fabricInst')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpInstPol', 'defined') | map(attribute='bgpInstPol')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpExtRRP', 'defined') | map(attribute='bgpExtRRP')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpRRNodePEp', 'defined') | map(attribute='bgpRRNodePEp.attributes.id')
+  | sort | default([]) ) %}
+{% set _=fabpolns.fabric_policies.__setitem__('fabric_bgp_rr', polUni
+  | selectattr('fabricInst', 'defined') | map(attribute='fabricInst')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpInstPol', 'defined') | map(attribute='bgpInstPol')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpRRP', 'defined') | map(attribute='bgpRRP')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('bgpRRNodePEp', 'defined')
+  | map(attribute='bgpRRNodePEp.attributes.id')
+  | sort | default([]) ) %}
 {% include "fabric_policies/monitoring.nac.j2" %}
 {% include "fabric_policies/fabric_pod_policies.nac.j2" %}
+{% include "fabric_policies/aaa.nac.j2" %}
 {{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
 {% include "fabric_policies/banner.nac.j2" %}
-{% include "fabric_policies/aaa.nac.j2" %}
+{% include "fabric_policies/sr_mpls_global_configuration.nac.j2" %}
 {% include "fabric_policies/remote_location.nac.j2" %}
 {% include "fabric_policies/config_exports.nac.j2" %}
-{% include "fabric_policies/sr_mpls_global_configuration.nac.j2" %}
 {% include "fabric_policies/bgp.nac.j2" %}
