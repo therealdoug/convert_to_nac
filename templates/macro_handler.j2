@@ -27,7 +27,7 @@
         {% elif v is sequence and v is not mapping and v | select('!=', '') | length > 0 %}
 {{ p | indent(2, True)}}:
 {{ remove_empty(v) | indent(4, True) }}
-        {% else %}
+        {%- else -%}
         {%- endif -%}
         {%- endfor -%}
       {% endif -%}
