@@ -18,9 +18,12 @@ apic:
   | map(attribute='aaaPreLoginBanner.attributes') | first | default('') %}
 {% set _=fabpolns.fabric_policies.__setitem__('banners', {
   'apic_gui_alias': bnr.guiTextMessage | default(''),
-  'apic_cli_banner': '|\n    ' ~ bnr.message if bnr.message else '',
-  'switch_cli_banner': '|\n    ' ~ bnr.switchMessage if bnr.switchMessage else '',
-  'apic_gui_banner_message': '|\n    ' ~ bnr.guiMessage if bnr.guiMessage else '',
+  'apic_cli_banner': '|\n' ~ bnr.message
+      | indent(4,true) if bnr.message else '',
+  'switch_cli_banner': '|\n' ~ bnr.switchMessage
+      | indent(4,true) if bnr.switchMessage else '',
+  'apic_gui_banner_message': '|\n' ~ bnr.guiMessage
+      | indent(4,true) if bnr.guiMessage else '',
   }) %}
 {% set _=fabpolns.fabric_policies.__setitem__('coop_group_policy',
     fabricInst_children | selectattr('coopPol', 'defined')
