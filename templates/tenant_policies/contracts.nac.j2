@@ -4,7 +4,7 @@
 {% set imp_contracts = this_tenant.children | selectattr('vzCPIf', 'defined')
   | map(attribute='vzCPIf') | flatten | list | default([]) %}
 {% set contractns = namespace(contracts=[]) %}
-{% for con in contracts | sort(attribute='attributes.name') %}
+{%- for con in contracts | sort(attribute='attributes.name') %}
   {% set subjectns = namespace(subjects=[]) %}
   {% for subject in [con]
     | selectattr('children', 'defined') | map(attribute='children') | flatten
@@ -27,7 +27,73 @@
           'no_stats': 'true' if 'no_stats' in filter.attributes.directives
             | default('') else '',
         }] %}
-    {% endfor %}{#- filter -#}
+    {% endfor -%}
+    {%- set c2pns = namespace(consumer_to_provider={}) -%}
+    {%- for policy in [subject] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vzInTerm', 'defined') | map(attribute='vzInTerm') %}
+      {% set vzfilterns = namespace(filters=[]) %}
+      {%- for filter in [policy] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vzRsFiltAtt', 'defined')
+        | map(attribute='vzRsFiltAtt') | default('') %}
+        {%- set vzfilterns.filters = vzfilterns.filters + [{
+          'filter': filter.attributes.tnVzFilterName,
+          'action': filter.attributes.action | default('')
+            | replace('permit', ''),
+          'priority': filter.attributes.priorityOverride | default('')
+            | replace('default', ''),
+          'log': 'true' if 'log' in filter.attributes.directives
+            | default('') else '',
+          'no_stats': 'true' if 'no_stats' in filter.attributes.directives
+            | default('') else '',
+        }] -%}
+      {% endfor %}
+      {% set _=c2pns.consumer_to_provider.__setitem__('qos_class',
+        policy.attributes.prio | default('') | replace('unspecified', '')) %}
+      {% set _=c2pns.consumer_to_provider.__setitem__('target_dscp',
+        policy.attributes.targetDscp | default('') | replace('unspecified', '')) %}
+      {% set _=c2pns.consumer_to_provider.__setitem__('service_graph',
+        [policy] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vzRsInTermGraphAtt', 'defined')
+        | map(attribute='vzRsInTermGraphAtt.attributes.tnVnsAbsGraphName')
+        | first | default('')) %}
+      {% set _=c2pns.consumer_to_provider.__setitem__('filters', vzfilterns.filters | default('')) %}
+    {%- endfor -%}
+    {%- set p2cns = namespace(provider_to_consumer={}) -%}
+    {%- for policy in [subject] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vzOutTerm', 'defined') | map(attribute='vzOutTerm') %}
+      {% set vzfilterns = namespace(filters=[]) %}
+      {%- for filter in [policy] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vzRsFiltAtt', 'defined')
+        | map(attribute='vzRsFiltAtt') | default('') %}
+        {% set vzfilterns.filters = vzfilterns.filters + [{
+          'filter': filter.attributes.tnVzFilterName,
+          'action': filter.attributes.action | default('')
+            | replace('permit', ''),
+          'priority': filter.attributes.priorityOverride | default('')
+            | replace('default', ''),
+          'log': 'true' if 'log' in filter.attributes.directives
+            | default('') else '',
+          'no_stats': 'true' if 'no_stats' in filter.attributes.directives
+            | default('') else '',
+        }] %}
+      {% endfor %}
+      {% set _=p2cns.provider_to_consumer.__setitem__('qos_class',
+        policy.attributes.prio | default('') | replace('unspecified', '')) %}
+      {% set _=p2cns.provider_to_consumer.__setitem__('target_dscp',
+        policy.attributes.targetDscp | default('') | replace('unspecified', '')) %}
+      {% set _=p2cns.provider_to_consumer.__setitem__('service_graph',
+        [policy] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vzRsInTermGraphAtt', 'defined')
+        | map(attribute='vzRsInTermGraphAtt.attributes.tnVnsAbsGraphName')
+        | first | default('')) %}
+      {% set _=p2cns.provider_to_consumer.__setitem__('filters', vzfilterns.filters | default('')) %}
+    {% endfor -%}
     {% set subjectns.subjects = subjectns.subjects +
       [{
         'name': subject.attributes.name,
@@ -40,17 +106,11 @@
           | replace('unspecified', ''),
         'reverse_filter_ports': 'false' if subject.attributes.revFltPorts == 'no' else ''
           | default(''),
-        'filters': filterns.filters | default([]),
-        'consumer_to_provider_service_graph': '',
-        'consumer_to_provider_qos_class': '',
-        'consumer_to_provider_target_dscp': '',
-        'consumer_to_provider_filters': [],
-        'provider_to_consumer_service_graph': '',
-        'provider_to_consumer_qos_class': '',
-        'provider_to_consumer_target_dscp': '',
-        'provider_to_consumer_filters': [],
+        'filters': filterns.filters | default(''),
+        'consumer_to_provider': c2pns.consumer_to_provider | default(''),
+        'provider_to_consumer': p2cns.provider_to_consumer | default(''),
       }] %}
-  {% endfor %}{#- subject -#}
+  {% endfor -%}
   {% set contractns.contracts = contractns.contracts +
     [{
     'name': con.attributes.name,
@@ -61,6 +121,6 @@
     'target_dscp': con.attributes.targetDscp | default('') | replace('unspecified', ''),
     'subjects': subjectns.subjects | default([]),
     }] %}
-{% endfor %}{#- con -#}
+{% endfor -%}
 {{ 'contracts:' | indent(6, first=True) if contractns.contracts }}
 {{ helper.remove_empty(contractns.contracts) | indent(8, first=True)}}
