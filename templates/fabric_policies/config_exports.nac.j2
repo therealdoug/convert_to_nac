@@ -1,4 +1,3 @@
-{% import 'macro_handler.j2' as helper %}
 {% set fabconfigs = namespace(config_exports=[]) %}
 {% for export in polUni | selectattr('fabricInst', 'defined')
   | map(attribute='fabricInst') | selectattr('children', 'defined')
@@ -23,6 +22,4 @@
       | first | default(''),
   }] %}
 {% endfor %}
-{{ 'config_exports:' | indent(4, true) if fabconfigs.config_exports }}
-{{ helper.remove_empty(fabconfigs.config_exports)
-  | indent(6, true) if fabconfigs.config_exports }}
+{% set _=fabpolns.fabric_policies.__setitem__('config_exports', fabconfigs.config_exports) %}

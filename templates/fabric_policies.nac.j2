@@ -14,6 +14,14 @@ apic:
     fabricInst_children | selectattr('mgmtConnectivityPrefs', 'defined')
       | map(attribute='mgmtConnectivityPrefs.attributes.interfacePref') | first | default(''))
       | replace('inband', '') %}
+{% set bnr = aaaUserEp | selectattr('aaaPreLoginBanner', 'defined')
+  | map(attribute='aaaPreLoginBanner.attributes') | first | default('') %}
+{% set _=fabpolns.fabric_policies.__setitem__('banners', {
+  'apic_gui_alias': bnr.guiTextMessage | default(''),
+  'apic_cli_banner': '|\n    ' ~ bnr.message if bnr.message else '',
+  'switch_cli_banner': '|\n    ' ~ bnr.switchMessage if bnr.switchMessage else '',
+  'apic_gui_banner_message': '|\n    ' ~ bnr.guiMessage if bnr.guiMessage else '',
+  }) %}
 {% set _=fabpolns.fabric_policies.__setitem__('coop_group_policy',
     fabricInst_children | selectattr('coopPol', 'defined')
       | map(attribute='coopPol.attributes.type') | first | default(''))
@@ -438,12 +446,29 @@ apic:
   | selectattr('bgpRRNodePEp', 'defined')
   | map(attribute='bgpRRNodePEp.attributes.id')
   | sort | default([]) ) %}
+{% set _=fabpolns.fabric_policies.__setitem__('sr_mpls_global_configuration', {
+  'sr_global_block_minimum':
+    polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
+    | selectattr('attributes.name', 'equalto', 'infra')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('mplsLabelPol', 'defined') | map(attribute='mplsLabelPol')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('mplsSrgbLabelPol', 'defined')
+    | map(attribute='mplsSrgbLabelPol.attributes.minSrgbLabel')
+    | first | default('') | replace('16000',''),
+  'sr_global_block_maximum':
+    polUni | selectattr('fvTenant', 'defined') | map(attribute='fvTenant')
+    | selectattr('attributes.name', 'equalto', 'infra')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('mplsLabelPol', 'defined') | map(attribute='mplsLabelPol')
+    | selectattr('children', 'defined') | map(attribute='children') | flatten | list
+    | selectattr('mplsSrgbLabelPol', 'defined')
+    | map(attribute='mplsSrgbLabelPol.attributes.maxSrgbLabel')
+    | first | default('') | replace('23999',''),
+}) %}
 {% include "fabric_policies/monitoring.nac.j2" %}
 {% include "fabric_policies/fabric_pod_policies.nac.j2" %}
 {% include "fabric_policies/aaa.nac.j2" %}
-{{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
-{% include "fabric_policies/banner.nac.j2" %}
-{% include "fabric_policies/sr_mpls_global_configuration.nac.j2" %}
-{% include "fabric_policies/remote_location.nac.j2" %}
 {% include "fabric_policies/config_exports.nac.j2" %}
-{% include "fabric_policies/bgp.nac.j2" %}
+{% include "fabric_policies/remote_location.nac.j2" %}
+{{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}

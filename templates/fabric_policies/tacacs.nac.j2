@@ -28,4 +28,4 @@
       | first | default('') | regex_replace('^uni/tn-mgmt/mgmtp-default/(inb|oob)-', '')
   }] %}
 {% endfor %}
-{% set _=fabaaans.aaa.aaa.__setitem__('tacacs_providers', fabtacacsns.tacacs_providers) %}
+{% set _=fabaaans.aaa.__setitem__('tacacs_providers', fabtacacsns.tacacs_providers) %}
