@@ -14,7 +14,7 @@
       {% set rolesns.roles = rolesns.roles + [{
         'name': role.attributes.name,
         'privilege_type': role.attributes.privType | default('')
-          | replace('write', ''),
+          | replace('readPriv', 'read') | replace('writePriv', ''),
       }] %}
     {% endfor %}
     {% set domainns.domains = domainns.domains + [{
@@ -27,7 +27,7 @@
     | map(attribute='children') | flatten
     | selectattr('aaaUserCert', 'defined')
     | map(attribute='aaaUserCert') | default('') %}
-    {% set certns.certificates = certns.certificates + [{
+    {% set certsns.certificates = certsns.certificates + [{
       'name': cert.attributes.name,
       'data': cert.attributes.data,
     }] %}
@@ -37,7 +37,7 @@
     | map(attribute='children') | flatten
     | selectattr('aaaSshAuth', 'defined')
     | map(attribute='aaaSshAuth') | default('') %}
-    {% set certns.certificates = certns.certificates + [{
+    {% set certsns.certificates = certsns.certificates + [{
       'name': key.attributes.name,
       'data': key.attributes.data,
     }] %}

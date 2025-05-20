@@ -358,7 +358,8 @@ apic:
   | first | default('')
 %}
 {% set _=fabpolns.fabric_policies.__setitem__('infra_dscp_translation_policy', {
-  'admin_state': 'true' if qosDscpTransPol.attributes.adminSt == 'enabled' |default(''),
+  'admin_state': 'true' if qosDscpTransPol.attributes.adminSt == 'enabled' else ''
+    |default(''),
   'control_plane': qosDscpTransPol.attributes.control | replace('CS7', ''),
   'policy_plane': qosDscpTransPol.attributes.policy | replace('CS4', ''),
   'span': qosDscpTransPol.attributes.span | replace('CS1', ''),
@@ -475,3 +476,7 @@ apic:
 {% include "fabric_policies/config_exports.nac.j2" %}
 {% include "fabric_policies/remote_location.nac.j2" %}
 {{ helper.remove_empty(fabpolns.fabric_policies) | indent(4, true) if fabpolns.fabric_policies }}
+#########################################################################################################
+#########################################################################################################
+{{ fabpolns.fabric_policies | to_nice_yaml }}
+#########################################################################################################
