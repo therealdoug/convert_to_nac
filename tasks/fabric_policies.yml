@@ -1,5 +1,5 @@
 ---
-- name: Output Terraform
+- name: Generate Fabric Policies File
   ansible.builtin.template:
     src: "{{ role_path }}/templates/fabric_policies.nac.j2"
     dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/fabric_policies.nac.yaml"

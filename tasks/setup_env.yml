@@ -33,7 +33,7 @@
     classes:
       - physDomP
       - l3extDomP
-      # - vmmProvP
+      # - vmmProvP # Does support rsp-subtree options in older versions
       - fvTenant
       - fabricInst
       - infraInfra
@@ -50,13 +50,14 @@
   vars:
     policy_combine: []
 
-- name: Copy Test
+- name: Copy to inventory host_vars directory
   ansible.builtin.copy:
     content: '{ "polUni": {{ policy_combine | to_nice_json }} }'
     dest: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
-  # vars:
-  #   fabric_policy: '{ "polUni": {{ policy_combine }} }'
-    # fabric_policy: '{{ class_query_result }}'
+  when: read_mode == "online"
+
+- name: Refresh inventory to ensure new config exist in inventory
+  ansible.builtin.include_vars: "{{ role_path }}/inventory/host_vars/{{ inventory_hostname }}/fabric_policies.json"
   when: read_mode == "online"
 
 # - name: Download Fabric Policies

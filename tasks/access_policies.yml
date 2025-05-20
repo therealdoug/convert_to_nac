@@ -9,7 +9,7 @@
     src: "{{ role_path }}/templates/access_interface_policy_groups.nac.j2"
     dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_leaf_interface_policy_groups.nac.yml"
 
-- name: Output Terraform Nexus-As-Code templates for Leaf Interface Profiles
+- name: Generate Leaf Interface Profiles file
   ansible.builtin.template:
     src: "{{ role_path }}/templates/access_leaf_interface_profiles.nac.j2"
     dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/access_leaf_interface_profiles_{{ item }}.nac.yaml"
