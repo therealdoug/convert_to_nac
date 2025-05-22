@@ -1,327 +1,260 @@
-{% set cdp_policies =  infra_children | selectattr('cdpIfPol', 'defined')
-  | map(attribute='cdpIfPol') | list %}
-{% set l2_policies =  infra_children | selectattr('l2IfPol', 'defined')
-  | map(attribute='l2IfPol') | list %}
-{% set link_policies =  infra_children | selectattr('fabricHIfPol', 'defined')
-  | map(attribute='fabricHIfPol') | list %}
-{% set port_channel_policies =  infra_children | selectattr('lacpLagPol', 'defined')
-  | map(attribute='lacpLagPol') | list %}
-{% set pc_member_policies =  infra_children | selectattr('lacpIfPol', 'defined')
-  | map(attribute='lacpIfPol') | list %}
-{% set lldp_policies =  infra_children | selectattr('lldpIfPol', 'defined')
-  | map(attribute='lldpIfPol') | list %}
-{% set macsec_policies =  infra_children | selectattr('macsecPolCont', 'defined')
-  | map(attribute='macsecPolCont') | selectattr('children', 'defined')
-  | map(attribute='children') | flatten | list %}
-{% set macsec_params_policies = macsec_policies | selectattr('macsecParamPol', 'defined')
-  | map(attribute='macsecParamPol') | list %}
-{% set macsec_keychain_policies = macsec_policies | selectattr('macsecKeyChainPol', 'defined')
-  | map(attribute='macsecKeyChainPol') | list %}
-{% set macsec_interface_policies = infra_children | selectattr('macsecIfPol', 'defined')
-  | map(attribute='macsecIfPol') | list %}
-{% set mcp_policies =  infra_children | selectattr('mcpIfPol', 'defined')
-  | map(attribute='mcpIfPol') | list %}
-{% set stp_policies =  infra_children | selectattr('stpIfPol', 'defined')
-  | map(attribute='stpIfPol') | list %}
-{% set storm_control_policies =  infra_children | selectattr('stormctrlIfPol', 'defined')
-  | map(attribute='stormctrlIfPol') | list %}
-    interface_policies:
-    {% if cdp_policies | length > 0 %}
+{% set accintpolns = namespace(interface_policies={}) %}
 
-      cdp_policies:
-      {% for pol in cdp_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.adminSt == 'enabled' %}
-          admin_state: true
-        {% else %}
-          admin_state: false
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if l2_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('cdpIfPol', 'defined')
+  | map(attribute='cdpIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'admin_state': 'true' if pol.attributes.adminSt == 'enabled' else ''
+      | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('cdp_policies',
+  ifpol.policies | default('')) %}
 
-      l2_policies:
-      {% for pol in l2_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.vlanScope != 'global' %}
-        vlan_scope: {{ pol.attributes.vlanScope }}
-        {% endif %}
-        {% if pol.attributes.qinq != 'disabled' %}
-        qinq: true
-        {% endif %}
-        {% if pol.attributes.vepa != 'disabled' %}
-        reflective_relay: true
-        {% endif %}
-      {% endfor %}
-    {%endif %}
-    {% if link_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('lldpIfPol', 'defined')
+  | map(attribute='lldpIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'admin_rx_state': 'true' if pol.attributes.adminRxSt == 'enabled' else ''
+      | default(''),
+    'admin_tx_state': 'true' if pol.attributes.adminTxSt == 'enabled' else ''
+      | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('lldp_policies',
+  ifpol.policies | default('')) %}
 
-      link_level_policies:
-      {% for pol in link_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.speed != 'inherit' %}
-          speed: {{ pol.attributes.speed }}
-        {% endif %}
-        {% if pol.attributes.autoNeg != 'on' %}
-          auto: false
-        {% endif %}
-        {% if pol.attributes.fecMode != 'inherit' %}
-          fec_mode: {{ pol.attributes.fecMode }}
-        {% endif %}
-        {% if pol.attributes.portPhyMediaType is defined
-          and pol.attributes.portPhyMediaType != 'auto' %}
-          physical_media_type: {{ pol.attributes.portPhyMediaType }}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if port_channel_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('l2IfPol', 'defined')
+  | map(attribute='l2IfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'vlan_scope': pol.attributes.vlanScope | default('')
+      | replace('global', ''),
+    'qinq': 'true' if pol.attributes.qinq == 'enabled' else ''
+      | default(''),
+    'reflective_relay': 'true' if pol.attributes.vepa == 'enabled' else ''
+      | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('l2_policies',
+  ifpol.policies | default('')) %}
 
-      port_channel_policies:
-      {% for pol in port_channel_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-          mode: {{ pol.attributes.mode }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% if pol.attributes.minLinks != '1' %}
-          min_links: {{ pol.attributes.minLinks }}
-        {% endif %}
-        {% if pol.attributes.maxLinks != '16' %}
-          max_links: {{ pol.attributes.maxLinks }}
-        {% endif %}
-        {% if 'susp-individual' not in pol.attributes.ctrl %}
-          suspend_individual: false
-        {% endif %}
-        {% if 'graceful-conv' not in pol.attributes.ctrl %}
-          graceful_convergence: false
-        {% endif %}
-        {% if 'fast-sel-hot-stdby' not in pol.attributes.ctrl %}
-          fast_select_standby: false
-        {% endif %}
-        {% if 'load-defer' in pol.attributes.ctrl %}
-          load_defer: true
-        {% endif %}
-        {% if 'symmetric-hash' in pol.attributes.ctrl %}
-          symmetric_hash: true
-        {% endif %}
-          {# TODO: hash-key 'l2LoadBalancePol' #}
-        {% set loadbal = [ pol ] | selectattr('children', 'defined') | map(attribute='children')
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('fabricHIfPol', 'defined')
+  | map(attribute='fabricHIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'speed': pol.attributes.speed | default('')
+      | replace('inherit', ''),
+    'auto': 'false' if pol.attributes.autoNeg == 'off' else ''
+      | default(''),
+    'fec_mode': pol.attributes.fecMode | default('') | replace('inherit', ''),
+    'physical_media_type': pol.attributes.portPhyMediaType | default('')
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('link_level_policies',
+  ifpol.policies | default('')) %}
+
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('lacpLagPol', 'defined')
+  | map(attribute='lacpLagPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'mode': pol.attributes.mode,
+    'description': pol.attributes.descr | default(''),
+    'min_links': pol.attributes.minLinks | default('')
+      | regex_replace('^1$', ''),
+    'max_links': pol.attributes.maxLinks | default('')
+      | regex_replace('^16$', ''),
+    'suspend_individual': 'false' if 'susp-individual'
+      not in pol.attributes.ctrl else '' | default(''),
+    'graceful_convergence': 'false' if 'graceful-conv'
+      not in pol.attributes.ctrl else '' | default(''),
+    'fast_select_standby': 'false' if 'fast-sel-hot-stdby'
+      not in pol.attributes.ctrl else '' | default(''),
+    'load_defer': 'true' if 'load-defer' in pol.attributes.ctrl else ''
+      | default(''),
+    'symmetric_hash': 'true' if 'symmetric-hash' in pol.attributes.ctrl else ''
+      | default(''),
+    'hash_key': [pol] | selectattr('children', 'defined') | map(attribute='children')
           | flatten | list | selectattr('l2LoadBalancePol', 'defined')
-          | map(attribute='l2LoadBalancePol')  %}
-        {% if loadbal | length > 0 %}
-          hash_key: {{ loadbal | map(attribute='attributes') | map(attribute='hashFields') | first }}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if pc_member_policies | length > 0 %}
+          | map(attribute='l2LoadBalancePol') | map(attribute='attributes')
+          | map(attribute='hashFields') | first | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('port_channel_policies',
+  ifpol.policies | default('')) %}
 
-      port_channel_member_policies:
-      {% for pol in pc_member_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% if pol.attributes.txRate != 'normal' %}
-          rate: {{ pol.attributes.txRate }}
-        {% endif %}
-        {% if pol.attributes.prio != '32768' %}
-          priority: {{ pol.attributes.prio }}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if lldp_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('macsecPolCont', 'defined')
+  | map(attribute='macsecPolCont') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('macsecParamPol', 'defined')
+  | map(attribute='macsecParamPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'cipher_suite': pol.attributes.cipherSuite | default('')
+      | replace('gcm-aes-xpn-256', ''),
+    'confidentiality_offset': pol.attributes.confOffset | default('')
+      | replace('offset-0', ''),
+    'key_server_priority': pol.attributes.keySvrPrio | default('')
+      | regex_replace('^16$', ''),
+    'window_size': pol.attributes.replayWindow | default('')
+      | regex_replace('^64$', ''),
+    'key_expiry_time': pol.attributes.sakExpiryTime
+      | default('') | replace('disabled', '') | regex_replace('^0$', ''),
+    'security_policy': pol.attributes.secPolicy | default('')
+    | replace('should-secure', ''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('macsec_params_policies',
+  ifpol.policies | default('')) %}
 
-      lldp_policies:
-      {% for pol in lldp_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.adminRxSt == 'enabled' %}
-          admin_rx_state: true
-        {% else %}
-          admin_rx_state: false
-        {% endif %}
-        {% if pol.attributes.adminTxSt == 'enabled' %}
-          admin_tx_state: true
-        {% else %}
-          admin_tx_state: false
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if macsec_params_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('macsecPolCont', 'defined')
+  | map(attribute='macsecPolCont') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('macsecParamPol', 'defined')
+  | map(attribute='macsecParamPol') | list | sort(attribute='attributes.name') %}
+  {% set kpns = namespace(key_policies=[]) %}
+  {% for kp in infra_children | selectattr('macsecPolCont', 'defined')
+  | map(attribute='macsecPolCont') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('macsecKeyChainPol', 'defined')
+  | map(attribute='macsecKeyChainPol') | list
+  | sort(attribute='attributes.name') | default('')%}
+    {% set kpns.key_policies = kpns.key_policies +[{
+      'name': kp.attributes.name | default(''),
+      'description': kp.attributes.descr | default(''),
+      'key_name': kp.attributes.keyName | default(''),
+      'pre_shared_key': kp.attributes.preSharedKey
+        | default('!!--ENCRYPTED. PLEASE UPDATE MANUALLY--!!'),
+    }] %}
+  {% endfor %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'key_policies': kpns.key_policies | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('macsec_keychain_policies',
+  ifpol.policies | default('')) %}
 
-      macsec_params_policies:
-      {% for pol in macsec_params_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% if pol.attributes.cipherSuite != 'gcm-aes-xpn-256' %}
-          cipher_suite: {{ pol.attributes.cipherSuite }}
-        {% endif %}
-        {% if pol.attributes.confOffset != 'offset-0' %}
-          confidentiality_offset: {{ pol.attributes.confOffset }}
-        {% endif %}
-        {% if pol.attributes.keySvrPrio != '16' %}
-          key_server_priority: {{ pol.attributes.keySvrPrio }}
-        {% endif %}
-        {% if pol.attributes.replayWindow != '64' %}
-          window_size: {{ pol.attributes.replayWindow }}
-        {% endif %}
-        {% if pol.attributes.sakExpiryTime != 'disabled' %}
-          key_expiry_time: {{ pol.attributes.sakExpiryTime }}
-        {% endif %}
-        {% if pol.attributes.secPolicy != 'should-secure' %}
-          key_expiry_time: {{ pol.attributes.secPolicy }}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if macsec_keychain_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('macsecIfPol', 'defined')
+  | map(attribute='macsecIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'admin_state': 'false' if pol.attributes.adminSt == 'disabled' else ''
+      | default(''),
+    'macsec_parameters_policy': [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('macsecRsToParamPol', 'defined')
+      | map(attribute='macsecRsToParamPol') | map(attribute='attributes')
+      | map(attribute='tDn') | first | default('')
+      | regex_replace('^uni/infra/macsecpcont/paramp-', ''),
+    'macsec_keychain_policy': [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('macsecRsToKeyChainPol', 'defined')
+      | map(attribute='macsecRsToKeyChainPol') | map(attribute='attributes')
+      | map(attribute='tDn') | first | default('')
+      | regex_replace('^uni/infra/macsecpcont/keychainp-', ''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('macsec_interface_policies',
+  ifpol.policies | default('')) %}
 
-      macsec_keychain_policies:
-      {% for pol in macsec_keychain_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% set key_policies = macsec_keychain_policies | selectattr('children', 'defined')
-          | map(attribute='children') | flatten | list
-          | selectattr('macsecKeyPol', 'defined') | map(attribute='macsecKeyPol') | list %}
-        {% if key_policies | length > 0 %}
-          key_policies:
-          {% for kp in key_policies | sort(attribute='attributes.name') %}
-            - name: {{ kp.attributes.name }}
-            {% if kp.attributes.descr != "" %}
-              description: {{ kp.attributes.descr }}
-            {% endif %}
-              key_name: {{ kp.attributes.keyName }}
-            {% if kp.attributes.preSharedKey is undefined %}
-              pre_shared_key: "!!--ENCRYPTED. PLEASE UPDATE MANUALLY--!!"
-            {% else %}
-              pre_shared_key: {{ kp.attributes.preSharedKey }}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if macsec_interface_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('lacpIfPol', 'defined')
+  | map(attribute='lacpIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'rate': pol.attributes.txRate | default('')
+      | replace('normal', ''),
+    'priority': pol.attributes.prio | default('')
+      | regex_replace('^32768$', ''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('port_channel_member_policies',
+  ifpol.policies | default('')) %}
 
-      macsec_interface_policies:
-      {% for pol in macsec_interface_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% if pol.attributes.adminSt != 'enabled' %}
-          admin_state: false
-        {% endif %}
-        {% set pol_children = [ pol ] | selectattr('children', 'defined') | map(attribute='children')
-          | flatten | list  %}
-        {% set mpp = pol_children | selectattr('macsecRsToParamPol', 'defined')
-          | map(attribute='macsecRsToParamPol') %}
-        {% if mpp | length > 0 %}
-          macsec_parameters_policy: {{ mpp | map(attribute='attributes')
-            | map(attribute='tDn') | first | regex_replace('^uni/infra/macsecpcont/paramp-', '') }}
-        {% endif %}
-        {% set mkp = pol_children | selectattr('macsecRsToKeyChainPol', 'defined')
-          | map(attribute='macsecRsToKeyChainPol') %}
-        {% if mkp | length > 0 %}
-          macsec_keychain_policy: {{ mkp | map(attribute='attributes')
-            | map(attribute='tDn') | first
-            | regex_replace('^uni/infra/macsecpcont/keychainp-', '') }}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if mcp_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('mcpIfPol', 'defined')
+  | map(attribute='mcpIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'admin_state': 'false' if pol.attributes.adminSt == 'disabled'
+      | default('') else '',
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('mcp_policies',
+  ifpol.policies | default('')) %}
 
-      mcp_policies:
-      {% for pol in mcp_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.adminSt == 'enabled' %}
-          admin_state: true
-        {% else %}
-          admin_state: false
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if stp_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('stpIfPol', 'defined')
+  | map(attribute='stpIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'bpdu_guard': 'true' if 'bpdu-guard' in pol.attributes.ctrl else ''
+      | default(''),
+    'bpdu_filter': 'true' if 'bpdu-filter' in pol.attributes.ctrl else ''
+      | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('stp_policies',
+  ifpol.policies | default('')) %}
 
-      spanning_tree_policies:
-      {% for pol in stp_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% if "bpdu-guard" in pol.attributes.ctrl %}
-          bpdu_guard: true
-        {% endif %}
-        {% if "bpdu-filter" in pol.attributes.ctrl %}
-          bpdu_filter: true
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% if storm_control_policies | length > 0 %}
+{%- set ifpol = namespace(policies=[]) -%}
+{% for pol in infra_children | selectattr('stormctrlIfPol', 'defined')
+  | map(attribute='stormctrlIfPol') | list | sort(attribute='attributes.name') %}
+  {% set ifpol.policies = ifpol.policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'alias': pol.attributes.nameAlias | default(''),
+    'broadcast_burst_pps': pol.attributes.bcBurstPps | default('')
+      | replace('unspecified', ''),
+    'broadcast_burst_rate': pol.attributes.bcBurstRate | default('')
+      | replace('100.000000', ''),
+    'broadcast_rate': pol.attributes.bcRate | default('')
+      | replace('100.000000', ''),
+    'broadcast_pps': pol.attributes.bcRatePps | default('')
+      | replace('unspecified', ''),
+    'multicast_burst_pps': pol.attributes.mcBurstPps | default('')
+      | replace('unspecified', ''),
+    'multicast_burst_rate': pol.attributes.mcBurstRate | default('')
+      | replace('100.000000', ''),
+    'multicast_rate': pol.attributes.mcRate | default('')
+      | replace('100.000000', ''),
+    'multicast_pps': pol.attributes.mcRatePps | default('')
+      | replace('unspecified', ''),
+    'unknown_unicast_burst_pps': pol.attributes.uucBurstPps | default('')
+      | replace('unspecified', ''),
+    'unknown_unicast_burst_rate': pol.attributes.uucBurstRate | default('')
+      | replace('100.000000', ''),
+    'unknown_unicast_rate': pol.attributes.uucRate | default('')
+      | replace('100.000000', ''),
+    'unknown_unicast_pps': pol.attributes.uucRatePps | default('')
+      | replace('unspecified', ''),
+    'action': pol.attributes.stormCtrlAction | default('')
+      | replace('drop', ''),
+    'rate': pol.attributes.rate | default('')
+      | replace('100.000000', ''),
+    'rate_pps': pol.attributes.ratePps | default('')
+      | replace('unspecified', ''),
+    'burst_rate': pol.attributes.burstRate | default('')
+      | replace('100.000000', ''),
+    'burst_pps': pol.attributes.burstPps | default('')
+      | replace('unspecified', ''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('storm_control_policies',
+  ifpol.policies | default('')) %}
 
-      storm_control_policies:
-      {% for pol in storm_control_policies | sort(attribute='attributes.name') %}
-        - name: {{ pol.attributes.name }}
-        {% if pol.attributes.descr != "" %}
-          description: {{ pol.attributes.descr }}
-        {% endif %}
-        {% if pol.attributes.nameAlias != "" %}
-          alias: {{ pol.attributes.nameAlias }}
-        {% endif %}
-        {% if pol.attributes.bcBurstPps != 'unspecified' %}
-          broadcast_burst_pps: {{ pol.attributes.bcBurstPps }}
-        {% endif %}
-        {% if pol.attributes.bcBurstRate != '100.000000' %}
-          broadcast_burst_rate: {{ pol.attributes.bcBurstRate }}
-        {% endif %}
-        {% if pol.attributes.bcRate != '100.000000' %}
-          broadcast_rate: {{ pol.attributes.bcRate }}
-        {% endif %}
-        {% if pol.attributes.bcRatePps != 'unspecified' %}
-          broadcast_pps: {{ pol.attributes.bcRatePps }}
-        {% endif %}
-        {% if pol.attributes.burstPps != 'unspecified' %}
-          burst_pps: {{ pol.attributes.burstPps }}
-        {% endif %}
-        {% if pol.attributes.burstRate != '100.000000' %}
-          burst_rate: {{ pol.attributes.burstRate }}
-        {% endif %}
-        {% if pol.attributes.mcBurstPps != 'unspecified' %}
-          multicast_burst_pps: {{ pol.attributes.mcBurstPps }}
-        {% endif %}
-        {% if pol.attributes.mcBurstRate != '100.000000' %}
-          multicast_burst_rate: {{ pol.attributes.mcBurstRate }}
-        {% endif %}
-        {% if pol.attributes.mcRate != '100.000000' %}
-          multicast_rate: {{ pol.attributes.mcRate }}
-        {% endif %}
-        {% if pol.attributes.mcRatePps != 'unspecified' %}
-          multicast_pps: {{ pol.attributes.mcRatePps }}
-        {% endif %}
-        {% if pol.attributes.rate != '100.000000' %}
-          rate: {{ pol.attributes.rate }}
-        {% endif %}
-        {% if pol.attributes.ratePps != 'unspecified' %}
-          pps: {{ pol.attributes.ratePps }}
-        {% endif %}
-        {% if pol.attributes.stormCtrlAction != 'drop' %}
-          action: {{ pol.attributes.stormCtrlAction }}
-        {% endif %}
-        {% if pol.attributes.uucBurstPps != 'unspecified' %}
-          unknown_unicast_burst_pps: {{ pol.attributes.uucBurstPps }}
-        {% endif %}
-        {% if pol.attributes.uucBurstRate != '100.000000' %}
-          unknown_unicast_burst_rate: {{ pol.attributes.uucBurstRate }}
-        {% endif %}
-        {% if pol.attributes.uucRate != '100.000000' %}
-          unknown_unicast_rate: {{ pol.attributes.uucRate }}
-        {% endif %}
-        {% if pol.attributes.uucRatePps != 'unspecified' %}
-          unknown_unicast_pps: {{ pol.attributes.uucRatePps }}
-        {% endif %}
-        {% if pol.attributes.isUcMcBcStormPktCfgValid != 'Valid' %}
-          configuration_type: all
-        {% endif %}
-      {% endfor %}
-    {% endif %}
+{%- set _=accpolns.access_policies.__setitem__('interface_policies', accintpolns.interface_policies) -%}
