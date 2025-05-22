@@ -1,69 +1,10 @@
 #jinja2: lstrip_blocks: True
 ---
+{% import 'macro_handler.j2' as helper %}
+{% set accpolns = namespace(access_policies={}) %}
 {% set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
 apic:
   access_policies:
-{% set aaeps =  infra_children | selectattr('infraAttEntityP', 'defined') | map(attribute='infraAttEntityP') | list %}
-  {% if aaeps | length > 0 %}
-    aaeps:
-    {% for aaep in aaeps | sort(attribute='attributes.name') %}
-      - name: {{ aaep.attributes.name }}
-      {% if aaep.attributes.descr != "" %}
-        description: {{ aaep.attributes.descr }}
-      {% endif %}
-      {% if aaep.children is defined %}
-        {% if aaep.children | selectattr('infraProvAcc', 'defined') %}
-        infra_vlan: true
-        {% endif %}
-        {% set phys_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/phys-') | list %}
-        {% if phys_domains | length > 0 %}
-        physical_domains:
-          {% for domain in phys_domains | sort(attribute='attributes.tDn') %}
-          - {{ domain.attributes.tDn | regex_replace('^uni/phys-', '') }}
-          {% endfor %}
-        {% endif %}
-        {% set l3_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/l3dom-') | list %}
-        {% if l3_domains | length > 0 %}
-        routed_domains:
-          {% for domain in l3_domains | sort(attribute='attributes.tDn') %}
-          - {{ domain.attributes.tDn | regex_replace('^uni/l3dom-', '') }}
-          {% endfor %}
-        {% endif %}
-        {% set vmm_domains = aaep.children | selectattr('infraRsDomP', 'defined') | map(attribute='infraRsDomP') | selectattr('attributes.tDn', 'search', '^uni/vmmp-VMware/dom-') | list %}
-        {% if vmm_domains | length > 0 %}
-        vmware_vmm_domains:
-          {% for domain in vmm_domains | sort(attribute='attributes.tDn') %}
-          - {{ domain.attributes.tDn | regex_replace('^uni/vmmp-VMware/dom-', '') }}
-          {% endfor %}
-        {% endif %}
-        {% set endpoint_groups = aaep.children | selectattr('infraGeneric', 'defined') | map(attribute='infraGeneric') | selectattr('children', 'defined') | map(attribute='children') | flatten | selectattr('infraRsFuncToEpg', 'defined') | map(attribute='infraRsFuncToEpg') | map(attribute='attributes')  %}
-        {% if endpoint_groups | length > 0 %}
-        endpoint_groups:
-          {% for epg in endpoint_groups | sort(attribute='tDn') %}
-            {% set tn, ap, group = epg.tDn.split('/')[1:] %}
-          - endpoint_group: {{ group | regex_replace('^epg-', '') }}
-            tenant: {{ tn | regex_replace('^tn-', '') }}
-            application_profile: {{ ap | regex_replace('^ap-', '') }}
-            {% if epg.primaryEncap == 'unknown' %}
-              {% if epg.encap != 'unknown' %}
-            vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
-              {%endif %}
-            {% else %}
-            primary_vlan: {{ epg.primaryEncap | regex_replace('^vlan-', '') }}
-            secondary_vlan: {{ epg.encap | regex_replace('^vlan-', '') }}
-            {% endif %}
-            {% if epg.mode != 'regular' %}
-            mode: {{ epg.mode }}
-            {% endif %}
-            {% if epg.instrImedcy != 'lazy' %}
-            deployment_immediacy: {{ epg.instrImedcy }}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-
 {% set pdomains =  polUni | selectattr('physDomP', 'defined') | map(attribute='physDomP') | flatten | list %}
 {% set rdomains =  polUni | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | flatten | list %}
 {% if pdomains | length > 0 %}
@@ -289,3 +230,8 @@ apic:
 {% endif %}
 
 {% include "./access_interface_policies.nac.j2" %}
+------------------------------------------------------------------
+------------------------------------------------------------------
+------------------------------------------------------------------
+{% include "./access_policies/aaeps.nac.j2" %}
+{{ helper.remove_empty({'apic': {'access_policies': accpolns.access_policies}}) }}
