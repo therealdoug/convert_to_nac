@@ -111,22 +111,22 @@
     | replace('should-secure', ''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('macsec_params_policies',
+{% set _=accintpolns.interface_policies.__setitem__('macsec_parameters_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('macsecPolCont', 'defined')
   | map(attribute='macsecPolCont') | selectattr('children', 'defined')
   | map(attribute='children') | flatten
-  | selectattr('macsecParamPol', 'defined')
-  | map(attribute='macsecParamPol') | list | sort(attribute='attributes.name') %}
-  {% set kpns = namespace(key_policies=[]) %}
-  {% for kp in infra_children | selectattr('macsecPolCont', 'defined')
-  | map(attribute='macsecPolCont') | selectattr('children', 'defined')
-  | map(attribute='children') | flatten
   | selectattr('macsecKeyChainPol', 'defined')
   | map(attribute='macsecKeyChainPol') | list
-  | sort(attribute='attributes.name') | default('')%}
+  | sort(attribute='attributes.name') %}
+  {% set kpns = namespace(key_policies=[]) %}
+  {% for kp in [pol] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('macsecKeyPol', 'defined')
+    | map(attribute='macsecKeyPol')
+    | sort(attribute='attributes.name') | default('') %}
     {% set kpns.key_policies = kpns.key_policies +[{
       'name': kp.attributes.name | default(''),
       'description': kp.attributes.descr | default(''),
@@ -166,7 +166,7 @@
       | regex_replace('^uni/infra/macsecpcont/keychainp-', ''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('macsec_interface_policies',
+{% set _=accintpolns.interface_policies.__setitem__('macsec_interfaces_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
@@ -208,7 +208,7 @@
       | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('stp_policies',
+{% set _=accintpolns.interface_policies.__setitem__('spanning_tree_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
