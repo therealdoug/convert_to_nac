@@ -3,235 +3,223 @@
 {% import 'macro_handler.j2' as helper %}
 {% set accpolns = namespace(access_policies={}) %}
 {% set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-apic:
-  access_policies:
-{% set pdomains =  polUni | selectattr('physDomP', 'defined') | map(attribute='physDomP') | flatten | list %}
-{% set rdomains =  polUni | selectattr('l3extDomP', 'defined') | map(attribute='l3extDomP') | flatten | list %}
-{% if pdomains | length > 0 %}
-    physical_domains:
-  {% for domain in pdomains | sort(attribute='attributes.name') %}
-      - name: {{ domain.attributes.name }}
-    {% if domain.children is defined %}
-    {% set vlpool = domain.children | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs') | flatten | list | map(attribute='attributes') | map(attribute='tDn') | list %}
-      {% if vlpool != "" and vlpool != [] %}
-        vlan_pool: {{ vlpool | first | replace('uni/infra/vlanns-[', '') | replace(']-dynamic', '') | replace(']-static', '') }}
-      {% elif vlpool == [] %}
-        vlan_pool: default
-      {% endif %}
-    {% endif %}
+{%- set pdomns = namespace(physical_domains=[]) -%}
+{%- for dom in polUni | selectattr('physDomP', 'defined')
+  | map(attribute='physDomP') | flatten | sort(attribute='attributes.name') %}
+  {% set pdomns.physical_domains = pdomns.physical_domains + [{
+    'name': dom.attributes.name,
+    'vlan_pool': [dom] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs')
+      | flatten | map(attribute='attributes') | map(attribute='tDn') | list
+      | first | default('') | replace('uni/infra/vlanns-[', '')
+      | replace(']-dynamic', '') | replace(']-static', ''),
+    'security_domains': [dom] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('aaaDomainRef', 'defined')
+      | map(attribute='aaaDomainRef.attributes.name') | default(''),
+  }] %}
+{% endfor -%}
+{%- set _= accpolns.access_policies.__setitem__('physical_domains', pdomns.physical_domains) -%}
+{%- set rdomns = namespace(routed_domains=[]) -%}
+{%- for dom in polUni | selectattr('l3extDomP', 'defined')
+  | map(attribute='l3extDomP') | flatten | sort(attribute='attributes.name') %}
+  {% set rdomns.routed_domains = rdomns.routed_domains + [{
+    'name': dom.attributes.name,
+    'vlan_pool': [dom] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs')
+      | flatten | map(attribute='attributes') | map(attribute='tDn') | list
+      | first | default('') | replace('uni/infra/vlanns-[', '')
+      | replace(']-dynamic', '') | replace(']-static', ''),
+    'security_domains': [dom] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('aaaDomainRef', 'defined')
+      | map(attribute='aaaDomainRef.attributes.name') | default(''),
+  }] %}
+{% endfor -%}
+{%- set _= accpolns.access_policies.__setitem__('routed_domains', rdomns.routed_domains) -%}
+
+{% set ptpns = namespace(ptp_profiles=[]) %}
+{% for ptp in infra_children | selectattr('ptpProfile', 'defined')
+  | map(attribute='ptpProfile') | list
+  | sort(attribute='attributes.name') | default([]) %}
+  {% set ptpns.ptp_profiles = ptpns.ptp_profiles + [{
+    'name': ptp.attributes.name,
+    'announce_interval': ptp.attributes.announceIntvl | default('')
+      | regex_replace('^1$', ''),
+    'announce_timeout': ptp.attributes.announceTimeout | default('')
+      | regex_replace('^3$', ''),
+    'delay_interval': ptp.attributes.delayIntvl | default('')
+      | regex_replace('^-3$', ''),
+    'sync_interval': ptp.attributes.syncIntvl | default('')
+      | regex_replace('^-3$', ''),
+    'priority': ptp.attributes.localPriority | default('')
+      | regex_replace('^128$', ''),
+    'template': ptp.attributes.localPriority | default('')
+      | replace('aes67', ''),
+    'forwardable': 'false' if ptp.attributes.ptpoeDstMacType != "forwardable"
+      else '' | default(''),
+    'mismatch_handling': ptp.attributes.ptpoeDstMacRxNoMatch | default('')
+      | replace('configured', '')
+  }] %}
+{% endfor %}
+{%- set _= accpolns.access_policies.__setitem__('ptp_profiles',
+  ptpns.ptp_profiles) -%}
+
+{% set qosns = namespace(qos={}) %}
+{% set _= qosns.qos.__setitem__('preserve_cos',
+  'true' if infra_children | selectattr('qosInstPol', 'defined')
+  | map(attribute='qosInstPol') | list 
+  | map(attribute='attributes.ctrl') != '' else '' | default('')) %}
+{% set qosclassns = namespace(qos_classes=[]) %}
+{% for class in infra_children | selectattr('qosInstPol', 'defined')
+  | map(attribute='qosInstPol') | list
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('qosClass', 'defined') | map(attribute='qosClass') | list
+  | default('') %}
+  {% set qosclassns.qos_classes = qosclassns.qos_classes + [{
+    'level': class.attributes.prio | replace('level', ''),
+    'admin_state': 'false' if class.attributes.admin == 'disabled' 
+      else '' | default(''),
+    'description': class.attributes.descr | default(''),
+    'mtu': class.attributes.mtu | default('')
+      | replace('9216', ''),
+    'scheduling': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosSched', 'defined')
+      | map(attribute='qosSched.attributes.meth')
+      | first | default('') | replace('wrr', ''),
+    'bandwidth_percent': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosSched', 'defined')
+      | map(attribute='qosSched.attributes.bw')
+      | first | default('') | regex_replace('^20$', ''),
+    'pfc_state': 'true' if [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosPfcPol', 'defined')
+      | map(attribute='qosPfcPol.attributes.adminSt')
+      | first == 'no' else '' | default(''),
+    'no_drop_qos': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosPfcPol', 'defined')
+      | map(attribute='qosPfcPol.attributes.noDropCos')
+      | first | default('') | replace('unspecified',''),
+    'pfc_scope': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosPfcPol', 'defined')
+      | map(attribute='qosPfcPol.attributes.enableScope')
+      | first | default('') | replace('tor',''),
+    'congestion_algorithm': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.algo')
+      | first | default('') | replace('tail-drop',''),
+    'ecn': 'true' if [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.ecn')
+      | first == 'enabled' else '' | default(''),
+    'forward_non_ecn': 'true' if [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.forwardNonEcn')
+      | first == 'enabled' else '' | default(''),
+    'wred_max_threshold': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.wredMaxThreshold')
+      | first | default('') | regex_replace('^100$',''),
+    'wred_min_threshold': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.wredMinThreshold')
+      | first | default('') | regex_replace('^0$',''),
+    'wred_probability': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.wredProbability')
+      | first | default('') | regex_replace('^0$',''),
+    'weight': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosCong', 'defined')
+      | map(attribute='qosCong.attributes.wredWeight')
+      | first | default('') | regex_replace('^0$',''),
+    'minimum_buffer': [class] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('qosBuffer', 'defined')
+      | map(attribute='qosBuffer.attributes.min')
+      | first | default('') | regex_replace('^0$',''),
+  }] %}
+{% endfor %}
+{%- set _= qosns.qos.__setitem__('qos_classes', qosclassns.qos_classes) -%}
+{%- set _= accpolns.access_policies.__setitem__('qos', qosns.qos) -%}
+
+
+{% set vlpoolns = namespace(vlan_pools=[]) %}
+{% for pool in infra_children | selectattr('fvnsVlanInstP', 'defined')
+  | map(attribute='fvnsVlanInstP') | list
+  | sort(attribute='attributes.name') | default([]) %}
+  {% set rangens = namespace(ranges=[]) %}
+  {% for range in [pool] | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('fvnsEncapBlk', 'defined')
+    | map(attribute='fvnsEncapBlk') | sort(attribute='attributes.from') 
+    | default([]) %}
+    {% set rangens.ranges = rangens.ranges + [{
+      'from': range.attributes.from | replace('vlan-', ''),
+      'to': range.attributes.to | replace('vlan-', '')
+        if range.attributes.to != range.attributes.from
+        else '' | default(''),
+      'allocation': range.attributes.allocMode | default('')
+        | replace('inherit', ''),
+      'role': range.attributes.role | default('') | replace('external', ''),
+      'description': range.attributes.descr | default(''),
+    }] %}
   {% endfor %}
-{% endif %}
-{% if rdomains | length > 0 %}
+  {% set vlpoolns.vlan_pools = vlpoolns.vlan_pools + [{
+    'name': pool.attributes.name,
+    'description': pool.attributes.descr | default(''),
+    'allocation': pool.attributes.allocMode | default('')
+      | replace('static', ''),
+    'ranges': rangens.ranges | default(''),
+  }] %}
+{% endfor %}
+{%- set _= accpolns.access_policies.__setitem__('vlan_pools', vlpoolns.vlan_pools) -%}
 
-    routed_domains:
-  {% for domain in rdomains | sort(attribute='attributes.name') %}
-      - name: {{ domain.attributes.name }}
-    {% if domain.children is defined %}
-      {% set vlpool = domain.children | selectattr('infraRsVlanNs', 'defined') | map(attribute='infraRsVlanNs') | flatten | list | map(attribute='attributes') | map(attribute='tDn') | list %}
-        {% if vlpool != "" and vlpool != [] %}
-        vlan_pool: {{ vlpool | first | replace('uni/infra/vlanns-[', '') | replace(']-dynamic', '') | replace(']-static', '') }}
-        {% endif %}
-    {% endif %}
-  {% endfor %}
-{% endif %}
-
-{% set ptp_profiles = infra_children | selectattr('ptpProfile', 'defined') | map(attribute='ptpProfile') | list %}
-  {% if ptp_profiles | length > 0 %}
-    ptp_profiles:
-    {% for ptp in ptp_profiles | sort(attribute='attributes.name') %}
-      - name: {{ ptp.attributes.name }}
-      {% if ptp.attributes.announceIntvl != "1" %}
-        announce_interval: {{ ptp.attributes.announceIntvl }}
-      {% endif %}
-      {% if ptp.attributes.announceTimeout != "3" %}
-        announce_timeout: {{ ptp.attributes.announceTimeout }}
-      {% endif %}
-      {% if ptp.attributes.delayIntvl != "-3" %}
-        delay_interval: {{ ptp.attributes.delayIntvl }}
-      {% endif %}
-      {% if ptp.attributes.syncIntvl != "-3" %}
-        sync_interval: {{ ptp.attributes.syncIntvl }}
-      {% endif %}
-      {% if ptp.attributes.localPriority != "128" %}
-        priority: {{ ptp.attributes.localPriority }}
-      {% endif %}
-      {% if ptp.attributes.profileTemplate == "aes67" %}
-        {# Leave Blank #}
-      {% elif ptp.attributes.profileTemplate == "smpte" %}
-        template: smpte
-      {% else %}
-        template: telecom
-      {% endif %}
-      {% if ptp.attributes.ptpoeDstMacType != "forwardable" %}
-        forwardable: false
-      {% endif %}
-      {% if ptp.attributes.ptpoeDstMacRxNoMatch == "replyWithCfgMac" %}
-        {# Leave Blank #}
-      {% elif ptp.attributes.ptpoeDstMacRxNoMatch == "replyWithRxMac" %}
-        mismatch_handling: received
-      {% else %}
-        mismatch_handling: drop
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-
-{% set qos = infra_children | selectattr('qosInstPol', 'defined') | map(attribute='qosInstPol') | list %}
-{% set qos_children = qos | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-{% set qos_classes = qos_children | selectattr('qosClass', 'defined') | map(attribute='qosClass') | list %}
-  {% if qos | length > 0 %}
-    qos:
-    {% if qos | map(attribute='attributes.ctrl') != '' %}
-      preserve_cos: true
-    {% endif %}
-    {% if qos_classes | length > 0 %}
-      qos_classes:
-      {% for class in qos_classes | sort(attribute='attributes.prio') %}
-        {% set class_children = [class] | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
-        {% set qosSched = class_children | selectattr('qosSched', 'defined') | map(attribute='qosSched') | map(attribute='attributes') | first %}
-        {% set qosPfcPol = class_children | selectattr('qosPfcPol', 'defined') | map(attribute='qosPfcPol') | map(attribute='attributes') | first %}
-        {% set qosCong = class_children | selectattr('qosCong', 'defined') | map(attribute='qosCong') | map(attribute='attributes') | first %}
-        {% set qosBuffer = class_children | selectattr('qosBuffer', 'defined') | map(attribute='qosBuffer') | map(attribute='attributes') | first %}
-        - level: {{ class.attributes.prio | replace('level', '') }}
-        {% if class.attributes.admin != "enabled" %}
-          admin_state: false
-        {% endif %}
-        {% if class.attributes.descr != "" %}
-          description: {{ class.attributes.descr }}
-        {% endif %}
-        {% if class.attributes.mtu != "9216" %}
-          mtu: {{ class.attributes.mtu }}
-        {% endif %}
-        {% if qosSched is defined %}
-          {% if qosSched.meth != 'wrr' %}
-          scheduling: {{ qosSched.meth }}
-          {% endif %}
-          {% if qosSched.bw != '20' %}
-          bandwidth_percent: {{ qosSched.bw }}
-          {% endif %}
-        {% endif %}
-        {% if qosPfcPol is defined %}
-          {% if qosPfcPol.adminSt!= 'no' %}
-          pfc_state: true
-          {% endif %}
-          {% if qosPfcPol.noDropCos != '' %}
-          no_drop_qos: {{ qosPfcPol.noDropCos }}
-          {% endif %}
-          {% if qosPfcPol.enableScope != 'tor' %}
-          pfc_scope: {{ qosPfcPol.enableScope }}
-          {% endif %}
-        {% endif %}
-        {% if qosCong is defined %}
-          {% if qosCong.algo != 'tail-drop'%}
-          congestion_algorithm: {{ qosCong.algo }}
-          {% endif %}
-          {% if qosCong.ecn != 'disabled'%}
-          ecn: {{ qosCong.ecn }}
-          {% endif %}
-          {% if qosCong.forwardNonEcn != 'disabled'%}
-          forward_non_ecn: true
-          {% endif %}
-          {% if qosCong.wredMaxThreshold != '100'%}
-          wred_max_threshold: {{ qosCong.wredMaxThreshold }}
-          {% endif %}
-          {% if qosCong.wredMinThreshold != '0'%}
-          wred_min_threshold: {{ qosCong.wredMinThreshold }}
-          {% endif %}
-          {% if qosCong.wredProbability != '0'%}
-          wred_probability: {{ qosCong.wredProbability }}
-          {% endif %}
-          {% if qosCong.wredWeight != '0'%}
-          weight: {{ qosCong.wredWeight }}
-          {% endif %}
-        {% endif %}
-        {% if qosBuffer is defined %}
-          {% if qosBuffer.min != '0'%}
-          minimum_buffer: {{ qosBuffer.min }}
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-  {% endif %}
-
-{% set vlpools =  infra_children | selectattr('fvnsVlanInstP', 'defined')
-  | map(attribute='fvnsVlanInstP') | list %}
-  {% if vlpools | length > 0 %}
-    vlan_pools:
-    {% for vlpool in vlpools | sort(attribute='attributes.name') %}
-      - name: {{ vlpool.attributes.name }}
-      {% if vlpool.attributes.descr != "" %}
-        description: {{ vlpool.attributes.descr }}
-      {% endif %}
-      {% if vlpool.attributes.allocMode != "static" %}
-        allocation: dynamic
-      {% endif %}
-      {% set ranges = [vlpool] | selectattr('children', 'defined') | map(attribute='children')
-        | flatten | list | selectattr('fvnsEncapBlk', 'defined')
-        | map(attribute='fvnsEncapBlk') %}
-      {% if ranges | length > 0 %}
-        ranges:
-        {% for range in ranges | sort(attribute='attributes.from') %}
-          - from: {{ range.attributes.from | replace('vlan-','')}}
-          {% if range.attributes.from != range.attributes.to %}
-            to: {{ range.attributes.to | replace('vlan-','')}}
-          {% endif %}
-          {% if range.attributes.descr != "" %}
-            description: {{ range.attributes.descr }}
-          {% endif %}
-          {% if range.attributes.allocMode != "inherit"
-              and range.attributes.allocMode != vlpool.attributes.allocMode
-          %}
-            allocation: {{ range.attributes.allocMode }}
-          {% endif %}
-          {% if range.attributes.role != "external" %}
-            role: internal
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-
-{% set dhcpRelayP = infra_children | selectattr('dhcpRelayP', 'defined')
+{% set dhcpns = namespace(dhcp_relay_policies=[]) %}
+{% for pol in infra_children | selectattr('dhcpRelayP', 'defined')
   | map(attribute='dhcpRelayP') | list %}
-{% if dhcpRelayP | length > 0 %}
-    dhcp_relay_policies:
-    {% for pol in dhcpRelayP | sort(attribute='attributes.name') %}
-      - name: {{ pol.attributes.name }}
-      {% if pol.attributes.descr != "" %}
-        description: {{ pol.attributes.descr }}
-      {% endif %}
-      {% set pol_children = [pol] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten | list %}
-      {% set providers = pol_children | selectattr('dhcpRsProv', 'defined')
-        | map(attribute='dhcpRsProv') | list %}
-      {% if providers | length > 0 %}
-        providers:
-        {% for prov in providers | sort(attribute='attributes.addr') %}
-          {% set split_tdn = prov.attributes.tDn.split('/') %}
-          {% set tn = split_tdn[1] | regex_replace('^tn-', '') %}
-          - ip: {{ prov.attributes.addr }}
-          {% if '/instP-' in prov.attributes.tDn %}
-            {% set l3o = split_tdn[2] | regex_replace('^out-', '') %}
-            {% set eepg = split_tdn[3] | regex_replace('^instP-', '') %}
-            type: external_epg
-            tenant: {{ tn }}
-            l3out: {{ l3o }}
-            external_endpoint_group: {{ eepg }}
-          {% else %}
-            {% set ap = split_tdn[2] | regex_replace('^ap-', '') %}
-            {% set epg = split_tdn[3] | regex_replace('^epg-', '') %}
-            type: epg
-            tenant: {{ tn }}
-            application_profile: {{ ap }}
-            endpoint_group: {{ epg }}
-          {% endif %}
-        {% endfor %}
-      {% endif%}
-    {% endfor %}
-{% endif %}
-
+  {% set provns = namespace(providers=[]) %}
+  {% for prov in [pol] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('dhcpRsProv', 'defined') | map(attribute='dhcpRsProv') 
+    | list | default('') %}
+    {% set provns.providers = provns.providers + [{
+      'ip': prov.attributes.addr,
+      'type': 'external_epg' if '/out-' in prov.attributes.tDn else 'epg',
+      'tenant': prov.attributes.tDn
+        | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\1'),
+      'application_profile': prov.attributes.tDn
+        | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\2')
+        if '/ap-' in prov.attributes.tDn else '' | default(''),
+      'l3out': prov.attributes.tDn
+        | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\2')
+        if '/out-' in prov.attributes.tDn else '' | default(''),
+      'endpoint_group': prov.attributes.tDn
+        | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\3')
+        if '/ap-' in prov.attributes.tDn else '' | default(''),
+      'external_endpoint_group': prov.attributes.tDn
+        | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\3')
+        if '/out-' in prov.attributes.tDn else '' | default(''),
+    }] %}
+  {% endfor %}
+  {% set dhcpns.dhcp_relay_policies = dhcpns.dhcp_relay_policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'providers': provns.providers | default(''),
+  }] %}
+{% endfor %}
+{%- set _= accpolns.access_policies.__setitem__('dhcp_relay_policies', dhcpns.dhcp_relay_policies) -%}
 {% include "./access_interface_policies.nac.j2" %}
-------------------------------------------------------------------
-------------------------------------------------------------------
-------------------------------------------------------------------
 {% include "./access_policies/aaeps.nac.j2" %}
 {{ helper.remove_empty({'apic': {'access_policies': accpolns.access_policies}}) }}

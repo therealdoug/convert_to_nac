@@ -18,9 +18,9 @@
       'mode': epg.mode | default('') | replace('regular', ''),
       'deployment_immediacy': epg.instrImedcy | default('')
         | replace('lazy', ''),
-      'vlan': epg.primaryEncap if
+      'vlan': epg.encap | replace('vlan-', '') if
         (epg.primaryEncap == 'unknown' and epg.encap != 'unknown')
-        else epg.encap | regex_replace('^vlan-', ''),
+        else epg.primaryEncap | regex_replace('^vlan-', ''),
       'primary_vlan': epg.primaryEncap if epg.primaryEncap != 'unknown'
         | default('') else '' | regex_replace('^vlan-', ''),
       'secondary_vlan': epg.encap if epg.primaryEncap != 'unknown'
