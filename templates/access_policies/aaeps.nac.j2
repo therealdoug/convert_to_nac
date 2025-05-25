@@ -2,7 +2,9 @@
 {% for aaep in infra_children | selectattr('infraAttEntityP', 'defined')
   | map(attribute='infraAttEntityP') | sort(attribute='attributes.name') %}
   {% set epgns = namespace(endpoint_groups=[]) %}
-  {% for epg in aaep.children | selectattr('infraGeneric', 'defined')
+  {% for epg in [aaep] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraGeneric', 'defined')
     | map(attribute='infraGeneric') | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('infraRsFuncToEpg', 'defined')
@@ -28,7 +30,9 @@
     }] %}
   {% endfor %}
   {% set physdomns = namespace(physical_domains=[]) %}
-  {% for dom in aaep.children | selectattr('infraRsDomP', 'defined')
+  {% for dom in [aaep] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/phys-')
     | default('') %}
@@ -37,7 +41,9 @@
     ] %}
   {% endfor %}
   {% set rtdomns = namespace(routed_domains=[]) %}
-  {% for dom in aaep.children | selectattr('infraRsDomP', 'defined')
+  {% for dom in [aaep] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/l3dom-')
     | default('') %}
@@ -46,7 +52,9 @@
     ] %}
   {% endfor %}
   {% set vmmdomns = namespace(vmware_vmm_domains=[]) %}
-  {% for dom in aaep.children | selectattr('infraRsDomP', 'defined')
+  {% for dom in [aaep] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/vmmp-VMware/dom-')
     | default('') %}
@@ -57,7 +65,8 @@
   {% set aaepns.aaeps = aaepns.aaeps + [{
     'name': aaep.attributes.name,
     'description': aaep.attributes.descr | default(''),
-    'infra_vlan': 'true' if aaep.children
+    'infra_vlan': 'true' if [aaep] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
       | selectattr('infraProvAcc', 'defined') else '' | default(''),
     'physical_domains': physdomns.physical_domains | default(''),
     'routed_domains': rtdomns.routed_domains | default(''),
