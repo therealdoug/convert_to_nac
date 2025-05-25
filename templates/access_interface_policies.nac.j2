@@ -257,4 +257,5 @@
 {% set _=accintpolns.interface_policies.__setitem__('storm_control_policies',
   ifpol.policies | default('')) %}
 
+{% include 'access_policies/netflow.nac.j2' %}
 {%- set _=accpolns.access_policies.__setitem__('interface_policies', accintpolns.interface_policies) -%}
