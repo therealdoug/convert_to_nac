@@ -3,6 +3,7 @@
 {%- import 'macro_handler.j2' as helper -%}
 {% set accpolns = namespace(access_policies={}) %}
 {% set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+
 {%- set pdomns = namespace(physical_domains=[]) -%}
 {%- for dom in polUni | selectattr('physDomP', 'defined')
   | map(attribute='physDomP') | flatten | sort(attribute='attributes.name') %}
@@ -21,6 +22,7 @@
   }] %}
 {%- endfor -%}
 {%- set _= accpolns.access_policies.__setitem__('physical_domains', pdomns.physical_domains) -%}
+
 {%- set rdomns = namespace(routed_domains=[]) -%}
 {%- for dom in polUni | selectattr('l3extDomP', 'defined')
   | map(attribute='l3extDomP') | flatten | sort(attribute='attributes.name') %}
@@ -184,6 +186,7 @@
   }] %}
 {% endfor %}
 {%- set _= accpolns.access_policies.__setitem__('vlan_pools', vlpoolns.vlan_pools) -%}
+
 {% set dhcpns = namespace(dhcp_relay_policies=[]) %}
 {%- for pol in infra_children | selectattr('dhcpRelayP', 'defined')
   | map(attribute='dhcpRelayP') | list %}
@@ -218,6 +221,64 @@
   }] %}
 {% endfor %}
 {%- set _= accpolns.access_policies.__setitem__('dhcp_relay_policies', dhcpns.dhcp_relay_policies) -%}
+
+{% set lspgns = namespace(leaf_switch_policy_groups=[]) %}
+{% for pg in infra_children | selectattr('infraFuncP', 'defined')
+  | map(attribute='infraFuncP') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('infraAccNodePGrp', 'defined')
+  | map(attribute='infraAccNodePGrp') %}
+  {% set lspgns.leaf_switch_policy_groups = lspgns.leaf_switch_policy_groups + [{
+    'name': pg.attributes.name,
+    'forwarding_scale_policy': [pg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsTopoctrlFwdScaleProfPol', 'defined')
+      | map(attribute='infraRsTopoctrlFwdScaleProfPol.attributes.tnTopoctrlFwdScaleProfilePolName')
+      | first | default(''),
+    'bfd_ipv4_policy': [pg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsBfdIpv4InstPol', 'defined')
+      | map(attribute='infraRsBfdIpv4InstPol.attributes.tnBfdIpv4InstPolName')
+      | first | default(''),
+    'bfd_ipv6_policy': [pg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsBfdIpv6InstPol', 'defined')
+      | map(attribute='infraRsBfdIpv6InstPol.attributes.tnBfdIpv6InstPolName')
+      | first | default(''),
+  }] %}
+{% endfor %}
+{%- set _= accpolns.access_policies.__setitem__('leaf_switch_policy_groups',
+    lspgns.leaf_switch_policy_groups) -%}
+
+{% set sspgns = namespace(spine_switch_policy_groups=[]) %}
+{% for pg in infra_children | selectattr('infraFuncP', 'defined')
+  | map(attribute='infraFuncP') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('infraSpineAccNodePGrp', 'defined')
+  | map(attribute='infraSpineAccNodePGrp') %}
+  {% set sspgns.spine_switch_policy_groups = sspgns.spine_switch_policy_groups + [{
+    'name': pg.attributes.name,
+    'lldp_policy': [pg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsSpinePGrpToLldpIfPol', 'defined')
+      | map(attribute='infraRsSpinePGrpToLldpIfPol.attributes.tnLldpIfPolName')
+      | first | default(''),
+    'bfd_ipv4_policy': [pg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsSpineBfdIpv4InstPol', 'defined')
+      | map(attribute='infraRsSpineBfdIpv4InstPol.attributes.tnBfdIpv4InstPolName')
+      | first | default(''),
+    'bfd_ipv6_policy': [pg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('infraRsBfdIpv6InstPol', 'defined')
+      | map(attribute='infraRsBfdIpv6InstPol.attributes.tnBfdIpv6InstPolName')
+      | first | default(''),
+  }] %}
+{% endfor %}
+{%- set _= accpolns.access_policies.__setitem__('spine_switch_policy_groups',
+    sspgns.spine_switch_policy_groups) -%}
+
 {% include "./access_interface_policies.nac.j2" %}
 {% include "./access_policies/aaeps.nac.j2" %}
+{% include "./access_policies/span.nac.j2" %}
 {{ helper.remove_empty({'apic': {'access_policies': accpolns.access_policies}}) }}
