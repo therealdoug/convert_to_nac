@@ -1,0 +1,127 @@
+{%- set spns = namespace(switch_policies={}) -%}
+
+{%- set fspns = namespace(forwarding_scale_policies=[]) -%}
+{%- for pol in infra_children 
+  | selectattr('topoctrlFwdScaleProfilePol', 'defined')
+  | map(attribute='topoctrlFwdScaleProfilePol') | list
+  | sort(attribute='attributes.name') | default('') %}
+  {% set fspns.forwarding_scale_policies = 
+    fspns.forwarding_scale_policies + [{
+      'name': pol.attributes.name,
+      'profile': pol.attributes.profType | default('')
+        | replace('dual-stack', '')
+    }] %}
+{%- endfor %}
+{%- set _=spns.switch_policies.__setitem__('forwarding_scale_policies',
+    fspns.forwarding_scale_policies) -%}
+
+{% set bfd4ns = namespace(bfd_ipv4_policies=[]) %}
+{% for pol in  infra_children | selectattr('bfdIpv4InstPol', 'defined') 
+  | map(attribute='bfdIpv4InstPol') | list | default('')
+  | sort(attribute='attributes.name') %}
+  {% set bfd4ns.bfd_ipv4_policies = bfd4ns.bfd_ipv4_policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'detection_multiplier': pol.attributes.detectMult | default('')
+      | regex_replace('^3$', ''),
+    'min_transmit_interval': pol.attributes.minTxIntvl | default('')
+      | regex_replace('^50$', ''),
+    'min_receive_interval': pol.attributes.minRxIntvl | default('')
+      | regex_replace('^50$', ''),
+    'slow_timer_interval': pol.attributes.slowIntvl | default('')
+      | regex_replace('^2000$', ''),
+    'startup_timer_interval': pol.attributes.startupIntvl | default(''),
+    'echo_receive_interval': pol.attributes.echoRxIntvl | default('')
+      | regex_replace('^50$', ''),
+    'echo_frame_source_address': pol.attributes.echoSrcAddr | default('')
+      | replace('0.0.0.0', ''),
+  }] %}
+{% endfor %}
+{%- set _=spns.switch_policies.__setitem__('bfd_ipv4_policies',
+    bfd4ns.bfd_ipv4_policies) -%}
+
+{% set bfd6ns = namespace(bfd_ipv6_policies=[]) %}
+{% for pol in  infra_children | selectattr('bfdIpv6InstPol', 'defined') 
+  | map(attribute='bfdIpv6InstPol') | list | default('')
+  | sort(attribute='attributes.name') %}
+  {% set bfd6ns.bfd_ipv6_policies = bfd6ns.bfd_ipv6_policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'detection_multiplier': pol.attributes.detectMult | default('')
+      | regex_replace('^3$', ''),
+    'min_transmit_interval': pol.attributes.minTxIntvl | default('')
+      | regex_replace('^50$', ''),
+    'min_receive_interval': pol.attributes.minRxIntvl | default('')
+      | regex_replace('^50$', ''),
+    'slow_timer_interval': pol.attributes.slowIntvl | default('')
+      | regex_replace('^2000$', ''),
+    'startup_timer_interval': pol.attributes.startupIntvl | default(''),
+    'echo_receive_interval': pol.attributes.echoRxIntvl | default('')
+      | regex_replace('^50$', ''),
+    'echo_frame_source_address': pol.attributes.echoSrcAddr | default('')
+      | replace('0.0.0.0', ''),
+  }] %}
+{% endfor %}
+{%- set _=spns.switch_policies.__setitem__('bfd_ipv6_policies',
+    bfd6ns.bfd_ipv6_policies) -%}
+
+{% set mstns = namespace(mst_policies=[]) %}
+{% for pol in infra_children | selectattr('stpInstPol', 'defined') 
+  | map(attribute='stpInstPol')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('stpMstRegionPol', 'defined') | map(attribute='stpMstRegionPol')
+  | default('')
+  | sort(attribute='attributes.name') %}
+  {% set instns = namespace(instances=[]) %}
+  {% for inst in [pol] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('stpMstDomPol', 'defined') | map(attribute='stpMstDomPol')
+    | sort(attribute='attributes.name')
+    | default('') %}
+    {% set rangens = namespace(vlan_ranges=[]) %}
+    {% for range in [inst]
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('fvnsEncapBlk', 'defined') | map(attribute='fvnsEncapBlk')
+      | sort(attribute='attributes.from')
+      | default('') %}
+      {% set rangens.vlan_ranges = rangens.vlan_ranges + [{
+        'from': range.attributes.from | replace('vlan-', ''),
+        'to': range.attributes.to | replace('vlan-', '') if
+          range.attributes.to != range.attributes.from else '',
+      }] %}
+    {% endfor %}
+    {% set instns.instances = instns.instances + [{
+      'name': inst.attributes.name,
+      'id': inst.attributes.id,
+      'vlan_ranges': rangens.vlan_ranges | default(''),
+    }] %}
+  {% endfor %}
+  {% set mstns.mst_policies = mstns.mst_policies + [{
+    'name': pol.attributes.name,
+    'region': pol.attributes.regName | default(''),
+    'revision': pol.attributes.rev,
+    'instances': instns.instances,
+  }] %}
+{% endfor %}
+{%- set _=spns.switch_policies.__setitem__('mst_policies',
+    mstns.mst_policies) -%}
+
+{%- set vpcns = namespace(vpc_policies=[]) -%}
+{%- for pol in polUni | selectattr('fabricInst', 'defined')
+  | map(attribute='fabricInst') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten
+  | selectattr('vpcInstPol', 'defined')
+  | map(attribute='vpcInstPol') | list
+  | sort(attribute='attributes.name') | default('') %}
+  {% set vpcns.vpc_policies = vpcns.vpc_policies + [{
+      'name': pol.attributes.name,
+      'peer_dead_interval': pol.attributes.deadIntvl | default('')
+        | regex_replace('^200$', ''),
+      'delay_restore_timer': pol.attributes.delayRestoreTmr | default(''),
+    }] %}
+{%- endfor %}
+{%- set _=spns.switch_policies.__setitem__('vpc_policies',
+    vpcns.vpc_policies) -%}
+
+{%- set _=accpolns.access_policies.__setitem__('switch_policies',
+    spns.switch_policies) -%}
