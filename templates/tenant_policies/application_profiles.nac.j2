@@ -6,11 +6,15 @@
   {%- set epgns = namespace(endpoint_groups=[]) -%}
   {%- include "tenant_policies/endpoint_groups.nac.j2" -%}
   
+  {%- set esgns = namespace(endpoint_security_groups=[]) -%}
+  {%- include "tenant_policies/endpoint_security_groups.nac.j2" -%}
+  
   {% set apns.application_profiles = apns.application_profiles + [{
     'name': ap.attributes.name,
     'alias': ap.attributes.nameAlias | default(''),
     'description': ap.attributes.descr | default(''),
     'endpoint_groups': epgns.endpoint_groups | default(''),
+    'endpoint_security_groups': esgns.endpoint_security_groups | default(''),
   }] %}
 {% endfor %}
 {{ helper.remove_empty({'application_profiles': apns.application_profiles}) | indent(6, true) }}
