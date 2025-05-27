@@ -167,11 +167,6 @@ apic:
     }] %}
 {% endfor %}
 
-{% set updategns = namespace(update_groups=[]) %}
-{% for grp in %}
-{% endfor %}
-
-{%- set _=nodepolns.node_policies.__setitem__('update_groups', updategns.update_groups) -%}
 {%- set _=nodepolns.node_policies.__setitem__('vpc_groups', vpcgns.vpc_groups) -%}
 {%- set _=nodepolns.node_policies.__setitem__('nodes', nodens.nodes) -%}
 {{ helper.remove_empty(nodepolns.node_policies) | indent(4, true) }}
