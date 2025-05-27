@@ -1,0 +1,99 @@
+{% set nfexpns = namespace(netflow_exporters=[]) %}
+{% for exp in infra_children | selectattr('netflowExporterPol', 'defined')
+  | map(attribute='netflowExporterPol') | list %}
+  {% set nfexpns.netflow_exporters = nfexpns.netflow_exporters + [{
+    'name': exp.attributes.name,
+    'description': exp.attributes.descr | default(''),
+    'dscp': exp.attributes.dscp | default('') | replace('CS2', ''),
+    'destination_ip': exp.attributes.dstAddr | default('')
+      | replace('0.0.0.0', ''),
+    'destination_port': exp.attributes.dstPort | default(''),
+    'source_type': exp.attributes.sourceIpType | default('')
+      | replace('custom-src-ip', ''),
+    'source_ip': exp.attributes.srcAddr | default('')
+      | replace('0.0.0.0', ''),
+    'epg_type': 'external_epg' if '/out-' in [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first else 'epg',
+    'tenant': [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first
+      | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\1'),
+    'application_profile': [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first
+      | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\2')
+      if '/ap-' in [exp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('netflowRsExporterToEPg', 'defined')
+        | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first else '' | default(''),
+    'l3out': [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first
+      | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\2')
+      if '/out-' in [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first else '' | default(''),
+    'endpoint_group': [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first
+      | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\3')
+      if '/ap-' in [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first else '' | default(''),
+    'external_endpoint_group': [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first
+      | regex_replace('uni\/tn-(.*?)\/(?:out-|ap-)(.*?)\/(?:instP-|epg-)(.*?)$', '\\3')
+      if '/out-' in [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToEPg', 'defined')
+      | map(attribute='netflowRsExporterToEPg.attributes.tDn') | first else '' | default(''),
+    'vrf': [exp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsExporterToCtx', 'defined')
+      | map(attribute='netflowRsExporterToCtx.attributes.tDn') | first
+      | default('') | regex_replace('^.*\/ctx-(.*)$', '\\1'),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('netflow_exporters', nfexpns.netflow_exporters) %}
+
+{% set nfmonns = namespace(netflow_monitors=[]) %}
+{% for mon in infra_children | selectattr('netflowMonitorPol', 'defined')
+  | map(attribute='netflowMonitorPol') %}
+  {% set nfmonns.netflow_monitors = nfmonns.netflow_monitors + [{
+    'name': mon.attributes.name,
+    'description': mon.attributes.descr | default(''),
+    'flow_record': [mon] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsMonitorToRecord', 'defined')
+      | map(attribute='netflowRsMonitorToRecord.attributes.tnNetflowRecordPolName')
+      | first | default(''),
+    'flow_exporters': [mon] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('netflowRsMonitorToExporter', 'defined')
+      | map(attribute='netflowRsMonitorToExporter.attributes.tnNetflowExporterPolName')
+      | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('netflow_monitors', nfmonns.netflow_monitors) %}
+
+{% set nfrecns = namespace(netflow_records=[]) %}
+{% for rec in infra_children | selectattr('netflowRecordPol', 'defined')
+  | map(attribute='netflowRecordPol') %}
+  {% set nfrecns.netflow_records = nfrecns.netflow_records + [{
+    'name': rec.attributes.name,
+    'description': rec.attributes.descr | default(''),
+    'match_parameters': rec.attributes.match | split(',') | default(''),
+    'collect_parameters': rec.attributes.collect | split(',') | default(''),
+  }] %}
+{% endfor %}
+{% set _=accintpolns.interface_policies.__setitem__('netflow_records', nfrecns.netflow_records) %}

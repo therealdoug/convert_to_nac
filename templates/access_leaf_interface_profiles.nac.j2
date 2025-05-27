@@ -15,14 +15,14 @@ apic:
   access_policies:
     leaf_interface_profiles:
       - name: {{ leaf_prof.attributes.name }}
-{% if leaf_prof.attributes.descr != "" %}
+{% if leaf_prof.attributes.descr != '' %}
         description: {{ leaf_prof.attributes.descr }}
 {% endif %}
 {% if hports | length > 0 %}
         selectors:
   {% for hport in hports | sort(attribute='attributes.name') %}
           - name: {{ hport.attributes.name }}
-    {% if hport.attributes.descr != "" %}
+    {% if hport.attributes.descr != '' %}
             description: {{ hport.attributes.descr }}
     {% endif %}
     {% set pg = hport.children
@@ -38,7 +38,7 @@ apic:
       {% for block in port_blocks
         | sort(attribute='attributes.fromCard,attributes.fromPort') %}
               - name: {{ block.attributes.name }}
-        {% if block.attributes.descr != "" %}
+        {% if block.attributes.descr != '' %}
                 description: {{ block.attributes.descr }}
         {% endif %}
                 from_port: {{ block.attributes.fromPort }}
@@ -60,7 +60,7 @@ apic:
       {% for block in sub_port_blocks
         | sort(attribute='attributes.fromCard,attributes.fromPort,attributes.fromSubPort') %}
               - name: {{ block.attributes.name }}
-        {% if block.attributes.descr != "" %}
+        {% if block.attributes.descr != '' %}
                 description: {{ block.attributes.descr }}
         {% endif %}
                 from_port: {{ block.attributes.fromPort }}

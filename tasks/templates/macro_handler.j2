@@ -1,0 +1,75 @@
+{%- macro remove_empty(item) -%}
+  {%- if item and item is string -%}
+{{ item }}
+  {% elif item and item is sequence and item is not mapping -%}
+    {%- for seq in item if seq -%}
+- {{ remove_empty(seq) | indent(2) }}
+    {%- endfor -%}
+  {%- elif item and item is mapping -%}
+    {%- for policy, value in item.items() if value -%}
+      {%- if value and value is string -%}
+{{ policy }}: {{ remove_empty(value) | indent(2) }}
+      {%- elif value and value is sequence and value is not mapping -%}
+{{ policy }}:
+{{ remove_empty(value) | indent(2, True) }}
+      {%- elif value.values()
+        | reject('==', [])
+        | reject('==', {})
+        | reject('==', '')
+        | length > 0 -%}
+{{ policy }}:
+        {% for p,v in value.items() if v %}
+        {%- if v and v is string -%}
+{{ p | indent(2, True)}}: {{ remove_empty(v) }}
+        {%- elif v is mapping and v.values() | select('!=', '') | length > 0%}
+{{ p | indent(2, True)}}:
+{{ remove_empty(v) | indent(4, True) }}
+        {% elif v is sequence and v is not mapping and v | select('!=', '') | length > 0 %}
+{{ p | indent(2, True)}}:
+{{ remove_empty(v) | indent(4, True) }}
+        {%- else -%}
+        {%- endif -%}
+        {%- endfor -%}
+      {% endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{% macro rm(obj) %}
+  {% set result = {} %}
+  {% if obj is mapping %}
+    {% for p,v in obj.items() %}
+      {% if v is mapping %}
+        {% set v = rm(v) %}
+        {% if v %}
+          {% set _=result.update({p:v}) %}
+        {% endif %}
+      {% elif v is not none and v != '' %}
+          {% set _=result.update({p:v}) %}
+      {% endif %}
+    {% endfor %}
+  {% elif obj is sequence and obj is not mapping %}
+  {% else %}
+  {% endif %}
+  {{ result }}
+{% endmacro %}
+
+
+{# Jinja macro to remove empty/null values from a dictionary #}
+{% macro rm2(obj) %}
+    {%- set result = {} -%}
+    {% if obj is mapping %}
+      {%- for key, val in obj.items() -%}
+          {%- if val is mapping -%}
+              {%- set val = rm2(val) -%}
+              {%- if val -%}
+                  {%- set _ = result.update({key: val}) -%}
+              {%- endif -%}
+          {%- elif val is not none and val != "" -%}
+              {%- set _ = result.update({key: val}) -%}
+          {%- endif -%}
+      {%- endfor -%}
+    {%elif obj is list %}
+    {% endif %}
+    {{ result }}
+{% endmacro %}

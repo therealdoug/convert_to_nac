@@ -1,0 +1,85 @@
+#jinja2: lstrip_blocks: True
+---
+apic:
+  access_policies:
+{%- import 'macro_handler.j2' as helper -%}
+{% set pgaccpolns = namespace(access_policies={}) %}
+{% set infra_children = polUni | selectattr('infraInfra', 'defined')
+  | map(attribute='infraInfra') | selectattr('children', 'defined')
+  | map(attribute='children') | flatten | list %}
+{% set infra_funcp = infra_children | selectattr('infraFuncP', 'defined')
+  | map(attribute='infraFuncP') | map(attribute='children') | flatten %}
+{% set accbndl = infra_funcp | selectattr('infraAccBndlGrp', 'defined')
+  | map(attribute='infraAccBndlGrp') | list %}
+{% set accport = infra_funcp | selectattr('infraAccPortGrp', 'defined')
+  | map(attribute='infraAccPortGrp') | list %}
+{% set portgroups = accbndl + accport %}
+{% set lipolgroupns = namespace(leaf_interface_policy_groups=[])%}
+{% for port in portgroups | sort(attribute='attributes.name')%}
+  {% set netflowns = namespace(netflow_monitor_policies=[]) %}
+  {% for netflow_monitor_policy in [port] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('infraRsNetflowMonitorPol', 'defined')
+    | map(attribute='infraRsNetflowMonitorPol')
+    | sort(attribute='attributes.tnNetflowMonitorPolName')%}
+    {% set netflowns.netflow_monitor_policies = 
+      netflowns.netflow_monitor_policies + [{
+        'name': netflow_monitor_policy.attributes.tnNetflowMonitorPolName,
+        'ip_filter_type': netflow_monitor_policy.attributes.fltType
+          | default('') | replace('ipv4', ''),
+    }] %}
+  {% endfor %}
+  {% set lipolgroupns.leaf_interface_policy_groups =
+    lipolgroupns.leaf_interface_policy_groups + [{
+      'name': port.attributes.name,
+      'description': port.attributes.descr | default(''),
+      'type': port.attributes.lagT | default('') | replace('node', 'vpc')
+        | replace('link', 'pc') | replace('not-aggregated', ''),
+      'map': port.attributes.brkoutMap | default(''),
+      'link_level_policy': port.children
+        | selectattr('infraRsHIfPol', 'defined')
+        | map(attribute='infraRsHIfPol') | map(attribute='attributes')
+        | map(attribute='tnFabricHIfPolName') | first | default(''),
+      'cdp_policy': port.children | selectattr('infraRsCdpIfPol', 'defined')
+        | map(attribute='infraRsCdpIfPol') | map(attribute='attributes')
+        | map(attribute='tnCdpIfPolName') | first | default(''),
+      'lldp_policy': port.children | selectattr('infraRsLldpIfPol', 'defined')
+        | map(attribute='infraRsLldpIfPol') | map(attribute='attributes')
+        | map(attribute='tnLldpIfPolName') | first | default(''),
+      'spanning_tree_policy': port.children
+        | selectattr('infraRsStpIfPol', 'defined')
+        | map(attribute='infraRsStpIfPol') | map(attribute='attributes')
+        | map(attribute='tnStpIfPolName') | first | default(''),
+      'mcp_policy': port.children | selectattr('infraRsMcpIfPol', 'defined')
+        | map(attribute='infraRsMcpIfPol') | map(attribute='attributes')
+        | map(attribute='tnMcpIfPolName') | first | default(''),
+      'l2_policy': port.children | selectattr('infraRsL2IfPol', 'defined')
+        | map(attribute='infraRsL2IfPol') | map(attribute='attributes')
+        | map(attribute='tnL2IfPolName') | first | default(''),
+      'port_channel_policy': port.children
+        | selectattr('infraRsLacpPol', 'defined')
+        | map(attribute='infraRsLacpPol') | map(attribute='attributes')
+        | map(attribute='tnLacpLagPolName') | first | default(''),
+      'port_channel_member_policy': port.children
+        | selectattr('infraAccBndlSubgrp', 'defined')
+        | map(attribute='infraAccBndlSubgrp') | map(attribute='attributes')
+        | map(attribute='tnLacpIfPolName') | first | default(''),
+      'storm_control_policy': port.children
+        | selectattr('infraRsStormctrlIfPol', 'defined')
+        | map(attribute='infraRsStormctrlIfPol') | map(attribute='attributes')
+        | map(attribute='tnStormctrlIfPolName') | first | default(''),
+      'aaep': port.children | selectattr('infraRsAttEntP', 'defined')
+        | map(attribute='infraRsAttEntP') | map(attribute='attributes')
+        | map(attribute='tDn') | first | default('')
+        | replace("uni/infra/attentp-", ''),
+      'macsec_interface_policy': port.children
+        | selectattr('infraRsMacsecIfPol', 'defined')
+        | map(attribute='infraRsMacsecIfPol') | map(attribute='attributes')
+        | map(attribute='tnMacsecIfPolName') | first | default(''),
+      'netflow_monitor_policies': netflowns.netflow_monitor_policies | default(''),
+    }] %}
+{% endfor %}
+{% set _=pgaccpolns.access_policies.__setitem__('leaf_interface_policy_groups',
+  lipolgroupns.leaf_interface_policy_groups ) %}
+{{ helper.remove_empty(pgaccpolns.access_policies)
+  | indent(4, true) if pgaccpolns.access_policies }}
