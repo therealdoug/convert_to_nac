@@ -1,0 +1,5 @@
+---
+- name: Generate Node Policies File
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/node_policies.nac.j2"
+    dest: "{{ role_path }}/files/iac-nac/{{ inventory_hostname }}/node_policies.nac.yaml"

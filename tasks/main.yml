@@ -1,25 +1,6 @@
 ---
-- hosts: 
-    # - lab
-    # - prod
-    # - sandbox
-    # - opc
-    # - pdx
-    # - wdc
-    # - chi
-    # - dal
-    # - atl
-    - chy
-    # - chy1
-    # - chy2
-    # - chy5
-    # - lss
-    # - pedc
-    # - useast1
-    # - useast2
-    # - uswest1
-    # - uswest2
-    # - uscentral1
+- hosts: all
+
 
   connection: local
   gather_facts: false
@@ -28,10 +9,11 @@
   environment: "{{ proxy_env | default('') }}"
 
   vars:
-    # create_access_policies: true
-    # create_tenant_policies: true
+    create_access_policies: true
+    create_tenant_policies: true
     create_fabric_policies: true
     create_pod_policies: true
+    create_node_policies: true
 
   tasks:
     - name: Ensure Environment Is Set Up
@@ -52,3 +34,7 @@
     - name: Generate Fabric Policies
       ansible.builtin.include_tasks: fabric_policies.yml
       when: create_fabric_policies is defined and create_fabric_policies == true
+
+    - name: Generate Node Policies
+      ansible.builtin.include_tasks: node_policies.yml
+      when: create_node_policies is defined and create_node_policies == true
