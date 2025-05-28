@@ -1,0 +1,290 @@
+{%- for epg in [ap] | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('fvAEPg', 'defined')
+  | selectattr('fvAEPg.attributes.isAttrBasedEPg', 'equalto', 'yes') | map(attribute='fvAEPg') | default('')
+  | sort(attribute='attributes.name') -%}
+
+  {%- set vmmdomns = namespace(vmware_vmm_domains=[]) -%}
+  {%- for domain in [epg] | selectattr('children', 'defined')
+    | map(attribute='children')
+    | flatten | selectattr('fvRsDomAtt', 'defined')
+    | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/vmmp-VMware/dom-')
+    | map(attribute='fvRsDomAtt') | default('') %}
+    {%- set vmmdomns.vmware_vmm_domains = vmmdomns.vmware_vmm_domains + [{
+      'name': domain.attributes.tDn | replace('uni/vmmp-VMware/dom-', ''),
+      'custom_epg_name': domain.attributes.customEpgName | default(''),
+      'u_segmentation': 'true' if domain.attributes.classPref != 'encap' else ''
+        | default(''),
+      'netflow': 'true' if domain.attributes.netflowPref == 'enabled' else ''
+        | default(''),
+      'deployment_immediacy': domain.attributes.instrImedcy | default('')
+        | replace('lazy', ''),
+      'resolution_immediacy': domain.attributes.resImedcy | default('')
+        | replace('immediate', ''),
+      'delimiter': domain.attributes.delimiter | default(''),
+      'vlan': domain.attributes.encap | replace('vlan-', '')
+        if domain.attributes.encap != 'unknown' and
+        domain.attributes.primaryEncap == 'unknown' else '' | default(''),
+      'primary_vlan': domain.attributes.primaryEncap | replace('vlan-', '')
+        if domain.attributes.primaryEncap != 'unknown' else '',
+      'secondary_vlan': domain.attributes.encap | replace('vlan-', '')
+        if domain.attributes.primaryEncap != 'unknown' else '',
+      'allow_promiscuous': [domain] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vmmSecP', 'defined')
+        | map(attribute='vmmSecP.attributes.allowPromiscuous')
+        | first | default('') | replace('reject', ''),
+      'forged_transmits': [domain] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vmmSecP', 'defined')
+        | map(attribute='vmmSecP.attributes.forgedTransmits')
+        | first | default('') | replace('reject', ''),
+      'mac_changes': [domain] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vmmSecP', 'defined')
+        | map(attribute='vmmSecP.attributes.macChanges')
+        | first | default('') | replace('reject', ''),
+      'elag': [domain] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvAEPgLagPolAtt', 'defined')
+        | map(attribute='fvAEPgLagPolAtt')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('fvRsVmmVSwitchEnhancedLagPol', 'defined')
+        | map(attribute='fvRsVmmVSwitchEnhancedLagPol.attributes.tDn')
+        | first | default('') | regex_replace('^.*enlacplagp-', ''),
+      'active_uplinks': [domain] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvUplinkOrderCont', 'defined')
+        | map(attribute='fvUplinkOrderCont.attributes.active')
+        | first | default(''),
+      'standby_uplinks': [domain] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvUplinkOrderCont', 'defined')
+        | map(attribute='fvUplinkOrderCont.attributes.standby')
+        | first | default(''),
+    }] %}
+  {%- endfor %}
+
+  {%- set subnetns = namespace(subnets=[]) -%}
+  {%- for sub in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvSubnet', 'defined') | map(attribute='fvSubnet')
+    | list | default('') | sort(attribute='attributes.ip') %}
+    {%- set poolns = namespace(pools=[]) -%}
+    {%- for pool in [sub] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('fvCepNetCfgPol', 'defined') | map(attribute='fvCepNetCfgPol')
+      | default('') %}
+      {%- set poolns.pools = poolns.pools + [{
+        'name': pool.attributes.name,
+        'description': pool.attributes.descr | default(''),
+        'start_ip': pool.attributes.startIp | default('')
+          | replace('0.0.0.0', ''),
+        'end_ip': pool.attributes.endIp | default('')
+          | replace('0.0.0.0', ''),
+        'dns_search_suffix': pool.attributes.dnsSearchSuffix | default(''),
+        'dns_server': pool.attributes.dnsServers | default(''),
+        'dns_suffix': pool.attributes.dnsSuffix | default(''),
+        'wins_server': pool.attributes.winsServers | default(''),
+      }] %}
+    {%- endfor %}
+
+    {%- set subnetns.subnets = subnetns.subnets + [{
+      'ip': sub.attributes.ip | default(''),
+      'alias': sub.attributes.nameAlias | default(''),
+      'description': sub.attributes.descr | default(''),
+      'public': 'true' if 'public' in sub.attributes.scope else ''
+        | default(''),
+      'shared': 'true' if 'shared' in sub.attributes.scope else ''
+        | default(''),
+      'virtual': 'true' if sub.attributes.virtual == 'yes' else ''
+        | default(''),
+      'no_default_gateway': 'true' if 'no-default-gateway'
+        in sub.attributes.ctrl else ''
+        | default(''),
+      'igmp_querier': 'true' if 'querier' in sub.attributes.ctrl else ''
+        | default(''),
+      'ip_dataplane_learning': 'false' if sub.attributes.ipDPLearning is defined
+        and sub.attributes.ipDPLearning == 'enabled' else ''
+        | default(''),
+      'nd_ra_prefix': 'false' if 'nd' not in sub.attributes.ctrl else '' | default(''),
+      'nd_ra_prefix_policy': [sub] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('fvRsNdPfxPol', 'defined')
+        | map(attribute='fvRsNdPfxPol.attributes.tnNdPfxPolName') | first | default(''),
+      'next_hop_ip': [sub] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten
+        | selectattr('fvEpReachability', 'defined') | map(attribute='fvEpReachability')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('ipNexthopEpP', 'defined') | map(attribute='ipNexthopEpP.attributes.nhAddr')
+        | first | default(''),
+      'anycast_mac': [sub] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvEpAnycast', 'defined')
+        | map(attribute='fvEpAnycast.attributes.mac')
+        | first | default(''),
+      'nlb_group': [sub] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.group')
+        | first | default(''),
+      'nlb_mac': [sub] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvEpNlb', 'defined') | map(attribute='fvEpNlb.attributes.mac')
+        | first | default(''),
+      'nlb_mode': [sub] | selectattr('children', 'defined') | map(attribute='children')
+        | flatten | selectattr('fvEpNlb', 'defined')
+        | map(attribute='fvEpNlb.attributes.mode')
+        | first | default('') | replace('mode-uc', ''),
+      'ip_pools': poolns.pools | default(''),
+    }] -%}
+  {%- endfor -%}
+
+  {%- set addrpoolns = namespace(l4l7_address_pools=[]) -%}
+  {%- for vip in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten | list
+    | selectattr('vnsAddrInst', 'defined') | map(attribute='vnsAddrInst')
+    | list | default('') | sort(attribute='attributes.name') %}
+    {%- set addrpoolns.l4l7_address_pools = addrpoolns.l4l7_address_pools + [{
+      'name': vip.attributes.name,
+      'description': vip.attributes.descr | default(''),
+      'gateway_address': vip.attributes.addr,
+      'from': [vip] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvnsUcastAddrBlk', 'defined')
+        | map(attribute='fvnsUcastAddrBlk.attributes.from') | first
+        | default(''),
+      'to': [vip] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvnsUcastAddrBlk', 'defined')
+        | map(attribute='fvnsUcastAddrBlk.attributes.to') | first
+        | default(''),
+    }] %}
+  {%- endfor %}
+
+  {%- set staticleafns = namespace(static_leafs=[]) -%}
+  {%- for leaf in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt')
+    | default('') | sort(attribute='attributes.tDn') -%}
+    {%- set staticleafns.static_leafs = staticleafns.static_leafs + [{
+      'node_id': leaf.attributes.tDn | default('')
+        | regex_replace('^topology\/pod-(\d+)\/node-(\d+)$', '\\2'),
+      'pod_id': leaf.attributes.tDn | default('')
+        | regex_replace('^^topology\/pod-(\d+)\/node-(\d+)$', '\\1')
+        | regex_replace('^1$', ''),
+      'vlan': leaf.attributes.encap | default('')
+        | regex_replace('^(vlan-|unknown)', ''),
+      'mode': leaf.attributes.mode | default('')
+        | replace('regular', ''),
+      'deployment_immediacy': leaf.attributes.instrImedcy | default('')
+        | replace('immediate', ''),
+    }] -%}
+  {%- endfor -%}
+
+  {%- set epgcontractns = namespace(contracts={}) -%}
+  {%- set _= epgcontractns.contracts.__setitem__('consumers', [epg]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('fvRsCons', 'defined')
+    | map(attribute='fvRsCons.attributes.tnVzBrCPName')
+    | default('')) -%}
+  {%- set _= epgcontractns.contracts.__setitem__('providers', [epg]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('fvRsProv', 'defined')
+    | map(attribute='fvRsProv.attributes.tnVzBrCPName')
+    | default('')) -%}
+  {%- set _= epgcontractns.contracts.__setitem__('imported_consumers', [epg]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvRsConsIf', 'defined')
+    | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
+    | list | default('')) -%}
+  {%- set _= epgcontractns.contracts.__setitem__('intra_epgs', [epg]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvRsIntraEpg', 'defined')
+    | map(attribute='fvRsIntraEpg.attributes.tnVzBrCPName')
+    | list | default('')) -%}
+  {%- set inheritedns = namespace(masters=[]) %}
+  {%- for con in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsSecInherited', 'defined')
+    | map(attribute='fvRsSecInherited.attributes.tDn')
+    | default('') -%}
+    {%- set inheritedns.masters = inheritedns.masters + [{
+      'application_profile': con | regex_replace('^uni\/tn-(.*)\/ap-(.*)\/epg-(.*)$', '\\2')
+        if ap.attributes.name not in con else '' | default(''),
+      'endpoint_group': con | regex_replace('^uni\/tn-(.*)\/ap-(.*)\/epg-(.*)$', '\\3')
+        | default(''),
+    }] -%}
+  {%- endfor %}
+  {%- set _= epgcontractns.contracts.__setitem__('masters', inheritedns.masters) -%}
+
+  {%- set ipstmtns = namespace(ip_statements=[]) %}
+  {% for stmnt in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvIpAttr', 'defined') | map(attribute='fvIpAttr')
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set ipstmtns.ip_statements = ipstmtns.ip_statements + [{
+      'name': stmnt.attributes.name | default(''),
+      'use_epg_subnet': 'false' if stmnt.attributes.usefvSubnet == 'no'
+        else '' | default(''),
+      'ip': stmnt.attributes.ip | default('') | replace('0.0.0.0', ''),
+    }] %}
+  {% endfor %}
+  {%- set macstmtns = namespace(mac_statements=[]) %}
+  {% for stmnt in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvMacAttr', 'defined') | map(attribute='fvMacAttr')
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set macstmtns.mac_statements = macstmtns.mac_statements + [{
+      'name': stmnt.attributes.name,
+      'mac': stmnt.attributes.mac,
+    }] %}
+  {% endfor %}
+
+  {%- set uepg.useg_endpoint_groups = uepg.useg_endpoint_groups + [{
+    'name': epg.attributes.name,
+    'alias': epg.attributes.nameAlias | default(''),
+    'description': epg.attributes.descr | default(''),
+    'bridge_domain': [epg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | flatten | selectattr('fvRsBd', 'defined')
+      | map(attribute='fvRsBd.attributes.tnFvBDName')
+      | first | default(''),
+    'qos_class': epg.attributes.prio | default('') | replace('unspecified', ''),
+    'flood_in_encap': 'true' if epg.attributes.floodOnEncap == 'enabled' else ''
+      | default(''),
+    'intra_epg_isolation': 'true' if epg.attributes.pcEnfPref != 'unenforced'
+      else '' | default(''),
+    'preferred_group': 'true' if epg.attributes.prefGrMemb == 'include' else ''
+      | default(''),
+    'custom_qos_policy': [epg] | selectattr('children', 'defined')
+      | map(attribute='children')
+      | flatten | selectattr('fvRsCustQosPol', 'defined')
+      | map(attribute='fvRsCustQosPol.attributes.tnQosCustomPolName')
+      | flatten | first | default(''),
+    'trust_control_policy': [epg] | selectattr('children', 'defined')
+      | map(attribute='children')
+      | flatten | selectattr('fvRsTrustCtrl', 'defined')
+      | map(attribute='fvRsTrustCtrl.attributes.tnFhsTrustCtrlPolName')
+      | flatten | first | default(''),
+    'vmware_vmm_domains': vmmdomns.vmware_vmm_domains | default(''),
+    'static_leafs': staticleafns.static_leafs | default(''),
+    'useg_attributes': {
+      'match_type': [epg] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('fvCrtrn', 'defined')
+        | map(attribute='fvCrtrn.attributes.match')
+        | first | default('') ,
+      'ip_statements': ipstmtns.ip_statements | default(''),
+      'mac_statements': macstmtns.mac_statements | default(''),
+    } | default(''),
+    'subnets': subnetns.subnets | default(''),
+    'tags': [epg] | selectattr('children', 'defined') | map(attribute='children')
+      | flatten | selectattr('tagInst', 'defined')
+      | map(attribute='tagInst.attributes.name') | list
+      | default('') | sort(),
+    'l4l7_address_pools': addrpoolns.l4l7_address_pools | default(''),
+    'contracts': epgcontractns.contracts | default(''),
+  }] %}
+{%- endfor -%}
