@@ -210,7 +210,90 @@
 {% endfor %}
 {%- set _ = tnpolns.policies.__setitem__('dhcp_relay_policies', dhcprelpol.dhcp_relay_policies) -%}
 
-{#- tenant.policies.bfd_interface_policies -#}
+{#- tenant.policies.eigrp_interface_policies -#}
+{%- set eirgpintpol = namespace(eigrp_interface_policies=[]) -%}
+{% for pol in this_tenant.children | selectattr('bfdIfPol', 'defined')
+  | map(attribute='bfdIfPol') | default('')
+  | sort(attribute='attributes.name') %}
+  {% set eirgpintpol.eigrp_interface_policies = eirgpintpol.eigrp_interface_policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'passive_interface': 'true' if 'passive' in pol.attributes.ctrl
+      else '' | default(''),
+    'split_horizon': 'false' if 'split-horizon' in pol.attributes.ctrl
+      else '' | default(''),
+    'self_nexthop': 'false' if 'nh-self' in pol.attributes.ctrl
+      else '' | default(''),
+    'bfd': 'true' if 'bfd' in pol.attributes.ctrl
+      else '' | default(''),
+    'hello_interval': pol.attributes.helloIntvl | default('')
+      | regex_replace('^5$', ''),
+    'hold_interval': pol.attributes.holdIntvl | default('')
+      | regex_replace('^15$', ''),
+    'bandwidth': pol.attributes.bw | default('')
+      | regex_replace('^0$', ''),
+    'delay': pol.attributes.delay | default('')
+      | regex_replace('^0$', ''),
+    'delay_unit': pol.attributes.delayUnit | default('')
+      | regex_replace('^tens-of-micro$', '')
+  }] %}
+{% endfor %}
+{%- set _ = tnpolns.policies.__setitem__('eigrp_interface_policies', eirgpintpol.eigrp_interface_policies) -%}
+
+{#- tenant.policies.endpoint_ip_tags -#}
+{%- set epiptagpol = namespace(endpoint_ip_tags=[]) -%}
+{% for pol in this_tenant.children | selectattr('fvEpTags', 'defined')
+  | map(attribute='fvEpTags')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('fvEpIpTag', 'defined') | map(attribute='fvEpIpTag')
+  | default('') | sort(attribute='attributes.ip') %}
+  {%- set tagsns = namespace(tags=[]) -%}
+  {% for tag in [pol] | selectattr('children', 'defined') 
+    | map(attribute='children') | flatten
+    | selectattr('tagTag', 'defined') | map(attribute='tagTag')
+    | sort(attribute='attributes.key') %}
+    {% set tagsns.tags = tagsns.tags + [{
+      'key': tag.attributes.key,
+      'value': tag.attributes.value,
+    }] %}
+  {% endfor %}
+  {% set epiptagpol.endpoint_ip_tags = epiptagpol.endpoint_ip_tags + [{
+    'ip': pol.attributes.ip,
+    'vrf': pol.attributes.ctxName | default(''),
+    'tags': tagsns.tags | default(''),
+  }] %}
+{% endfor %}
+{%- set _ = tnpolns.policies.__setitem__('endpoint_ip_tags', epiptagpol.endpoint_ip_tags) -%}
+
+{#- tenant.policies.endpoint_mac_tags -#}
+{%- set epmactagpol = namespace(endpoint_mac_tags=[]) -%}
+{% for pol in this_tenant.children | selectattr('fvEpTags', 'defined')
+  | map(attribute='fvEpTags')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('fvEpMacTag', 'defined') | map(attribute='fvEpMacTag')
+  | default('') | sort(attribute='attributes.ip') %}
+  {%- set tagsns = namespace(tags=[]) -%}
+  {% for tag in [pol] | selectattr('children', 'defined') 
+    | map(attribute='children') | flatten
+    | selectattr('tagTag', 'defined') | map(attribute='tagTag')
+    | sort(attribute='attributes.key') %}
+    {% set tagsns.tags = tagsns.tags + [{
+      'key': tag.attributes.key,
+      'value': tag.attributes.value,
+    }] %}
+  {% endfor %}
+  {% set epmactagpol.endpoint_mac_tags = epmactagpol.endpoint_mac_tags + [{
+    'mac': pol.attributes.mac,
+    'bridge_domain': pol.attributes.bdName | default('')
+      | regex_replace('^\*$', 'all'),
+    'vrf': pol.attributes.ctxName | default(''),
+    'tags': tagsns.tags | default(''),
+  }] %}
+{% endfor %}
+{%- set _ = tnpolns.policies.__setitem__('endpoint_mac_tags', epmactagpol.endpoint_mac_tags) -%}
+
+
+
 {# {%- set bfdintpol = namespace(bfd_interface_policies=[]) -%}
 {% for pol in this_tenant.children | selectattr('bfdIfPol', 'defined')
   | map(attribute='bfdIfPol') | default('')
@@ -221,5 +304,27 @@
   }] %}
 {% endfor %}
 {%- set _ = tnpolns.policies.__setitem__('bfd_interface_policies', bfdintpol.bfd_interface_policies) -%} #}
+
+{#- tenant.policies.endpoint_retention_policies -#}
+{#- tenant.policies.igmp_interface_policies -#}
+{#- tenant.policies.igmp_snooping_policies -#}
+{#- tenant.policies.ip_sla_policies -#}
+{#- tenant.policies.match_rules -#}
+{#- tenant.policies.mpls_custom_qos_policies -#}
+{#- tenant.policies.multicast_route_maps -#}
+{#- tenant.policies.nd_interface_policies -#}
+{#- tenant.policies.nd_ra_prefix_policies -#}
+{#- tenant.policies.ospf_interface_policies -#}
+{#- tenant.policies.ospf_timer_policies -#}
+{#- tenant.policies.pim_policies -#}
+{#- tenant.policies.qos -#}
+{#- tenant.policies.route_control_route_maps -#}
+{#- tenant.policies.route_tag_policies -#}
+{#- tenant.policies.set_rules -#}
+{#- tenant.policies.span -#}
+{#- tenant.policies.track_lists -#}
+{#- tenant.policies.track_members -#}
+{#- tenant.policies.trust_control_policies -#}
+{#- tenant.policies.trust_control_policies -#}
 
 {%- set _=tenantns.tenant_policies.__setitem__('policies', tnpolns.policies ) %}
