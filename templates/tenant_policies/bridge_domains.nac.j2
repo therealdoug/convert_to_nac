@@ -129,6 +129,11 @@
       | selectattr('fvRsBDToNdP', 'defined')
       | map(attribute='fvRsBDToNdP.attributes.tnNdIfPolName') | first
       | default(''),
+    'endpoint_retention_policy': [bd] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('fvRsBdToEpRet', 'defined')
+      | map(attribute='fvRsBdToEpRet.attributes.fvRsBdToEpRet') | first
+      | default(''),
     'subnets': subnetns.subnets | default([]),
     'l3outs': bd.children | selectattr('fvRsBDToOut', 'defined')
       | map(attribute='fvRsBDToOut.attributes.tnL3extOutName')
