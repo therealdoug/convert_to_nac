@@ -26,6 +26,14 @@
       'no_default_gateway': 'true' if 'no-default-gateway'
         in subnet.attributes.ctrl
         | default('') else '',
+      'nd_ra_prefix_policy': [subnet] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('fvRsNdPfxPol', 'defined')
+        | map(attribute='fvRsNdPfxPol.attributes.tnNdPfxPolName')
+        | first | default(''),
+      'ip_dataplane_learning': 'false' if 
+        subnet.attributes.ipDPLearning == 'disabled'
+        | default('') else '',
     }] %}
   {% endfor -%}
 
@@ -72,8 +80,28 @@
       | default('')  else '',
     'multicast_arp_drop': 'true' if 'yes' in bd.attributes.mcastARPDrop
       | default('')  else '',
-    'pim_source_filter': '',
-    'pim_destination_filter': '',
+    'pim_source_filter': [bd] 
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('pimBDP', 'defined') | map(attribute='pimBDP')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('pimBDFilterPol', 'defined') | map(attribute='pimBDFilterPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('pimBDSrcFilterPol', 'defined') | map(attribute='pimBDSrcFilterPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('rtdmcRsFilterToRtMapPol', 'defined')
+      | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn')
+      | first | default('') | regex_replace('^.*rtmap-(.*?)$', '\\1'),
+    'pim_destination_filter': [bd] 
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('pimBDP', 'defined') | map(attribute='pimBDP')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('pimBDFilterPol', 'defined') | map(attribute='pimBDFilterPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('pimBDDestFilterPol', 'defined') | map(attribute='pimBDDestFilterPol')
+      | selectattr('children', 'defined') | map(attribute='children') | flatten
+      | selectattr('rtdmcRsFilterToRtMapPol', 'defined')
+      | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn')
+      | first | default('') | regex_replace('^.*rtmap-(.*?)$', '\\1'),
     'unicast_routing': 'false' if 'no' in bd.attributes.unicastRoute
       | default('') else '',
     'multi_destination_flooding': bd.attributes.multiDstPktAct | default('')
@@ -102,11 +130,9 @@
       | map(attribute='fvRsBDToNdP.attributes.tnNdIfPolName') | first
       | default(''),
     'subnets': subnetns.subnets | default([]),
-    'l3outs': bd | selectattr('children', 'defined')
-      | map(attribute='children') | flatten
-      | selectattr('fvRsBDToOut', 'defined')
-      | map(attribute='fvRsBDToOut')
-      | default([]),
+    'l3outs': bd.children | selectattr('fvRsBDToOut', 'defined')
+      | map(attribute='fvRsBDToOut.attributes.tnL3extOutName')
+      | default(''),
     'dhcp_labels': dhcpns.dhcp_labels | default([]),
   }] %}
 {% endfor -%}
