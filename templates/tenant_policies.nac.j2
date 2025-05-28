@@ -18,5 +18,6 @@
 {%- include "tenant_policies/application_profiles.nac.j2" %}
 {%- include "tenant_policies/l3outs.nac.j2" %}
 {%- include "tenant_policies/sr_mpls_l3outs.nac.j2" %}
+{%- include "tenant_policies/policies.nac.j2" %}
 
 {{ helper.remove_empty({'apic': {'tenants': [tenantns.tenant_policies]}}) }}
