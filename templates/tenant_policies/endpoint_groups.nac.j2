@@ -1,7 +1,7 @@
 {%- for epg in [ap] | selectattr('children', 'defined') | map(attribute='children') | flatten
-  | selectattr('fvAEPg', 'defined') | map(attribute='fvAEPg') | default('')
+  | selectattr('fvAEPg', 'defined')
+  | selectattr('fvAEPg.attributes.isAttrBasedEPg', 'equalto', 'no') | map(attribute='fvAEPg') | default('')
   | sort(attribute='attributes.name') -%}
-
   {%- set physdomns = namespace(physical_domains=[]) -%}
   {%- for dom in [epg] | selectattr('children', 'defined')
     | map(attribute='children')
@@ -179,6 +179,26 @@
     }] %}
   {%- endfor %}
 
+  {%- set staticleafns = namespace(static_leafs=[]) -%}
+  {%- for leaf in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt')
+    | list | default('') | sort(attribute='attributes.tDn') -%}
+    {%- set staticleafns.static_leafs = staticleafns.static_leafs + [{
+      'node_id': leaf.attributes.tDn | default('')
+        | regex_replace('^topology\/pod-(\d+)\/node-(\d+)$', '\\2'),
+      'pod_id': leaf.attributes.tDn | default('')
+        | regex_replace('^^topology\/pod-(\d+)\/node-(\d+)$', '\\1')
+        | regex_replace('^1$', ''),
+      'vlan': leaf.attributes.encap | default('')
+        | regex_replace('^(vlan-|unknown)', ''),
+      'mode': leaf.attributes.mode | default('')
+        | replace('regular', ''),
+      'deployment_immediacy': leaf.attributes.instrImedcy | default('')
+        | replace('immediate', ''),
+    }] -%}
+  {%- endfor -%}
+  
   {%- set portns = namespace(static_ports=[]) -%}
   {%- for port in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
@@ -202,26 +222,6 @@
       | map(attribute='children') | selectattr('ptpRsProfile', 'defined')
       | map(attribute='ptpRsProfile.attributes.tDn') | first | default('')
       | replace('uni/infra/ptpprofile-', '') ) -%}
-
-  {%- set staticleafns = namespace(static_leafs=[]) -%}
-  {%- for leaf in [epg] | selectattr('children', 'defined')
-    | map(attribute='children') | flatten
-    | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt')
-    | list | default('') | sort(attribute='attributes.tDn') -%}
-    {%- set staticleafns.static_leafs = staticleafns.static_leafs + [{
-      'node_id': leaf.attributes.tDn | default('')
-        | regex_replace('^topology\/pod-(\d+)\/node-(\d+)$', '\\2'),
-      'pod_id': leaf.attributes.tDn | default('')
-        | regex_replace('^^topology\/pod-(\d+)\/node-(\d+)$', '\\1')
-        | regex_replace('^1$', ''),
-      'vlan': leaf.attributes.encap | default('')
-        | regex_replace('^(vlan-|unknown)', ''),
-      'mode': leaf.attributes.mode | default('')
-        | replace('regular', ''),
-      'deployment_immediacy': leaf.attributes.instrImedcy | default('')
-        | replace('immediate', ''),
-    }] -%}
-  {%- endfor -%}
 
     {%- set portns.static_ports = portns.static_ports + [{
       'pod_id': port.attributes.tDn | default('')
