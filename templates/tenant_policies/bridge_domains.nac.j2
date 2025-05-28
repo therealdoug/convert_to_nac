@@ -1,12 +1,12 @@
 {% import 'macro_handler.j2' as helper -%}
-{% set bdns = namespace(bridge_domains=[]) -%}
-{% for bd in this_tenant.children | selectattr('fvBD', 'defined')
+{%- set bdns = namespace(bridge_domains=[]) -%}
+{%- for bd in this_tenant.children | selectattr('fvBD', 'defined')
       | map(attribute='fvBD') | default([]) | flatten
       | sort(attribute='attributes.name') %}
-  {% set subnetns = namespace(subnets=[]) %}
+  {%- set subnetns = namespace(subnets=[]) -%}
   {% for subnet in bd.children | selectattr('fvSubnet', 'defined')
     | map(attribute='fvSubnet') %}
-    {% set subnetns.subnets = subnetns.subnets + [{
+    {%- set subnetns.subnets = subnetns.subnets + [{
       'ip': subnet.attributes.ip,
       'description': subnet.attributes.descr | default(''),
       'alias': subnet.attributes.nameAlias | default(''),
@@ -32,18 +32,18 @@
         | map(attribute='fvRsNdPfxPol.attributes.tnNdPfxPolName')
         | first | default(''),
       'ip_dataplane_learning': 'false' if 
-        subnet.attributes.ipDPLearning == 'disabled'
-        | default('') else '',
-    }] %}
+        subnet.attributes.ipDPLearning | default('') == 'disabled'
+         else '',
+    }] -%}
   {% endfor -%}
 
-  {% set dhcpns = namespace(dhcp_labels=[]) %}
-  {% for label in [bd] | selectattr('children', 'defined')
+  {%- set dhcpns = namespace(dhcp_labels=[]) %}
+  {%- for label in [bd] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('dhcpLbl', 'defined') | map(attribute='dhcpLbl')
       | default([])
-      | sort(attribute='attributes.name') %}
-    {% set dhcpns.dhcp_labels = dhcpns.dhcp_labels + [{
+      | sort(attribute='attributes.name') -%}
+    {%- set dhcpns.dhcp_labels = dhcpns.dhcp_labels + [{
       'dhcp_relay_policy': label.attributes.name,
       'dhcp_option_policy': label | selectattr('children', 'defined')
         | map(attribute='children') | flatten
@@ -52,9 +52,9 @@
         | default(''),
       'scope': label.attributes.owner | default('')
         | replace('tenant', ''),
-    }] %}
+    }] -%}
   {% endfor -%}
-  {% set bdns.bridge_domains = bdns.bridge_domains + [{
+  {%- set bdns.bridge_domains = bdns.bridge_domains + [{
     'name': bd.attributes.name,
     'description': bd.attributes.descr | default(''),
     'alias': bd.attributes.nameAlias | default(''),
@@ -134,8 +134,6 @@
       | map(attribute='fvRsBDToOut.attributes.tnL3extOutName')
       | default(''),
     'dhcp_labels': dhcpns.dhcp_labels | default([]),
-  }] %}
-{% endfor -%}
-{{ 'bridge_domains:' | indent(6, first=True) if bdns.bridge_domains }}
-{{ helper.remove_empty(bdns.bridge_domains) | indent(8, first=True)
-  if bdns.bridge_domains }}
+  }] -%}
+{%- endfor -%}
+{%- set _=tenantns.tenant_policies.__setitem__('bridge_domains', bdns.bridge_domains ) %}
