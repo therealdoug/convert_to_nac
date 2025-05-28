@@ -5,12 +5,12 @@
   | selectattr('vzFilter', 'defined')
   | map(attribute='vzFilter') | flatten | default([])
   | sort(attribute='attributes.name') %}
-  {% set entryns = namespace(entries=[]) -%}
-  {% for entry in [fltr] | selectattr('children', 'defined')
+  {%- set entryns = namespace(entries=[]) -%}
+  {%- for entry in [fltr] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('vzEntry','defined')
     | map(attribute='vzEntry') | sort(attribute='attributes.name') %}
-    {% set entryns.entries = entryns.entries + [{
+    {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name,
       'alias': entry.attributes.nameAlias | default(''),
       'description': entry.attributes.descr | default(''),
@@ -28,14 +28,12 @@
         | replace(entry.attributes.dFromPort, ''),
       'stateful': 'true' if entry.attributes.stateful != 'no' else '',
     }] -%}
-  {% endfor -%}
-  {% set filterns.filters = filterns.filters + [{
+  {%- endfor -%}
+  {%- set filterns.filters = filterns.filters + [{
     'name': fltr.attributes.name,
     'alias': fltr.attributes.nameAlias | default(''),
     'description': fltr.attributes.descr | default(''),
     'entries': entryns.entries | default([]),
   }] %}
-{% endfor -%}
-{{ 'filters:' | indent(width=6, first=True) if filterns.filters }}
-{{ helper.remove_empty(filterns.filters)
-  | indent(width=8, first=True) if filterns.filters }}
+{%- endfor -%}
+{%- set _ = this_tenant.attributes.__setitem__('filters', filterns.filters) -%}

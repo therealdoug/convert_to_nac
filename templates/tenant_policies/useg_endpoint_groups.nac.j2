@@ -1,16 +1,7 @@
 {%- for epg in [ap] | selectattr('children', 'defined') | map(attribute='children') | flatten
   | selectattr('fvAEPg', 'defined')
-  | selectattr('fvAEPg.attributes.isAttrBasedEPg', 'equalto', 'no') | map(attribute='fvAEPg') | default('')
+  | selectattr('fvAEPg.attributes.isAttrBasedEPg', 'equalto', 'yes') | map(attribute='fvAEPg') | default('')
   | sort(attribute='attributes.name') -%}
-  {%- set physdomns = namespace(physical_domains=[]) -%}
-  {%- for dom in [epg] | selectattr('children', 'defined')
-    | map(attribute='children')
-    | flatten | selectattr('fvRsDomAtt', 'defined')
-    | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/phys-')
-    | map(attribute='fvRsDomAtt.attributes.tDn') | default('') %}
-    {%- set physdomns.physical_domains = physdomns.physical_domains + 
-      [dom | replace('uni/phys-', '')] -%}
-  {%- endfor %}
 
   {%- set vmmdomns = namespace(vmware_vmm_domains=[]) -%}
   {%- for domain in [epg] | selectattr('children', 'defined')
@@ -146,17 +137,6 @@
     }] -%}
   {%- endfor -%}
 
-  {%- set virtipns = namespace(l4l7_virtual_ips=[]) -%}
-  {%- for vip in [epg] | selectattr('children', 'defined') | map(attribute='children')
-    | flatten | list
-    | selectattr('fvVip', 'defined') | map(attribute='fvVip')
-    | list | default('') | sort(attribute='attributes.addr') %}
-    {%- set virtipns.l4l7_virtual_ips = virtipns.l4l7_virtual_ips + [{
-      'ip': vip.attributes.addr,
-      'description': vip.attributes.descr | default(''),
-    }] -%}
-  {%- endfor -%}
-
   {%- set addrpoolns = namespace(l4l7_address_pools=[]) -%}
   {%- for vip in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten | list
@@ -183,7 +163,7 @@
   {%- for leaf in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('fvRsNodeAtt', 'defined') | map(attribute='fvRsNodeAtt')
-    | list | default('') | sort(attribute='attributes.tDn') -%}
+    | default('') | sort(attribute='attributes.tDn') -%}
     {%- set staticleafns.static_leafs = staticleafns.static_leafs + [{
       'node_id': leaf.attributes.tDn | default('')
         | regex_replace('^topology\/pod-(\d+)\/node-(\d+)$', '\\2'),
@@ -196,72 +176,6 @@
         | replace('regular', ''),
       'deployment_immediacy': leaf.attributes.instrImedcy | default('')
         | replace('immediate', ''),
-    }] -%}
-  {%- endfor -%}
-  
-  {%- set portns = namespace(static_ports=[]) -%}
-  {%- for port in [epg] | selectattr('children', 'defined')
-    | map(attribute='children') | flatten
-    | selectattr('fvRsPathAtt', 'defined') | map(attribute='fvRsPathAtt')
-    | default('') | sort(attribute='attributes.tDn') -%}
-
-    {%- set ptpns = namespace(ptp={}) -%}
-    {%- set _= ptpns.ptp.__setitem__('mode', [epg]
-      | selectattr('children', 'defined') | flatten
-      | map(attribute='children') | selectattr('ptpEpgCfg', 'defined')
-      | map(attribute='ptpEpgCfg.attributes.ptpMode') | first | default('') ) -%}
-    {%- set _= ptpns.ptp.__setitem__('mode', [epg]
-      | selectattr('children', 'defined') | flatten
-      | map(attribute='children') | selectattr('ptpEpgCfg', 'defined')
-      | map(attribute='ptpEpgCfg.attributes.srcIp') | first | default('') ) -%}
-    {%- set _= ptpns.ptp.__setitem__('mode', [epg]
-      | selectattr('children', 'defined') | flatten
-      | map(attribute='children') | selectattr('ptpEpgCfg', 'defined')
-      | map(attribute='ptpEpgCfg')
-      | selectattr('children', 'defined') | flatten
-      | map(attribute='children') | selectattr('ptpRsProfile', 'defined')
-      | map(attribute='ptpRsProfile.attributes.tDn') | first | default('')
-      | replace('uni/infra/ptpprofile-', '') ) -%}
-
-    {%- set portns.static_ports = portns.static_ports + [{
-      'pod_id': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\1')
-        | regex_replace('^1$', ''),
-      'node_id': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\2'),
-      'node2_id': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\3'),
-      'channel': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\4')
-        | regex_replace('^eth.*', ''),
-      'module': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\5')
-        | regex_replace('^1$', ''),
-      'port': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\6'),
-      'sub_port': port.attributes.tDn | default('')
-        | regex_replace(
-        '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\7'),
-      'vlan': port.attributes.encap | default('')
-        | regex_replace('^(vlan-|unknown)', ''),
-      'deployment_immediacy': port.attributes.instrImedcy | default('')
-        | replace('lazy', ''),
-      'mode': port.attributes.mode | default('') | replace('regular', ''),
-      'description': port.attributes.descr | default(''),
-      'ptp': ptpns.ptp | default(''),
     }] -%}
   {%- endfor -%}
 
@@ -301,54 +215,34 @@
   {%- endfor %}
   {%- set _= epgcontractns.contracts.__setitem__('masters', inheritedns.masters) -%}
 
-  {%- set staticepns = namespace(static_endpoints=[]) -%}
-  {% for ep in [epg] | selectattr('children', 'defined')
-    | map(attribute='children') | flatten 
-    | selectattr('fvStCEp', 'defined') | map(attribute='fvStCEp') 
-    | sort(attribute='attributes.ip') %}
-
-    {%- set staticepns.static_endpoints = staticepns.static_endpoints + [{
-      'ip': ep.attributes.ip | default('') | replace('0.0.0.0', ''),
-      'mac': ep.attributes.mac | default(''),
-      'name': ep.attributes.name | default(''),
-      'description': ep.attributes.descr | default(''),
-      'alias': ep.attributes.nameAlias | default(''),
-      'type': ep.attributes.type | default(''),
-      'pod_id': port.attributes.tDn | default('')
-        | regex_replace(
-        '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\1')
-        | regex_replace('^1$', ''),
-      'node_id': port.attributes.tDn | default('')
-        | regex_replace(
-        '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\2'),
-      'node2_id': port.attributes.tDn | default('')
-        | regex_replace(
-        '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\3'),
-      'channel': port.attributes.tDn | default('')
-        | regex_replace(
-        '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\4')
-        | regex_replace('^eth.*', ''),
-      'module': port.attributes.tDn | default('')
-        | regex_replace(
-        '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\5')
-        | regex_replace('^1$', ''),
-      'port': port.attributes.tDn | default('')
-        | regex_replace(
-        '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
-          '\\6'),
-      'additional_ips': [ep] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
-        | selectattr('fvStIp', 'defined') | map(attribute='fvStIp.attributes.addr') 
-        | sort | default(''),
-    }] -%}
+  {%- set ipstmtns = namespace(ip_statements=[]) %}
+  {% for stmnt in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvIpAttr', 'defined') | map(attribute='fvIpAttr')
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set ipstmtns.ip_statements = ipstmtns.ip_statements + [{
+      'name': stmnt.attributes.name | default(''),
+      'use_epg_subnet': 'false' if stmnt.attributes.usefvSubnet == 'no'
+        else '' | default(''),
+      'ip': stmnt.attributes.ip | default('') | replace('0.0.0.0', ''),
+    }] %}
+  {% endfor %}
+  {%- set macstmtns = namespace(mac_statements=[]) %}
+  {% for stmnt in [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvMacAttr', 'defined') | map(attribute='fvMacAttr')
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set macstmtns.mac_statements = macstmtns.mac_statements + [{
+      'name': stmnt.attributes.name,
+      'mac': stmnt.attributes.mac,
+    }] %}
   {% endfor %}
 
-  {%- set epgns.endpoint_groups = epgns.endpoint_groups + [{
+  {%- set uepg.useg_endpoint_groups = uepg.useg_endpoint_groups + [{
     'name': epg.attributes.name,
     'alias': epg.attributes.nameAlias | default(''),
     'description': epg.attributes.descr | default(''),
@@ -362,8 +256,6 @@
       | default(''),
     'intra_epg_isolation': 'true' if epg.attributes.pcEnfPref != 'unenforced'
       else '' | default(''),
-    'proxy_arp': 'true' if epg.attributes.fwdCtrl == 'proxy-arp' else ''
-      | default(''),
     'preferred_group': 'true' if epg.attributes.prefGrMemb == 'include' else ''
       | default(''),
     'custom_qos_policy': [epg] | selectattr('children', 'defined')
@@ -376,17 +268,22 @@
       | flatten | selectattr('fvRsTrustCtrl', 'defined')
       | map(attribute='fvRsTrustCtrl.attributes.tnFhsTrustCtrlPolName')
       | flatten | first | default(''),
-    'physical_domains': physdomns.physical_domains | default(''),
     'vmware_vmm_domains': vmmdomns.vmware_vmm_domains | default(''),
     'static_leafs': staticleafns.static_leafs | default(''),
-    'static_ports': portns.static_ports | default(''),
-    'static_endpoints': staticepns.static_endpoints | default(''),
+    'useg_attributes': {
+      'match_type': [epg] | selectattr('children', 'defined')
+        | map(attribute='children')
+        | flatten | selectattr('fvCrtrn', 'defined')
+        | map(attribute='fvCrtrn.attributes.match')
+        | first | default('') ,
+      'ip_statements': ipstmtns.ip_statements | default(''),
+      'mac_statements': macstmtns.mac_statements | default(''),
+    } | default(''),
     'subnets': subnetns.subnets | default(''),
     'tags': [epg] | selectattr('children', 'defined') | map(attribute='children')
       | flatten | selectattr('tagInst', 'defined')
       | map(attribute='tagInst.attributes.name') | list
       | default('') | sort(),
-    'l4l7_virtual_ips': virtipns.l4l7_virtual_ips | default(''),
     'l4l7_address_pools': addrpoolns.l4l7_address_pools | default(''),
     'contracts': epgcontractns.contracts | default(''),
   }] %}

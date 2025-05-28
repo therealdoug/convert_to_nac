@@ -1,5 +1,5 @@
 {%- import 'macro_handler.j2' as helper -%}
-{% set srl3outsns = namespace(l3outs=[]) %}
+{%- set srl3outsns = namespace(l3outs=[]) %}
 {%- for l3o in [this_tenant]
   | selectattr('children', 'defined') | map(attribute='children') | flatten
   | selectattr('l3extOut', 'defined') | map(attribute='l3extOut')
@@ -96,8 +96,8 @@
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
       | selectattr('l3extLIfP', 'defined') | map(attribute='l3extLIfP')
       | default([]) | sort(attribute='attributes.name') %}
-      {% set interfacesns = namespace(interfaces=[]) %}
-      {% set interface_profiles = [int_prof] | selectattr('children', 'defined')
+      {%- set interfacesns = namespace(interfaces=[]) %}
+      {%- set interface_profiles = [int_prof] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | list
         | selectattr('l3extRsPathL3OutAtt', 'defined')
         | map(attribute='l3extRsPathL3OutAtt')
@@ -111,13 +111,13 @@
       {#- Physical Interface -#}
       {%- for intf in interface_profiles %}
         {#- Set Interface Paths -#}
-        {% set interfacepathsns = namespace(paths=[]) %}
+        {%- set interfacepathsns = namespace(paths=[]) %}
         {% for path in [intf] | selectattr('children', 'defined')
           | map(attribute='children' ) | flatten
           | selectattr('l3extRsDynPathAtt', 'defined')
           | map(attribute='l3extRsDynPathAtt')
           | list | default('') %}
-          {% set interfacepathsns.paths = interfacepathsns.paths + [{
+          {%- set interfacepathsns.paths = interfacepathsns.paths + [{
             'floating_ip': path.attributes.floatingAddr,
             'physical_domain': path.attributes.tDn
               | replace('uni/phys-', '') if 'uni/phys-' in path.attributes.tDn
@@ -346,12 +346,12 @@
     | map(attribute='children') | flatten
     | selectattr('l3extInstP', 'defined') | map(attribute='l3extInstP')
     | default('') %}
-    {% set eepgsubnetns = namespace(subnets=[])%}
+    {%- set eepgsubnetns = namespace(subnets=[])%}
     {% for subnet in [eepg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('l3extSubnet', 'defined') | map(attribute='l3extSubnet')
       | list | default([]) | sort(attribute='attributes.ip') %}
-      {% set eepgsubnetns.subnets = eepgsubnetns.subnets + [{
+      {%- set eepgsubnetns.subnets = eepgsubnetns.subnets + [{
         'prefix': subnet.attributes.ip,
         'name': subnet.attributes.name | default(''),
         'description': subnet.attributes.descr | default(''),
@@ -366,23 +366,23 @@
             | default(''),
       }] %}
     {% endfor %}
-    {% set contractns = namespace(contracts={}) %}
-    {% set _=contractns.contracts.__setitem__('providers', [eepg]
+    {%- set contractns = namespace(contracts={}) %}
+    {%- set _=contractns.contracts.__setitem__('providers', [eepg]
       | selectattr('children', 'defined') | map(attribute='children')
       | flatten | selectattr('fvRsProv', 'defined')
       | map(attribute='fvRsProv.attributes.tnVzBrCPName')
       | list | default('')) %}
-    {% set _=contractns.contracts.__setitem__('consumers', [eepg]
+    {%- set _=contractns.contracts.__setitem__('consumers', [eepg]
       | selectattr('children', 'defined') | map(attribute='children')
       | flatten | selectattr('fvRsCons', 'defined')
       | map(attribute='fvRsCons.attributes.tnVzBrCPName')
       | list | default('')) %}
-    {% set _=contractns.contracts.__setitem__('imported_consumers', [eepg]
+    {%- set _=contractns.contracts.__setitem__('imported_consumers', [eepg]
       | selectattr('children', 'defined') | map(attribute='children')
       | flatten | selectattr('fvRsConsIf', 'defined')
       | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
       | list | default('')) %}
-    {% set srmplseepgsns.eepgs = srmplseepgsns.eepgs + [{
+    {%- set srmplseepgsns.eepgs = srmplseepgsns.eepgs + [{
       'name': eepg.attributes.name,
       'description': eepg.attributes.descr | default(''),
       'alias': eepg.attributes.alias | default(''),
@@ -404,18 +404,18 @@
     | sort(attribute='attributes.name')
     | default([]) %}
     {#- Create List of sr_mpls_infra_l3out External EPGs -#}
-    {% set srmpl3_infra_eepgns = namespace(eepgs=[]) %}
+    {%- set srmpl3_infra_eepgns = namespace(eepgs=[]) %}
     {% for infra_eepg in [srmplsl3o] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('l3extRsLblToInstP', 'defined')
       | map(attribute='l3extRsLblToInstP')
       | map(attribute='attributes.tDn')
       | default([]) %}
-      {% set srmpl3_infra_eepgns.eepgs = srmpl3_infra_eepgns.eepgs + [
+      {%- set srmpl3_infra_eepgns.eepgs = srmpl3_infra_eepgns.eepgs + [
         infra_eepg | regex_replace('^(.*?)\/instP-(.*)$', '\\2')
       ] %}
     {% endfor %}
-    {% set srmplsl3outsns.l3outs = srmplsl3outsns.l3outs + [{
+    {%- set srmplsl3outsns.l3outs = srmplsl3outsns.l3outs + [{
       'name': srmplsl3o.attributes.name,
       'inbound_route_map': [srmplsl3o] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
@@ -434,7 +434,7 @@
       'external_endpoint_groups': srmpl3_infra_eepgns.eepgs | default([]),
     }] %}
   {% endfor %}
-  {% set srl3outsns.l3outs = srl3outsns.l3outs + [{
+  {%- set srl3outsns.l3outs = srl3outsns.l3outs + [{
     'name': l3o.attributes.name,
     'alias': l3o.attributes.nameAlias | default(''),
     'description': l3o.attributes.descr | default(''),
@@ -464,5 +464,4 @@
     'sr_mpls_infra_l3outs': srmplsl3outsns.l3outs | default([]),
   }] %}
 {% endfor %}
-{{ 'sr_mpls_l3outs:' | indent(6, true) if srl3outsns.l3outs}}
-{{ helper.remove_empty(srl3outsns.l3outs) | indent(8, true) if srl3outsns.l3outs}}
+{%- set _=tenantns.tenant_policies.__setitem__('sr_mpls_l3outs', srl3outsns.l3outs ) %}

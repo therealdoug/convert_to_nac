@@ -1,0 +1,97 @@
+{%- for esg in [ap] | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('fvESg', 'defined') | map(attribute='fvESg') | default('')
+  | sort(attribute='attributes.name') -%}
+
+  {%- set esgcontractns = namespace(contracts={}) %}
+  {%- set _= esgcontractns.contracts.__setitem__('consumers', [esg]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('fvRsCons', 'defined')
+    | map(attribute='fvRsCons.attributes.tnVzBrCPName')
+    | default('')) %}
+  {%- set _= esgcontractns.contracts.__setitem__('providers', [esg]
+    | selectattr('children', 'defined') | map(attribute='children')
+    | flatten | selectattr('fvRsProv', 'defined')
+    | map(attribute='fvRsProv.attributes.tnVzBrCPName')
+    | default('')) %}
+  {%- set _= esgcontractns.contracts.__setitem__('imported_consumers', [esg]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvRsConsIf', 'defined')
+    | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
+    | list | default('')) %}
+  {%- set _= esgcontractns.contracts.__setitem__('intra_esgs', [esg]
+    | selectattr('children', 'defined') | map(attribute='children') | flatten
+    | selectattr('fvRsIntraesg', 'defined')
+    | map(attribute='fvRsIntraesg.attributes.tnVzBrCPName')
+    | list | default('')) %}
+  {%- set inheritedns = namespace(masters=[]) %}
+  {%- for con in [esg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsSecInherited', 'defined')
+    | map(attribute='fvRsSecInherited.attributes.tDn')
+    | default('') %}
+    {%- set inheritedns.masters = inheritedns.masters + [{
+      'application_profile': con | regex_replace('^uni\/tn-(.*)\/ap-(.*)\/esg-(.*)$', '\\2')
+        if ap.attributes.name not in con else '' | default(''),
+      'endpoint_security_group': con | regex_replace('^uni\/tn-(.*)\/ap-(.*)\/esg-(.*)$', '\\3')
+        | default(''),
+    }] %}
+  {%- endfor %}
+  {%- set _= esgcontractns.contracts.__setitem__('masters', inheritedns.masters) %}
+
+  {% set tagselns = namespace(tag_selectors=[]) %}
+  {%- for tag in [esg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvTagSelector', 'defined')
+    | map(attribute='fvTagSelector') | default('') %}
+    {%- set tagselns.tag_selectors = tagselns.tag_selectors + [{
+      'key': tag.attributes.matchKey,
+      'value': tag.attributes.matchValue,
+      'description': tag.attributes.descr | default(''),
+      'operator': tag.attributes.valueOperator | default('')
+        | replace('equals', ''),
+    }] %}
+  {%- endfor %}
+
+  {% set epgselns = namespace(epg_selectors=[]) %}
+  {%- for epg in [esg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvEPgSelector', 'defined')
+    | map(attribute='fvEPgSelector') | default('') %}
+    {%- set epgselns.epg_selectors = epgselns.epg_selectors + [{
+      'description': epg.attributes.descr | default(''),
+      'application_profile': epg.attributes.matchEpgDn
+        | regex_replace('^uni\/tn-(.*?)\/ap-(.*?)\/epg-(.*?)$', '\\2')
+        if ap.attributes.name not in epg.attributes.matchEpgDn else ''
+        | default(''),
+      'endpoint_group': epg.attributes.matchEpgDn
+        | regex_replace('^uni\/tn-(.*?)\/ap-(.*?)\/epg-(.*?)$', '\\3'),
+    }] %}
+  {%- endfor %}
+
+  {% set ipselns = namespace(ip_subnet_selectors=[]) %}
+  {%- for ip in [esg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsIpSubnet', 'defined')
+    | map(attribute='fvRsIpSubnet') | default('') %}
+    {%- set ipselns.ip_subnet_selectors = ipselns.ip_subnet_selectors + [{
+      'value': ip.attributes.matchExpression,
+      'description': ip.attributes.descr | default(''),
+    }] %}
+  {%- endfor %}
+
+  {%- set esgns.endpoint_security_groups = esgns.endpoint_security_groups + [{
+    'name': esg.attributes.name,
+    'description': esg.attributes.descr | default(''),
+    'vrf': [esg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('fvRsScope', 'defined')
+      | map(attribute='fvRsScope.attributes.tnFvCtxName') | first | default(''),
+    'shutdown': 'true' if esg.attributes.shutdown == 'yes' else '',
+    'intra_esg_isolation': 'true' if esg.attributes.pcEnfPref == 'yes' else '',
+    'preferred_group': 'true' if esg.attributes.prefGrMemb == 'yes' else '',
+    'contracts': esgcontractns.contracts | default(''),
+    'tag_selectors': tagselns.tag_selectors | default(''),
+    'epg_selectors': epgselns.epg_selectors | default(''),
+    'ip_subnet_selectors': ipselns.ip_subnet_selectors | default(''),
+  }] -%}
+{% endfor %}

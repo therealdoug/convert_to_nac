@@ -122,5 +122,4 @@
     'subjects': subjectns.subjects | default([]),
     }] %}
 {% endfor -%}
-{{ 'contracts:' | indent(6, first=True) if contractns.contracts }}
-{{ helper.remove_empty(contractns.contracts) | indent(8, first=True)}}
+{% set _=tenantns.tenant_policies.__setitem__('contracts', contractns.contracts ) %}

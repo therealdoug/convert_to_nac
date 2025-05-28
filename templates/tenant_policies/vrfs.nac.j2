@@ -1,5 +1,5 @@
 {% import 'macro_handler.j2' as helper %}
-{% set vrfsns = namespace(vrfs=[]) %}
+{%- set vrfsns = namespace(vrfs=[]) -%}
 {% for vrf in this_tenant.children | selectattr('fvCtx', 'defined')
   | map(attribute='fvCtx') | flatten | sort(attribute='attributes.name') %}
   {%- set leakedintpfxsns = namespace(prefix=[] ) -%}
@@ -9,12 +9,12 @@
     | selectattr('leakInternalSubnet', 'defined')
     | map(attribute='leakInternalSubnet')
     | default([]) %}
-    {% set pfxdestsns = namespace(dests=[]) %}
+    {%- set pfxdestsns = namespace(dests=[]) %}
     {% for dest in [prefix] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('leakTo', 'defined') | map(attribute='leakTo')
       | default([]) %}
-      {% set pfxdestsns.dests = pfxdestsns.dests + [{
+      {%- set pfxdestsns.dests = pfxdestsns.dests + [{
         'tenant': dest.attributes.tenantName,
         'vrf': dest.attributes.ctxName,
         'description': dest.attributes.descr | default(''),
@@ -23,7 +23,7 @@
           else '' | default('') | replace('inherit', ''),
       }] %}
     {% endfor %}
-    {% set leakedintpfxsns.prefix = leakedintpfxsns.prefix + [{
+    {%- set leakedintpfxsns.prefix = leakedintpfxsns.prefix + [{
       'prefix': pfx.attributes.ip,
       'public': 'true' if pfx.attributes.scope != 'private' else ''
         | default(''),
@@ -38,12 +38,12 @@
     | selectattr('leakExternalSubnet', 'defined')
     | map(attribute='leakExternalSubnet')
     | default([]) %}
-    {% set pfxdestsns = namespace(dests=[]) %}
+    {%- set pfxdestsns = namespace(dests=[]) %}
     {% for dest in [prefix] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('leakTo', 'defined') | map(attribute='leakTo')
       | default([]) %}
-      {% set pfxdestsns.dests = pfxdestsns.dests + [{
+      {%- set pfxdestsns.dests = pfxdestsns.dests + [{
         'tenant': dest.attributes.tenantName,
         'vrf': dest.attributes.ctxName,
         'description': dest.attributes.descr | default(''),
@@ -52,7 +52,7 @@
           else '' | default('') | replace('inherit', ''),
       }] %}
     {% endfor %}
-    {% set leakedextpfxsns.prefix = leakedextpfxsns.prefix + [{
+    {%- set leakedextpfxsns.prefix = leakedextpfxsns.prefix + [{
       'prefix': pfx.attributes.ip,
       'from_prefix_length': pfx.attributes.ge | default(''),
       'to_prefix_length': pfx.attributes.le | default(''),
@@ -61,7 +61,7 @@
   {% endfor %}{#- Leaked External Prefix -#}
 
   {%- set vrfcontractsns = namespace(contracts={}) -%}
-  {% set vrfcontractsns.contracts = {
+  {%- set vrfcontractsns.contracts = {
     'providers': vrf.children | selectattr('vzAny', 'defined')
       | map(attribute='vzAny') | selectattr('children', 'defined')
       | map(attribute='children') | flatten
@@ -83,7 +83,7 @@
   } -%}
 
   {%- set vrfbgpns = namespace(bgp=[] ) -%}
-  {% set vrfbgpns.bgp = {
+  {%- set vrfbgpns.bgp = {
     'timer_policy': vrf.children
       | selectattr('fvRsBgpCtxPol', 'defined')
       | map(attribute='fvRsBgpCtxPol') | map(attribute='attributes')
@@ -135,7 +135,7 @@
         } -%}
 
   {%- set vrfospfns = namespace(ospf=[] ) -%}
-  {% set vrfospfns.ospf = {
+  {%- set vrfospfns.ospf = {
     'timer_policy': vrf.children | selectattr('fvRsOspfCtxPol', 'defined')
       | map(attribute='fvRsOspfCtxPol') | map(attribute='attributes')
       | map(attribute='tnOspfCtxPolName') | first | default(''),
@@ -154,19 +154,19 @@
   } -%}
 
   {%- set vrfpimsns = namespace(pim=[] ) -%}
-    {% set pim_children = vrf.children | selectattr('pimCtxP', 'defined' )
+    {%- set pim_children = vrf.children | selectattr('pimCtxP', 'defined' )
     | map(attribute='pimCtxP') | selectattr('children', 'defined')
     | map(attribute='children') | flatten | default([]) %}
-    {% set bsr_children = pim_children | selectattr('pimBSRPPol', 'defined' )
+    {%- set bsr_children = pim_children | selectattr('pimBSRPPol', 'defined' )
       | map(attribute='pimBSRPPol') | selectattr('children', 'defined')
       | map(attribute='children') | flatten | default([]) %}
-    {% set staticrpns =  namespace(static_rps=[]) %}
+    {%- set staticrpns =  namespace(static_rps=[]) %}
     {% for rp in pim_children | selectattr('pimStaticRPPol', 'defined')
       | map(attribute='pimStaticRPPol') | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('pimStaticRPEntryPol', 'defined') | map(attribute='pimStaticRPEntryPol')
       | flatten | list |default([]) %}
-      {% set staticrpns.static_rps = staticrpns.static_rps + [{
+      {%- set staticrpns.static_rps = staticrpns.static_rps + [{
         'ip': rp.attributes.rpIp,
         'multicast_route_map': [rp]
           | selectattr('children', 'defined') | map(attribute='children')
@@ -178,13 +178,13 @@
           | default('') | regex_replace('^.*rtmap-', '')
       }] %}
     {% endfor %}
-    {% set fabricrpns = namespace(fabric_rps=[]) %}
+    {%- set fabricrpns = namespace(fabric_rps=[]) %}
     {% for rp in pim_children | selectattr('pimFabricRPPol', 'defined')
       | map(attribute='pimFabricRPPol')
       | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('pimStaticRPEntryPol', 'defined') | map(attribute='pimStaticRPEntryPol')
       | flatten | default([]) %}
-      {% set fabricrpns.fabric_rps = fabricrpns.fabric_rps + [{
+      {%- set fabricrpns.fabric_rps = fabricrpns.fabric_rps + [{
         'ip': rp.attributes.rpIp,
         'multicast_route_map': [rp]
           | selectattr('children', 'defined') | map(attribute='children')
@@ -196,25 +196,25 @@
           | default('') | regex_replace('^.*rtmap-', '')
       }] %}
     {% endfor %}
-    {% set igmpxlatens = namespace(policies=[]) %}
+    {%- set igmpxlatens = namespace(policies=[]) %}
     {% for pol in vrf.children | selectattr('igmpCtxP', 'defined')
       | map(attribute='igmpCtxP') | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('igmpSSMXlateP', 'defined') | map(attribute='igmpSSMXlateP')
       | list %}
-      {% set igmpxlatens.policies = igmpxlatens.policies + [{
+      {%- set igmpxlatens.policies = igmpxlatens.policies + [{
         'group_prefix': pol.attributes.grpPfx,
         'source_address': pol.attributes.srcAddr,
         'description': pol.attributes.descr | default(''),
       }] %}
     {% endfor %}
-    {% set intervrfpolns = namespace(policies=[]) %}
+    {%- set intervrfpolns = namespace(policies=[]) %}
     {% for pol in pim_children | selectattr('pimInterVRFPol', 'defined')
       | map(attribute='pimInterVRFPol') | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('pimInterVRFEntryPol', 'defined') | map(attribute='pimInterVRFEntryPol')
       | flatten | list | default([]) %}
-    {% set intervrfpolns.policies = intervrfpolns.policies + [{
+    {%- set intervrfpolns.policies = intervrfpolns.policies + [{
       'tenant': pol.attributes.srcVrfDn | regex_replace('^.*tn-(.*?)/ctx-(.*?)$', '\\1'),
       'vrf': pol.attributes.srcVrfDn | regex_replace('^.*tn-(.*?)/ctx-(.*?)$', '\\2'),
       'multicast_route_map': [po]
@@ -224,7 +224,7 @@
         | default('') | regex_replace('^.*rtmap-', '')
     }] %}
     {% endfor %}
-  {% set vrfpimsns.pim = {
+  {%- set vrfpimsns.pim = {
     'mtu': vrf.children | selectattr('pimCtxP', 'defined' )
       | map(attribute='pimCtxP') | map(attribute='attributes.mtu') | first
       | default('') | replace('1500', ''),
@@ -329,11 +329,11 @@
   {% for pol in vrf.children | selectattr('fvCtxRtSummPol', 'defined' )
     | map(attribute='fvCtxRtSummPol') | flatten
     | sort(attribute='attributes.name') %}
-    {% set nodesns = namespace(nodes=[]) %}
+    {%- set nodesns = namespace(nodes=[]) %}
     {% for node in pol.children | selectattr('fvRsNodeRtSummAtt', 'defined')
       | map(attribute='fvRsNodeRtSummAtt') | map(attribute='attributes.tDn')
       | list | sort %}
-      {% set nodesns.nodes = nodesns.nodes + [{
+      {%- set nodesns.nodes = nodesns.nodes + [{
         'id': node | regex_replace('^.*node-(\d{3,})$', '\\1'),
         'pod': node | regex_replace('^.*pod-(\d{1})/.*$', '\\1')
       }] %}
@@ -343,7 +343,7 @@
     {% for subnet in pol.children | selectattr('fvRtSummSubnet', 'defined')
       | map(attribute='fvRtSummSubnet') | list
       | sort(attribute='attributes.prefix') %}
-      {% set subnetsns.subnets = subnetsns.subnets + [{
+      {%- set subnetsns.subnets = subnetsns.subnets + [{
         'prefix': subnet.attributes.prefix,
         'bgp_route_summarization_policy': subnet
           | selectattr('children', 'defined') | map(attribute='children') | flatten
@@ -362,7 +362,7 @@
     }] -%}
   {% endfor %}{#- Rt Summ Policy -#}
 
-  {% set vrfsns.vrfs = vrfsns.vrfs + [{
+  {%- set vrfsns.vrfs = vrfsns.vrfs + [{
     'name': vrf.attributes.name,
     'alias': vrf.attributes.nameAlias | default(''),
     'description': vrf.attributes.descr | default(''),
@@ -392,5 +392,4 @@
     'route_summarization_policies': vrfrtsumpolicysns.rt_sum | default([]),
   }] %}
 {% endfor -%}
-{{ 'vrfs:' | indent(6,true) if vrfsns.vrfs else none }}
-{{ helper.remove_empty(vrfsns.vrfs) | indent(8,true) if vrfsns.vrfs else none }}
+{%- set _=tenantns.tenant_policies.__setitem__('vrfs', vrfsns.vrfs ) %}

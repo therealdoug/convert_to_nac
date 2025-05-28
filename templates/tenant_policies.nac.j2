@@ -1,25 +1,22 @@
 #jinja2: lstrip_blocks: True
-{% set vrfs = this_tenant.children | selectattr('fvCtx', 'defined')
-  | map(attribute='fvCtx') | flatten | list %}
-{% set sec_domains = this_tenant.children | selectattr('aaaDomainRef', 'defined')
-  | map(attribute='aaaDomainRef') | flatten | list %}
+{% import 'macro_handler.j2' as helper %}
+{%- set tenantns = namespace(tenant_policies={}) -%}
+{%- set vrfs = this_tenant.children | selectattr('fvCtx', 'defined')
+  | map(attribute='fvCtx') | flatten | list -%}
+{%- set sec_domains = this_tenant.children | selectattr('aaaDomainRef', 'defined')
+  | map(attribute='aaaDomainRef') | flatten | list -%}
 ---
-apic:
-  tenants:
-    - name: {{ item }}
-    {% if this_tenant.attributes.descr != "" %}
-      description: {{ this_tenant.attributes.descr }}
-    {% endif %}
-    {% if sec_domains | length > 0 %}
-      security_domains:
-      {% for dom in sec_domains | sort(attribute='attributes.name') %}
-        - {{ dom.attributes.name }}
-      {% endfor %}
-    {% endif %}
-{% include "tenant_policies/vrfs.nac.j2" %}
-{% include "tenant_policies/bridge_domains.nac.j2" %}
-{% include "tenant_policies/contracts.nac.j2" %}
-{% include "tenant_policies/filters.nac.j2" %}
-{% include "tenant_policies/application_profiles.nac.j2" %}
-{% include "tenant_policies/l3outs.nac.j2" %}
-{# {% include "tenant_policies/sr_mpls_l3outs.nac.j2" %} #}
+{%- set _=tenantns.tenant_policies.__setitem__('name', this_tenant.attributes.name) -%}
+{%- set _=tenantns.tenant_policies.__setitem__('description', this_tenant.attributes.description | default('')) -%}
+{%- set _=tenantns.tenant_policies.__setitem__('alias', this_tenant.attributes.nameAlias | default('') ) -%}
+{%- set _=tenantns.tenant_policies.__setitem__('security_domains', this_tenant.children | selectattr('aaaDomainRef', 'defined')
+  | map(attribute='aaaDomainRef.attributes.name') | flatten | sort | default('')) -%}
+{%- include "tenant_policies/vrfs.nac.j2" %}
+{%- include "tenant_policies/bridge_domains.nac.j2" %}
+{%- include "tenant_policies/contracts.nac.j2" %}
+{%- include "tenant_policies/filters.nac.j2" %}
+{%- include "tenant_policies/application_profiles.nac.j2" %}
+{%- include "tenant_policies/l3outs.nac.j2" %}
+{%- include "tenant_policies/sr_mpls_l3outs.nac.j2" %}
+
+{{ helper.remove_empty({'apic': {'tenants': [tenantns.tenant_policies]}}) }}

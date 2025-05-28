@@ -1,16 +1,24 @@
-{% set aps = this_tenant.children | selectattr('fvAp', 'defined') | map(attribute='fvAp')
-  | flatten | list
-%}
-    {% if aps | length > 0 %}
-      application_profiles:
-      {% for ap in aps | sort(attribute='attributes.name') %}
-        - name: {{ ap.attributes.name }}
-        {% if ap.attributes.nameAlias != '' %}
-          alias: {{ ap.attributes.nameAlias }}
-        {% endif %}
-        {% if ap.attributes.descr != '' %}
-          description: '{{ ap.attributes.descr }}'
-        {% endif %}
-{% include "tenant_policies/endpoint_groups.nac.j2" %}
-      {% endfor %}
-    {% endif %}
+{%- import 'macro_handler.j2' as helper -%}
+{%- set apns = namespace(application_profiles=[]) -%}
+{%- for ap in this_tenant.children | selectattr('fvAp', 'defined')
+  | map(attribute='fvAp') | flatten | default('') | sort(attribute='attributes.name') %}
+  
+  {%- set epgns = namespace(endpoint_groups=[]) -%}
+  {%- include "tenant_policies/endpoint_groups.nac.j2" -%}
+  
+  {%- set esgns = namespace(endpoint_security_groups=[]) -%}
+  {%- include "tenant_policies/endpoint_security_groups.nac.j2" -%}
+  
+  {%- set uepg = namespace(useg_endpoint_groups=[]) -%}
+  {%- include "tenant_policies/useg_endpoint_groups.nac.j2" -%}
+  
+  {%- set apns.application_profiles = apns.application_profiles + [{
+    'name': ap.attributes.name,
+    'alias': ap.attributes.nameAlias | default(''),
+    'description': ap.attributes.descr | default(''),
+    'endpoint_groups': epgns.endpoint_groups | default(''),
+    'endpoint_security_groups': esgns.endpoint_security_groups | default(''),
+    'useg_endpoint_groups': uepg.useg_endpoint_groups | default(''),
+  }] -%}
+{%- endfor %}
+{%- set _ = tenantns.tenant_policies.__setitem__('application_profiles', apns.application_profiles) -%}
