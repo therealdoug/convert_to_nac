@@ -92,8 +92,10 @@
   {% set nfrecns.netflow_records = nfrecns.netflow_records + [{
     'name': rec.attributes.name,
     'description': rec.attributes.descr | default(''),
-    'match_parameters': rec.attributes.match | split(',') | default(''),
-    'collect_parameters': rec.attributes.collect | split(',') | default(''),
+    'match_parameters': rec.attributes.match | split(',') | default('')
+      if rec.attributes.match != '' else '',
+    'collect_parameters': rec.attributes.collect | split(',') | default('')
+      if rec.attributes.collect != '' else '',,
   }] %}
 {% endfor %}
 {% set _=accintpolns.interface_policies.__setitem__('netflow_records', nfrecns.netflow_records) %}
