@@ -5,7 +5,7 @@
   | default('') %}
   {% set fabaaakrns.key_rings = fabaaakrns.key_rings + [{
     'name': kr.attributes.name,
-    'description': kr.attributes.descr | default(''),
+    'description': kr.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'certificate': '|\n' ~ kr.attributes.cert if kr.attributes.cert else ''
       | default(''),
     'modulus': kr.attributes.modulus | default('') | replace('mod2048', ''),

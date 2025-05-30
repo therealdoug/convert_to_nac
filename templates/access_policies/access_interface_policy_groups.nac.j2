@@ -34,7 +34,7 @@ apic:
   {% set lipolgroupns.leaf_interface_policy_groups =
     lipolgroupns.leaf_interface_policy_groups + [{
       'name': port.attributes.name,
-      'description': port.attributes.descr | default(''),
+      'description': port.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'type': port.attributes.lagT | default('') | replace('node', 'vpc')
         | replace('link', 'pc') | replace('not-aggregated', '')
         if port.attributes.lagT is defined

@@ -3,7 +3,7 @@
   | map(attribute='commPol') | default([]) %}
   {% set fabmgmtaccns.management_access_policies = fabmgmtaccns.management_access_policies + [{
     'name': policy.attributes.name,
-    'description': policy.attributes.descr | default(''),
+    'description': policy.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'alias': policy.attributes.nameAlias | default(''),
     'ssh': {
       'admin_state': 'true' if [policy] | selectattr('children', 'defined') | map(attribute='children')

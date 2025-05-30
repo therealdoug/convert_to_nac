@@ -7,7 +7,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bfdintpol.bfd_interface_policies = bfdintpol.bfd_interface_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'subinterface_optimization': 'true' if 'opt-subif' in pol.attributes.ctrl
       else '' | default(''),
     'detection_multiplier': pol.attributes.detectMult | default('')
@@ -32,7 +32,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bfdmhpol.bfd_multihop_node_policies = bfdmhpol.bfd_multihop_node_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'detection_multiplier': pol.attributes.detectMult | default('')
       | regex_replace('^3$', ''),
     'min_rx_interval': pol.attributes.minRxIntvl | default('')
@@ -52,7 +52,7 @@
   {%- set bgpctxpol.bgp_address_family_context_policies =
     bgpctxpol.bgp_address_family_context_policies + [{
       'name': pol.attributes.name,
-      'description': pol.attributes.descr | default(''),
+      'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'ebgp_distance': pol.attributes.eDist | default('')
         | regex_replace('^20$', ''),
       'ibgp_distance': pol.attributes.iDist | default('')
@@ -78,7 +78,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bgpbestp.bgp_best_path_policies = bgpbestp.bgp_best_path_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'as_path_multipath_relax': 'true' if 'asPathMultipathRelax' in pol.attributes.ctrl
       else '' | default(''),
     'ignore_igp_metric': 'true' if 'ignoreIgpMetric' in pol.attributes.ctrl
@@ -94,7 +94,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bgppfxpol.bgp_peer_prefix_policies = bgppfxpol.bgp_peer_prefix_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'acion': pol.attributes.action | default('') | replace('reject', ''),
     'max_prefixes': pol.attributes.maxPfx | default('')
       | regex_replace('^20000$', ''),
@@ -113,7 +113,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bfdintpol.bgp_route_summarization_policies = bfdintpol.bgp_route_summarization_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'as_set': 'true' if 'as-set' in pol.attributes.ctrl
       else '' | default(''),
     'summary_only': 'true' if 'summary-only' in pol.attributes.ctrl
@@ -133,7 +133,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bpgtimerpol.bgp_timer_policies = bpgtimerpol.bgp_timer_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'keepalive_interval': pol.attributes.kaIntvl | default('')
       | regex_replace('^60$', ''),
     'hold_interval': pol.attributes.holdIntvl | default('')
@@ -160,14 +160,14 @@
     | default('') | sort(attribute='attributes.name') %}
     {%- set optsns.options = optsns.options + [{
       'name': opt.attributes.name,
-      'description': opt.attributes.descr | default(''),
+      'description': opt.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'id': opt.attributes.id | default(''),
       'data': opt.attributes.data | default(''),
     }] %}
   {% endfor %}
   {%- set dhcpoptpol.dhcp_option_policies = dhcpoptpol.dhcp_option_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'options': optsns.options,
   }] %}
 {% endfor %}
@@ -204,7 +204,7 @@
   {% endfor %}
   {%- set dhcprelpol.dhcp_relay_policies = dhcprelpol.dhcp_relay_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'providers': provns.providers,
   }] %}
 {% endfor %}
@@ -217,7 +217,7 @@
   | sort(attribute='attributes.name') %}
   {%- set eirgpintpol.eigrp_interface_policies = eirgpintpol.eigrp_interface_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'passive_interface': 'true' if 'passive' in pol.attributes.ctrl
       else '' | default(''),
     'split_horizon': 'false' if 'split-horizon' in pol.attributes.ctrl
@@ -299,7 +299,7 @@
   | sort(attribute='attributes.name') %}
   {%- set epretpol.endpoint_retention_policies = epretpol.endpoint_retention_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'hold_interval': pol.attributes.holdIntvl | default('')
       | regex_replace('^300$', ''),
     'bounce_entry_aging_interval': pol.attributes.bounceAgeIntvl | default('')
@@ -321,7 +321,7 @@
   | sort(attribute='attributes.name') %}
   {%- set igmpifpol.igmp_interface_policies = igmpifpol.igmp_interface_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'grp_timeout': pol.attributes.grpTimeout | default('')
       | regex_replace('^260$', ''),
     'allow_v3_asm': 'true' if 'allow-v3-asm' in pol.attributes.ifCtrl
@@ -390,7 +390,7 @@
   | sort(attribute='attributes.name') %}
   {%- set snooppol.igmp_snooping_policies = snooppol.igmp_snooping_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'admin_state': 'false' if pol.attributes.adminSt == 'disabled'
       else '' | default(''),
     'last_member_query_interval': pol.attributes.lastMbrIntvl | default('')
@@ -418,7 +418,7 @@
   | sort(attribute='attributes.name') %}
   {%- set ipslapol.ip_sla_policies = ipslapol.ip_sla_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'frequency': pol.attributes.slaFrequency | default('')
       | regex_replace('^60$', ''),
     'multiplier': pol.attributes.slaDetectMultiplier | default('')
@@ -446,7 +446,7 @@
 
     {%- set regexcommlist.regex_community_terms = regexcommlist.regex_community_terms + [{
       'name': comm.attributes.name,
-      'description': comm.attributes.descr | default(''),
+      'description': comm.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'regex': comm.attributes.regex | default(''),
       'type': comm.attributes.commType | default('')
         | replace('regular', ''),
@@ -468,7 +468,7 @@
       | sort(attribute='attributes.community')%}
       {%- set factorns.factors = factorns.factors + [{
         'community': factor.attributes.community | default(''),
-        'description': factor.attributes.descr | default(''),
+        'description': factor.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
         'scope': factor.attributes.scope | default('')
           | regex_replace('^transitive$', ''),
       }] -%}
@@ -476,7 +476,7 @@
 
     {%- set commlist.community_terms = commlist.community_terms + [{
       'name': comm.attributes.name,
-      'description': comm.attributes.descr | default(''),
+      'description': comm.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'factors': factorns.factors | default(''),
     }] -%}
   {% endfor %}
@@ -489,7 +489,7 @@
     | sort(attribute='attributes.ip') | default('') %}
     {%- set pfxpol.prefixes = pfxpol.prefixes + [{
       'ip': pfx.attributes.ip,
-      'description': pfx.attributes.descr | default(''),
+      'description': pfx.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'aggregate': 'true' if pfx.attributes.aggregate == 'yes'
         else '' | default(''),
       'from_length': pfx.attributes.fromPfxLen | default('')
@@ -500,7 +500,7 @@
   {% endfor %}
   {%- set matchpol.match_rules = matchpol.match_rules + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'regex_community_terms': regexcommlist.regex_community_terms | default(''),
     'community_terms': commlist.community_terms | default(''),
     'prefixes': pfxpol.prefixes | default(''),
@@ -550,7 +550,7 @@
 
   {%- set mplsqospol.mpls_custom_qos_policies = mplsqospol.mpls_custom_qos_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'alias': pol.attributes.nameAlias | default(''),
     'ingress_rules': qosing.ingress_rules | default(''),
     'egress_rules': qosegr.egress_rules | default(''),
@@ -582,7 +582,7 @@
   {% endfor %}
   {%- set mcastrtmap.multicast_route_maps = mcastrtmap.multicast_route_maps + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'entries': entry.entries | default(''),
   }] %}
 {% endfor %}
@@ -596,7 +596,7 @@
 
   {%- set ndintpol.nd_interface_policies = ndintpol.nd_interface_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'hop_limit': pol.attributes.hopLimit | default('')
       | regex_replace('^64$', ''),
     'ns_tx_interval': pol.attributes.nsIntvl | default('')
@@ -632,7 +632,7 @@
   | sort(attribute='attributes.name') %}
   {%- set ndrapfxpol.nd_ra_prefix_policies = ndrapfxpol.nd_ra_prefix_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'valid_lifetime': pol.attributes.lifetime | default('')
       | regex_replace('^2592000$', ''),
     'preferred_lifetime': pol.attributes.prefLifetime | default('')
@@ -654,7 +654,7 @@
   | sort(attribute='attributes.name') %}
   {%- set ospfintpol.ospf_interface_policies = ospfintpol.ospf_interface_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'cost': pol.attributes.cost | default('')
       | regex_replace('^unspecified$', ''),
     'passive_interface': 'true' if 'passive' in pol.attributes.ctrl
@@ -688,7 +688,7 @@
   | sort(attribute='attributes.name') %}
   {%- set ospftmrpol.ospf_timer_policies = ospftmrpol.ospf_timer_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'reference_bandwidth': pol.attributes.bwRef | default('')
       | regex_replace('^40000$', ''),
     'distance': pol.attributes.dist | default('')
@@ -824,7 +824,7 @@
 
   {%- set qospol.qos = qospol.qos + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'alias': pol.attributes.nameAlias | default(''),
     'dscp_priority_maps': dscpmaps.dscp_priority_maps | default(''),
     'dot1p_classifiers': dot1pns.dot1p_classifiers | default(''),
@@ -845,7 +845,7 @@
     | default('') | sort(attribute='attributes.order,attributes.name') %}
     {%- set rtmapctxns.contexts = rtmapctxns.contexts + [{
       'name': ctx.attributes.name,
-      'description': ctx.attributes.descr | default(''),
+      'description': ctx.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'action': ctx.attributes.action | default('') | replace('permit', ''),
       'order': ctx.attributes.order | default('') | replace('permit', ''),
       'set_rule': [ctx] | selectattr('children', 'defined')
@@ -865,7 +865,7 @@
 
   {%- set rtctrlmap.route_control_route_maps = rtctrlmap.route_control_route_maps + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'type': pol.attributes.type | default('')
       | regex_replace('^combinable$', ''),
     'contexts': rtmapctxns.contexts | default(''),
@@ -880,7 +880,7 @@
   | sort(attribute='attributes.name') %}
   {%- set rttagns.route_tag_policies = rttagns.route_tag_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'tag': pol.attributes.tag | default('')
       | regex_replace('^4294967295$', ''),
   }] %}
@@ -901,7 +901,7 @@
       | default('') | sort(attribute='attributes.community') %}
       {%- set addlcomns.additional_communities = addlcomns.additional_communities + [{
         'community': comm.attributes.community | default(''),
-        'description': comm.attributes.descr | default(''),
+        'description': comm.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       }] %}
   {% endfor %}
 
@@ -933,7 +933,7 @@
 
   {%- set setrmns.set_rules = setrmns.set_rules + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'community_mode': [pol] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('rtctrlSetComm', 'defined')
@@ -1052,7 +1052,7 @@
   | sort(attribute='attributes.name') %}
   {%- set tnspandst.destination_groups = tnspandst.destination_groups + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'ip': [pol] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
@@ -1150,7 +1150,7 @@
     | default('') | sort(attribute='attributes.name') %}
     {%- set spansrc.sources = spansrc.sources + [{
       'name': src.attributes.name,
-      'description': src.attributes.descr | default(''),
+      'description': src.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'direction': src.attributes.dir | default('')
         | regex_replace('^both$', ''),
       'application_profile': [src] | selectattr('children', 'defined')
@@ -1169,7 +1169,7 @@
   {% endfor %}
   {%- set tnspansrc.source_groups = tnspansrc.source_groups + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'admin_state': 'true' if pol.attributes.adminSt | default('') == 'enabled'
       else '',
     'destination': [pol] | selectattr('children', 'defined')
@@ -1203,7 +1203,7 @@
   {% endfor %}
   {%- set trackns.track_lists = trackns.track_lists + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'type': pol.attributes.type | default('')
       | regex_replace('^percentage$', ''),
     'percentage_up': pol.attributes.percentageUp | default('')
@@ -1226,7 +1226,7 @@
   | sort(attribute='attributes.name') %}
   {%- set trackmemns.track_members = trackmemns.track_members + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'destination_ip': pol.attributes.dstIpAddr | default(''),
     'scope_type': 'l3out' if '/out-' in pol.attributes.scopeDn | default('')
       else 'bd',
@@ -1249,7 +1249,7 @@
   | sort(attribute='attributes.name') %}
   {%- set trustctrlns.trust_control_policies = trustctrlns.trust_control_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'dhcp_v4_server': 'true' if pol.attributes.hasDhcpv4Server | default('') == 'yes'
       else '' | default(''),
     'dhcp_v6_server': 'true' if pol.attributes.hasDhcpv6Server | default('') == 'yes'

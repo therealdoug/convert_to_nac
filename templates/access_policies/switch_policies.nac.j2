@@ -21,7 +21,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bfd4ns.bfd_ipv4_policies = bfd4ns.bfd_ipv4_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'detection_multiplier': pol.attributes.detectMult | default('')
       | regex_replace('^3$', ''),
     'min_transmit_interval': pol.attributes.minTxIntvl | default('')
@@ -46,7 +46,7 @@
   | sort(attribute='attributes.name') %}
   {%- set bfd6ns.bfd_ipv6_policies = bfd6ns.bfd_ipv6_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'detection_multiplier': pol.attributes.detectMult | default('')
       | regex_replace('^3$', ''),
     'min_transmit_interval': pol.attributes.minTxIntvl | default('')

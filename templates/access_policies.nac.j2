@@ -84,7 +84,7 @@
     'level': class.attributes.prio | replace('level', ''),
     'admin_state': 'false' if class.attributes.admin == 'disabled'
       else '' | default(''),
-    'description': class.attributes.descr | default(''),
+    'description': class.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'mtu': class.attributes.mtu | default('')
       | replace('9216', ''),
     'scheduling': [class] | selectattr('children', 'defined')
@@ -174,12 +174,12 @@
       'allocation': range.attributes.allocMode | default('')
         | replace('inherit', ''),
       'role': range.attributes.role | default('') | replace('external', ''),
-      'description': range.attributes.descr | default(''),
+      'description': range.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     }] %}
   {% endfor %}
   {%- set vlpoolns.vlan_pools = vlpoolns.vlan_pools + [{
     'name': pool.attributes.name,
-    'description': pool.attributes.descr | default(''),
+    'description': pool.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'allocation': pool.attributes.allocMode | default('')
       | replace('static', ''),
     'ranges': rangens.ranges | default(''),
@@ -216,7 +216,7 @@
   {% endfor %}
   {%- set dhcpns.dhcp_relay_policies = dhcpns.dhcp_relay_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'providers': provns.providers | default(''),
   }] %}
 {% endfor %}

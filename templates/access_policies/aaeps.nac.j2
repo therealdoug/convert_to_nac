@@ -64,7 +64,7 @@
   {% endfor %}
   {%- set aaepns.aaeps = aaepns.aaeps + [{
     'name': aaep.attributes.name,
-    'description': aaep.attributes.descr | default(''),
+    'description': aaep.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'infra_vlan': 'true' if [aaep] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('infraProvAcc', 'defined') else '' | default(''),

@@ -6,7 +6,7 @@
   | default('') %}
   {%- set spandestns.destination_groups = spandestns.destination_groups + [{
     'name': grp.attributes.name,
-    'description': grp.attributes.descr | default(''),
+    'description': grp.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'pod_id': [grp] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
@@ -165,7 +165,7 @@
     | map(attribute='spanFilterEntry') | default('') %}
     {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name | default(''),
-      'description': entry.attributes.descr | default(''),
+      'description': entry.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'source_ip': entry.attributes.srcAddr,
       'source_from_port': entry.attributes.srcPortFrom | default('')
         | replace('unspecified', ''),
@@ -180,7 +180,7 @@
   {% endfor %}
   {%- set spanfltns.filter_groups = spanfltns.filter_groups + [{
     'name': fltr.attributes.name,
-    'description': fltr.attributes.descr | default(''),
+    'description': fltr.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'entries': entryns.entries | default(''),
   }] %}
 {% endfor %}
@@ -239,7 +239,7 @@
 
     {%- set srcns.sources = srcns.sources + [{
       'name': src.attributes.name,
-      'description': src.attributes.descr | default(''),
+      'description': src.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
       'direction': src.attributes.dir | default('') | replace('both', ''),
       'span_drop': 'true' if src.attributes.spanOnDrop == 'yes' else ''
         | default(''),
@@ -282,7 +282,7 @@
 
   {%- set spansrcns.source_groups = spansrcns.source_groups + [{
     'name': grp.attributes.name,
-    'description': grp.attributes.descr | default(''),
+    'description': grp.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'admin_state': 'false' if grp.attributes.adminSt == 'disabled' else ''
       | default(''),
     'filter_group': [grp] | selectattr('children', 'defined')

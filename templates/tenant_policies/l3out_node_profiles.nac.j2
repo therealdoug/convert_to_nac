@@ -346,7 +346,7 @@
   {% set npns.np = npns.np + [{
     'name': np.attributes.name,
     'alias': np.attributes.nameAlias | default(''),
-    'description': np.attributes.descr | default(''),
+    'description': np.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'bgp': bgpns.bgp | default(''),
     'bgp_peers': peersns.peers | default([]),
     'nodes': nodens.nodes | default([]),
