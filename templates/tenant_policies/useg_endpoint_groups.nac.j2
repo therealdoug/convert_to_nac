@@ -225,8 +225,8 @@
     {%- set ipstmtns.ip_statements = ipstmtns.ip_statements + [{
       'name': stmnt.attributes.name | default(''),
       'use_epg_subnet': 'false' if stmnt.attributes.usefvSubnet == 'no'
-        else '' | default(''),
-      'ip': stmnt.attributes.ip | default('') | replace('0.0.0.0', ''),
+        else 'true' | default(''),
+      'ip': stmnt.attributes.ip if stmnt.attributes.usefvSubnet == 'no' else '',
     }] %}
   {% endfor %}
   {%- set macstmtns = namespace(mac_statements=[]) %}
