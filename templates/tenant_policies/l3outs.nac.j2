@@ -460,7 +460,11 @@
             | first | default('') else '',
           'description': intf.attributes.descr,
           'vlan': intf.attributes.encap
-            | regex_replace('^vlan-(\d+)$', '\\1') | default(''),
+            | regex_replace('^vlan-(\d+)$', '\\1') 
+              if (
+                intf.attributes.ifInstT == 'ext-svi' or
+                intf.attributes.ifInstT == 'sub-interface'
+              ) else '' | default(''),
           'autostate': 'true' if intf.attributes.autostate == 'enabled' else '' | default(''),
           'mac': intf.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
           'mode': intf.attributes.mode | replace('regular', ''),
