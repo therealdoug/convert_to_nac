@@ -1,10 +1,10 @@
-{% set spanns = namespace(span={}) %}
+{%- set spanns = namespace(span={}) %}
 
 {%- set spandestns = namespace(destination_groups=[]) -%}
 {% for grp in infra_children | selectattr('spanDestGrp', 'defined')
   | map(attribute='spanDestGrp')
   | default('') %}
-  {% set spandestns.destination_groups = spandestns.destination_groups + [{
+  {%- set spandestns.destination_groups = spandestns.destination_groups + [{
     'name': grp.attributes.name,
     'description': grp.attributes.descr | default(''),
     'pod_id': [grp] | selectattr('children', 'defined')
@@ -158,12 +158,12 @@
 {%- set spanfltns = namespace(filter_groups=[]) -%}
 {% for fltr in infra_children | selectattr('spanFilterGrp', 'defined')
   | map(attribute='spanFilterGrp') | sort(attribute='attributes.name') %}
-  {% set entryns = namespace(entries=[]) %}
+  {%- set entryns = namespace(entries=[]) %}
   {% for entry in [fltr] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('spanFilterEntry', 'defined')
     | map(attribute='spanFilterEntry') | default('') %}
-    {% set entryns.entries = entryns.entries + [{
+    {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name | default(''),
       'description': entry.attributes.descr | default(''),
       'source_ip': entry.attributes.srcAddr,
@@ -178,7 +178,7 @@
         | replace('unspecified', ''),
     }] %}
   {% endfor %}
-  {% set spanfltns.filter_groups = spanfltns.filter_groups + [{
+  {%- set spanfltns.filter_groups = spanfltns.filter_groups + [{
     'name': fltr.attributes.name,
     'description': fltr.attributes.descr | default(''),
     'entries': entryns.entries | default(''),
@@ -190,19 +190,19 @@
 {% for grp in infra_children | selectattr('spanSrcGrp', 'defined')
   | map(attribute='spanSrcGrp') | sort(attribute='attributes.name') %}
 
-  {% set srcns = namespace(sources=[]) %}
+  {%- set srcns = namespace(sources=[]) %}
   {% for src in [grp] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('spanSrc', 'defined')
     | map(attribute='spanSrc') | sort(attribute='attributes.name') %}
 
-    {% set pathsns = namespace(paths=[]) %}
+    {%- set pathsns = namespace(paths=[]) %}
     {% for path in [src] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('spanRsSrcToPathEp', 'defined')
       | map(attribute='spanRsSrcToPathEp')
       | sort(attribute='attributes.tDn') %}
-      {% set pathsns.paths = pathsns.paths + [{
+      {%- set pathsns.paths = pathsns.paths + [{
         'pod_id': path.attributes.tDn | default('')
           | regex_replace(
           '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
@@ -237,7 +237,7 @@
       }] %}
     {% endfor %}
 
-    {% set srcns.sources = srcns.sources + [{
+    {%- set srcns.sources = srcns.sources + [{
       'name': src.attributes.name,
       'description': src.attributes.descr | default(''),
       'direction': src.attributes.dir | default('') | replace('both', ''),
@@ -280,7 +280,7 @@
     }] %}
   {% endfor %}
 
-  {% set spansrcns.source_groups = spansrcns.source_groups + [{
+  {%- set spansrcns.source_groups = spansrcns.source_groups + [{
     'name': grp.attributes.name,
     'description': grp.attributes.descr | default(''),
     'admin_state': 'false' if grp.attributes.adminSt == 'disabled' else ''
