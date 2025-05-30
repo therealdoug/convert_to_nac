@@ -190,7 +190,7 @@ apic:
     | map(attribute='children') | flatten
     | selectattr('infraPortTrackPol', 'defined')
     | map(attribute='infraPortTrackPol.attributes.includeApicPorts')
-    | first == 'enabled' else '' | default(''),
+    | first | default('') == 'enabled' else '',
 }) %}
 {#- END Fabric Scheduler -#}
 {% set _=fabpolns.fabric_policies.__setitem__('system_performance', {
