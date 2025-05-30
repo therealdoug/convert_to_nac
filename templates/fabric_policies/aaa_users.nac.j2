@@ -45,7 +45,7 @@
   {% set aaausersns.users = aaausersns.users + [{
     'username': user.attributes.name,
     'password': user.attributes.pwd | default('!!!PLEASE_UPDATE_MANUALLY!!!'),
-    'description': user.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': user.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'first_name': user.attributes.firstName | default(''),
     'last_name': user.attributes.lastName | default(''),
     'phone': user.attributes.phone | default(''),

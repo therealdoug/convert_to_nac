@@ -96,7 +96,7 @@
       {%- set eepgsubnetns.subnets = eepgsubnetns.subnets + [{
         'prefix': subnet.attributes.ip,
         'name': subnet.attributes.name | default(''),
-        'description': subnet.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+        'description': subnet.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'alias': subnet.attributes.alias | default(''),
         'import_security': 'false' if 'import-security' not
             in subnet.attributes.scope else '',
@@ -155,7 +155,7 @@
       | list | default('')) %}
     {%- set eepgns.eepgs = eepgns.eepgs + [{
       'name': eepg.attributes.name,
-      'description': eepg.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': eepg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'alias': eepg.attributes.alias | default(''),
       'preferred_group': 'true' if eepg.attributes.prefGrMemb == 'include'
         else '' | default(''),
@@ -387,7 +387,7 @@
           {%- set interfacepeers.peers = interfacepeers.peers + [{
             'ip': peer.attributes.addr | regex_replace('::$', '::0'),
             'alias': peer.attributes.nameAlias | default(''),
-            'description': peer.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+            'description': peer.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
             'remote_as': [peer] | selectattr('children', 'defined')
               | map(attribute='children') | flatten
               | selectattr('bgpAsP', 'defined')
@@ -644,7 +644,7 @@
     {%- set npns.np = npns.np + [{
       'name': np.attributes.name,
       'alias': np.attributes.nameAlias | default(''),
-      'description': np.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': np.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'bgp': bgpns.bgp | default(''),
       'bgp_peers': peersns.peers | default([]),
       'nodes': nodens.nodes | default([]),
@@ -664,7 +664,7 @@
       | flatten | selectattr('l3extRsL3DomAtt', 'defined')
       | map(attribute='l3extRsL3DomAtt.attributes.tDn')
       | flatten | first | default('') | replace('uni/l3dom-', ''),
-    'description': l3o.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': l3o.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'alias': l3o.attributes.alias | default(''),
     'import_route_control_enforcement': 'true' if 'import' in l3o.attributes.enforceRtctrl else ''
       | default(''),

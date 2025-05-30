@@ -13,7 +13,7 @@
     {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name,
       'alias': entry.attributes.nameAlias | default(''),
-      'description': entry.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': entry.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'ethertype': entry.attributes.etherT | default('') | replace('ip', ''),
       'protocol': entry.attributes.prot | default('') | replace('tcp', ''),
       'source_from_port': entry.attributes.sFromPort | default('')
@@ -32,7 +32,7 @@
   {%- set filterns.filters = filterns.filters + [{
     'name': fltr.attributes.name,
     'alias': fltr.attributes.nameAlias | default(''),
-    'description': fltr.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': fltr.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'entries': entryns.entries | default([]),
   }] %}
 {%- endfor -%}

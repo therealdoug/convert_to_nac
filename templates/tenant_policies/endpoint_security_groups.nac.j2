@@ -46,7 +46,7 @@
     {%- set tagselns.tag_selectors = tagselns.tag_selectors + [{
       'key': tag.attributes.matchKey,
       'value': tag.attributes.matchValue,
-      'description': tag.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': tag.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'operator': tag.attributes.valueOperator | default('')
         | replace('equals', ''),
     }] %}
@@ -58,7 +58,7 @@
     | selectattr('fvEPgSelector', 'defined')
     | map(attribute='fvEPgSelector') | default('') %}
     {%- set epgselns.epg_selectors = epgselns.epg_selectors + [{
-      'description': epg.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': epg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'application_profile': epg.attributes.matchEpgDn
         | regex_replace('^uni\/tn-(.*?)\/ap-(.*?)\/epg-(.*?)$', '\\2')
         if ap.attributes.name not in epg.attributes.matchEpgDn else ''
@@ -75,13 +75,13 @@
     | map(attribute='fvRsIpSubnet') | default('') %}
     {%- set ipselns.ip_subnet_selectors = ipselns.ip_subnet_selectors + [{
       'value': ip.attributes.matchExpression,
-      'description': ip.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': ip.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     }] %}
   {%- endfor %}
 
   {%- set esgns.endpoint_security_groups = esgns.endpoint_security_groups + [{
     'name': esg.attributes.name,
-    'description': esg.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': esg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'vrf': [esg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('fvRsScope', 'defined')

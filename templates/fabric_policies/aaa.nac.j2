@@ -5,7 +5,7 @@
   | flatten | sort(attribute='attributes.name') | default([]) %}
   {% set fabaasec.security_domains = fabaasec.security_domains + [{
     'name': domain.attributes.name,
-    'description': domain.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': domain.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'restricted_rbac_domain': 'true' if 'yes' in domain.attributes.restrictedRbacDomain
       | default('') else '',
   }] %}

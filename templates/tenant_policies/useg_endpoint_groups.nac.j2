@@ -76,7 +76,7 @@
       | default('') %}
       {%- set poolns.pools = poolns.pools + [{
         'name': pool.attributes.name,
-        'description': pool.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+        'description': pool.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'start_ip': pool.attributes.startIp | default('')
           | replace('0.0.0.0', ''),
         'end_ip': pool.attributes.endIp | default('')
@@ -91,7 +91,7 @@
     {%- set subnetns.subnets = subnetns.subnets + [{
       'ip': sub.attributes.ip | default(''),
       'alias': sub.attributes.nameAlias | default(''),
-      'description': sub.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': sub.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'public': 'true' if 'public' in sub.attributes.scope else ''
         | default(''),
       'shared': 'true' if 'shared' in sub.attributes.scope else ''
@@ -144,7 +144,7 @@
     | list | default('') | sort(attribute='attributes.name') %}
     {%- set addrpoolns.l4l7_address_pools = addrpoolns.l4l7_address_pools + [{
       'name': vip.attributes.name,
-      'description': vip.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': vip.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'gateway_address': vip.attributes.addr,
       'from': [vip] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
@@ -245,7 +245,7 @@
   {%- set uepg.useg_endpoint_groups = uepg.useg_endpoint_groups + [{
     'name': epg.attributes.name,
     'alias': epg.attributes.nameAlias | default(''),
-    'description': epg.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': epg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'bridge_domain': [epg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | flatten | selectattr('fvRsBd', 'defined')

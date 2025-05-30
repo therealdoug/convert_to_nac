@@ -98,7 +98,7 @@
       [{
         'name': subject.attributes.name,
         'alias': subject.attributes.nameAlias | default(''),
-        'description': subject.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+        'description': subject.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'service_graph': '',
         'qos_class': subject.attributes.prio | default('')
           | replace('unspecified', ''),
@@ -115,7 +115,7 @@
     [{
     'name': con.attributes.name,
     'alias': con.attributes.nameAlias | default(''),
-    'description': con.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': con.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'scope': con.attributes.scope | default('') | replace('context', ''),
     'qos_class': con.attributes.prio | default('') | replace('unspecified', ''),
     'target_dscp': con.attributes.targetDscp | default('') | replace('unspecified', ''),

@@ -64,7 +64,7 @@
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
     'mode': pol.attributes.mode,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'min_links': pol.attributes.minLinks | default('')
       | regex_replace('^1$', ''),
     'max_links': pol.attributes.maxLinks | default('')
@@ -96,7 +96,7 @@
   | map(attribute='macsecParamPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'cipher_suite': pol.attributes.cipherSuite | default('')
       | replace('gcm-aes-xpn-256', ''),
     'confidentiality_offset': pol.attributes.confOffset | default('')
@@ -129,7 +129,7 @@
     | sort(attribute='attributes.name') | default('') %}
     {%- set kpns.key_policies = kpns.key_policies +[{
       'name': kp.attributes.name | default(''),
-      'description': kp.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': kp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'key_name': kp.attributes.keyName | default(''),
       'pre_shared_key': kp.attributes.preSharedKey
         | default('!!--ENCRYPTED. PLEASE UPDATE MANUALLY--!!'),
@@ -137,7 +137,7 @@
   {% endfor %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'key_policies': kpns.key_policies | default(''),
   }] %}
 {% endfor %}
@@ -149,7 +149,7 @@
   | map(attribute='macsecIfPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'admin_state': 'false' if pol.attributes.adminSt == 'disabled' else ''
       | default(''),
     'macsec_parameters_policy': [pol] | selectattr('children', 'defined')
@@ -174,7 +174,7 @@
   | map(attribute='lacpIfPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'rate': pol.attributes.txRate | default('')
       | replace('normal', ''),
     'priority': pol.attributes.prio | default('')
@@ -201,7 +201,7 @@
   | map(attribute='stpIfPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'bpdu_guard': 'true' if 'bpdu-guard' in pol.attributes.ctrl else ''
       | default(''),
     'bpdu_filter': 'true' if 'bpdu-filter' in pol.attributes.ctrl else ''
@@ -216,7 +216,7 @@
   | map(attribute='stormctrlIfPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'alias': pol.attributes.nameAlias | default(''),
     'broadcast_burst_pps': pol.attributes.bcBurstPps | default('')
       | replace('unspecified', ''),

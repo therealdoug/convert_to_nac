@@ -8,7 +8,7 @@
     | map(attribute='fvSubnet') %}
     {%- set subnetns.subnets = subnetns.subnets + [{
       'ip': subnet.attributes.ip,
-      'description': subnet.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': subnet.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'alias': subnet.attributes.nameAlias | default(''),
       'primary_ip': 'true' if 'yes' in subnet.attributes.preferred
         | default('') else '',
@@ -56,7 +56,7 @@
   {% endfor -%}
   {%- set bdns.bridge_domains = bdns.bridge_domains + [{
     'name': bd.attributes.name,
-    'description': bd.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': bd.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'alias': bd.attributes.nameAlias | default(''),
     'vrf': bd.children | selectattr('fvRsCtx', 'defined')
       | map(attribute='fvRsCtx.attributes.tnFvCtxName')

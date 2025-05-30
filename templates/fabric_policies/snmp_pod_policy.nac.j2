@@ -7,7 +7,7 @@
     | selectattr('snmpUserP', 'defined') | map(attribute='snmpUserP') %}
     {% set userns.users = userns.users + [{
       'name': user.attributes.name,
-      'description': user.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': user.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'privacy_type': user.attributes.privType | default('')
         | replace('aes-128', ''),
       'privacy_key': user.attributes.privKey | default(''),
@@ -42,7 +42,7 @@
     {% endfor %}
     {% set clientsns.clients = clientsns.clients + [{
       'name': client.attributes.name,
-      'description': client.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+      'description': client.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'mgmt_epg': 'inb' if '/inb-' in [client] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | selectattr('snmpRsEpg', 'defined')
         | map(attribute='snmpRsEpg.attributes.tDn') else 'oob',

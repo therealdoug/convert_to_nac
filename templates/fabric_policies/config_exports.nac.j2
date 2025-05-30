@@ -6,7 +6,7 @@
   | sort(attribute='attributes.name') %}
   {% set fabconfigs.config_exports = fabconfigs.config_exports + [{
     'name': export.attributes.name,
-    'description': export.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': export.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'format': export.attributes.format | default('') | replace('json',''),
     'snapshot': export.attributes.snapshot | default('') | replace('no','')
       | replace('yes', 'true'),

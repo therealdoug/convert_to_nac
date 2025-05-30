@@ -15,7 +15,7 @@
   {%- set apns.application_profiles = apns.application_profiles + [{
     'name': ap.attributes.name,
     'alias': ap.attributes.nameAlias | default(''),
-    'description': ap.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
+    'description': ap.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'endpoint_groups': epgns.endpoint_groups | default(''),
     'endpoint_security_groups': esgns.endpoint_security_groups | default(''),
     'useg_endpoint_groups': uepg.useg_endpoint_groups | default(''),
