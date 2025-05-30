@@ -1,4 +1,3 @@
-{%- import 'macro_handler.j2' as helper -%}
 {% set contracts = this_tenant.children | selectattr('vzBrCP', 'defined')
   | map(attribute='vzBrCP') | default([]) | flatten %}
 {% set imp_contracts = this_tenant.children | selectattr('vzCPIf', 'defined')
@@ -122,4 +121,4 @@
     'subjects': subjectns.subjects | default([]),
     }] %}
 {% endfor -%}
-{% set _=tenantns.tenant_policies.__setitem__('contracts', contractns.contracts ) %}
+{%- set _=tenantns.tenant_policies.__setitem__('contracts', contractns.contracts ) -%}
