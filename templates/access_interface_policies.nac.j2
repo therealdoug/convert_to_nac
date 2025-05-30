@@ -5,7 +5,7 @@
   | map(attribute='cdpIfPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'admin_state': 'true' if pol.attributes.adminSt == 'enabled' else ''
+    'admin_state': 'true' if pol.attributes.adminSt == 'enabled' else 'false'
       | default(''),
   }] %}
 {% endfor %}
@@ -17,9 +17,9 @@
   | map(attribute='lldpIfPol') | list | sort(attribute='attributes.name') %}
   {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'admin_rx_state': 'true' if pol.attributes.adminRxSt == 'enabled' else ''
+    'admin_rx_state': 'true' if pol.attributes.adminRxSt == 'enabled' else 'false'
       | default(''),
-    'admin_tx_state': 'true' if pol.attributes.adminTxSt == 'enabled' else ''
+    'admin_tx_state': 'true' if pol.attributes.adminTxSt == 'enabled' else 'false'
       | default(''),
   }] %}
 {% endfor %}
