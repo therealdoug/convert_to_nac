@@ -371,7 +371,7 @@
     'enforcement_direction': vrf.attributes.pcEnfDir | default('')
       | replace('ingress',''),
     'enforcement_preference': vrf.attributes.pcEnfPref | default('')
-      | replace('enforced',''),
+      | regex_replace('^enforced$',''),
     'preferred_group': 'true' if vrf.children | selectattr('vzAny', 'defined')
       | map(attribute='vzAny') | selectattr('attributes', 'defined')
       | map(attribute='attributes') | map(attribute='prefGrMemb')
