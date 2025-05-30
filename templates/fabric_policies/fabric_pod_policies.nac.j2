@@ -40,7 +40,7 @@
   {% endfor %}
   {%- set dtpolns.date_time_policies = dtpolns.date_time_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'ntp_admin_state': 'false' if 'disabled' in pol.attributes.adminSt else ''
       | default(''),
     'ntp_auth_state': 'true' if 'enabled' in pol.attributes.authSt else ''

@@ -6,7 +6,7 @@
   {% set fabremotens.remote_locations = fabremotens.remote_locations + [{
     'name': remote.attributes.name,
     'hostname_ip': remote.attributes.host,
-    'description': remote.attributes.descr | default(''),
+    'description': remote.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'auth_type': remote.attributes.authType | default('')
       | replace('usePassword','')
       | replace('useSshKeyContents','ssh_keys'),

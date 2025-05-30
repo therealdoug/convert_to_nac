@@ -1,13 +1,13 @@
 #jinja2: lstrip_blocks: True
 ---
-{%- import 'macro_handler.j2' as helper -%}
-{% set accpolns = namespace(access_policies={}) %}
-{% set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
+{% import 'macro_handler.j2' as helper %}
+{%- set accpolns = namespace(access_policies={}) %}
+{%- set infra_children = polUni | selectattr('infraInfra', 'defined') | map(attribute='infraInfra') | selectattr('children', 'defined') | map(attribute='children') | flatten | list %}
 
 {%- set pdomns = namespace(physical_domains=[]) -%}
 {%- for dom in polUni | selectattr('physDomP', 'defined')
   | map(attribute='physDomP') | flatten | sort(attribute='attributes.name') %}
-  {% set pdomns.physical_domains = pdomns.physical_domains + [{
+  {%- set pdomns.physical_domains = pdomns.physical_domains + [{
     'name': dom.attributes.name,
     'vlan_pool': [dom] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
@@ -26,7 +26,7 @@
 {%- set rdomns = namespace(routed_domains=[]) -%}
 {%- for dom in polUni | selectattr('l3extDomP', 'defined')
   | map(attribute='l3extDomP') | flatten | sort(attribute='attributes.name') %}
-  {% set rdomns.routed_domains = rdomns.routed_domains + [{
+  {%- set rdomns.routed_domains = rdomns.routed_domains + [{
     'name': dom.attributes.name,
     'vlan_pool': [dom] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
@@ -46,7 +46,7 @@
 {%- for ptp in infra_children | selectattr('ptpProfile', 'defined')
   | map(attribute='ptpProfile') | list
   | sort(attribute='attributes.name') | default([]) %}
-  {% set ptpns.ptp_profiles = ptpns.ptp_profiles + [{
+  {%- set ptpns.ptp_profiles = ptpns.ptp_profiles + [{
     'name': ptp.attributes.name,
     'announce_interval': ptp.attributes.announceIntvl | default('')
       | regex_replace('^1$', ''),
@@ -69,22 +69,22 @@
 {%- set _= accpolns.access_policies.__setitem__('ptp_profiles',
   ptpns.ptp_profiles) -%}
 
-{% set qosns = namespace(qos={}) %}
-{% set _= qosns.qos.__setitem__('preserve_cos',
+{%- set qosns = namespace(qos={}) %}
+{%- set _= qosns.qos.__setitem__('preserve_cos',
   'true' if infra_children | selectattr('qosInstPol', 'defined')
   | map(attribute='qosInstPol') | list
   | map(attribute='attributes.ctrl') != '' else '' | default('')) %}
-{% set qosclassns = namespace(qos_classes=[]) %}
-{% for class in infra_children | selectattr('qosInstPol', 'defined')
+{%- set qosclassns = namespace(qos_classes=[]) %}
+{%- for class in infra_children | selectattr('qosInstPol', 'defined')
   | map(attribute='qosInstPol') | list
   | selectattr('children', 'defined') | map(attribute='children') | flatten
   | selectattr('qosClass', 'defined') | map(attribute='qosClass') | list
   | default('') %}
-  {% set qosclassns.qos_classes = qosclassns.qos_classes + [{
+  {%- set qosclassns.qos_classes = qosclassns.qos_classes + [{
     'level': class.attributes.prio | replace('level', ''),
     'admin_state': 'false' if class.attributes.admin == 'disabled'
       else '' | default(''),
-    'description': class.attributes.descr | default(''),
+    'description': class.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'mtu': class.attributes.mtu | default('')
       | replace('9216', ''),
     'scheduling': [class] | selectattr('children', 'defined')
@@ -158,15 +158,15 @@
 {%- set _= accpolns.access_policies.__setitem__('qos', qosns.qos) -%}
 
 {%- set vlpoolns = namespace(vlan_pools=[]) -%}
-{% for pool in infra_children | selectattr('fvnsVlanInstP', 'defined')
+{%- for pool in infra_children | selectattr('fvnsVlanInstP', 'defined')
   | map(attribute='fvnsVlanInstP') | list
   | sort(attribute='attributes.name') | default([]) %}
-  {% set rangens = namespace(ranges=[]) %}
+  {%- set rangens = namespace(ranges=[]) %}
   {% for range in [pool] | selectattr('children', 'defined') | map(attribute='children')
     | flatten | selectattr('fvnsEncapBlk', 'defined')
     | map(attribute='fvnsEncapBlk') | sort(attribute='attributes.from')
     | default([]) %}
-    {% set rangens.ranges = rangens.ranges + [{
+    {%- set rangens.ranges = rangens.ranges + [{
       'from': range.attributes.from | replace('vlan-', ''),
       'to': range.attributes.to | replace('vlan-', '')
         if range.attributes.to != range.attributes.from
@@ -174,12 +174,12 @@
       'allocation': range.attributes.allocMode | default('')
         | replace('inherit', ''),
       'role': range.attributes.role | default('') | replace('external', ''),
-      'description': range.attributes.descr | default(''),
+      'description': range.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     }] %}
   {% endfor %}
-  {% set vlpoolns.vlan_pools = vlpoolns.vlan_pools + [{
+  {%- set vlpoolns.vlan_pools = vlpoolns.vlan_pools + [{
     'name': pool.attributes.name,
-    'description': pool.attributes.descr | default(''),
+    'description': pool.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'allocation': pool.attributes.allocMode | default('')
       | replace('static', ''),
     'ranges': rangens.ranges | default(''),
@@ -187,15 +187,15 @@
 {% endfor %}
 {%- set _= accpolns.access_policies.__setitem__('vlan_pools', vlpoolns.vlan_pools) -%}
 
-{% set dhcpns = namespace(dhcp_relay_policies=[]) %}
+{%- set dhcpns = namespace(dhcp_relay_policies=[]) %}
 {%- for pol in infra_children | selectattr('dhcpRelayP', 'defined')
   | map(attribute='dhcpRelayP') | list %}
-  {% set provns = namespace(providers=[]) %}
+  {%- set provns = namespace(providers=[]) %}
   {% for prov in [pol] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('dhcpRsProv', 'defined') | map(attribute='dhcpRsProv')
     | list | default('') %}
-    {% set provns.providers = provns.providers + [{
+    {%- set provns.providers = provns.providers + [{
       'ip': prov.attributes.addr,
       'type': 'external_epg' if '/out-' in prov.attributes.tDn else 'epg',
       'tenant': prov.attributes.tDn
@@ -214,21 +214,21 @@
         if '/out-' in prov.attributes.tDn else '' | default(''),
     }] %}
   {% endfor %}
-  {% set dhcpns.dhcp_relay_policies = dhcpns.dhcp_relay_policies + [{
+  {%- set dhcpns.dhcp_relay_policies = dhcpns.dhcp_relay_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'providers': provns.providers | default(''),
   }] %}
 {% endfor %}
 {%- set _= accpolns.access_policies.__setitem__('dhcp_relay_policies', dhcpns.dhcp_relay_policies) -%}
 
-{% set lspgns = namespace(leaf_switch_policy_groups=[]) %}
-{% for pg in infra_children | selectattr('infraFuncP', 'defined')
+{%- set lspgns = namespace(leaf_switch_policy_groups=[]) %}
+{%- for pg in infra_children | selectattr('infraFuncP', 'defined')
   | map(attribute='infraFuncP') | selectattr('children', 'defined')
   | map(attribute='children') | flatten
   | selectattr('infraAccNodePGrp', 'defined')
   | map(attribute='infraAccNodePGrp') %}
-  {% set lspgns.leaf_switch_policy_groups = lspgns.leaf_switch_policy_groups + [{
+  {%- set lspgns.leaf_switch_policy_groups = lspgns.leaf_switch_policy_groups + [{
     'name': pg.attributes.name,
     'forwarding_scale_policy': [pg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
@@ -250,13 +250,13 @@
 {%- set _= accpolns.access_policies.__setitem__('leaf_switch_policy_groups',
     lspgns.leaf_switch_policy_groups) -%}
 
-{% set sspgns = namespace(spine_switch_policy_groups=[]) %}
-{% for pg in infra_children | selectattr('infraFuncP', 'defined')
+{%- set sspgns = namespace(spine_switch_policy_groups=[]) %}
+{%- for pg in infra_children | selectattr('infraFuncP', 'defined')
   | map(attribute='infraFuncP') | selectattr('children', 'defined')
   | map(attribute='children') | flatten
   | selectattr('infraSpineAccNodePGrp', 'defined')
   | map(attribute='infraSpineAccNodePGrp') %}
-  {% set sspgns.spine_switch_policy_groups = sspgns.spine_switch_policy_groups + [{
+  {%- set sspgns.spine_switch_policy_groups = sspgns.spine_switch_policy_groups + [{
     'name': pg.attributes.name,
     'lldp_policy': [pg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
@@ -277,7 +277,6 @@
 {% endfor %}
 {%- set _= accpolns.access_policies.__setitem__('spine_switch_policy_groups',
     sspgns.spine_switch_policy_groups) -%}
-
 {% include "./access_interface_policies.nac.j2" %}
 {% include "./access_policies/aaeps.nac.j2" %}
 {% include "./access_policies/span.nac.j2" %}

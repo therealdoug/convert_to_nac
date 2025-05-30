@@ -76,7 +76,7 @@
       | default('') %}
       {%- set poolns.pools = poolns.pools + [{
         'name': pool.attributes.name,
-        'description': pool.attributes.descr | default(''),
+        'description': pool.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'start_ip': pool.attributes.startIp | default('')
           | replace('0.0.0.0', ''),
         'end_ip': pool.attributes.endIp | default('')
@@ -91,7 +91,7 @@
     {%- set subnetns.subnets = subnetns.subnets + [{
       'ip': sub.attributes.ip | default(''),
       'alias': sub.attributes.nameAlias | default(''),
-      'description': sub.attributes.descr | default(''),
+      'description': sub.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'public': 'true' if 'public' in sub.attributes.scope else ''
         | default(''),
       'shared': 'true' if 'shared' in sub.attributes.scope else ''
@@ -144,7 +144,7 @@
     | list | default('') | sort(attribute='attributes.name') %}
     {%- set addrpoolns.l4l7_address_pools = addrpoolns.l4l7_address_pools + [{
       'name': vip.attributes.name,
-      'description': vip.attributes.descr | default(''),
+      'description': vip.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'gateway_address': vip.attributes.addr,
       'from': [vip] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
@@ -218,21 +218,21 @@
   {%- set ipstmtns = namespace(ip_statements=[]) %}
   {% for stmnt in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
-    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fvIpAttr', 'defined') | map(attribute='fvIpAttr')
     | default('') | sort(attribute='attributes.name') %}
     {%- set ipstmtns.ip_statements = ipstmtns.ip_statements + [{
       'name': stmnt.attributes.name | default(''),
       'use_epg_subnet': 'false' if stmnt.attributes.usefvSubnet == 'no'
-        else '' | default(''),
-      'ip': stmnt.attributes.ip | default('') | replace('0.0.0.0', ''),
+        else 'true' | default(''),
+      'ip': stmnt.attributes.ip if stmnt.attributes.usefvSubnet == 'no' else '',
     }] %}
   {% endfor %}
   {%- set macstmtns = namespace(mac_statements=[]) %}
   {% for stmnt in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
-    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fvMacAttr', 'defined') | map(attribute='fvMacAttr')
     | default('') | sort(attribute='attributes.name') %}
@@ -245,7 +245,7 @@
   {%- set uepg.useg_endpoint_groups = uepg.useg_endpoint_groups + [{
     'name': epg.attributes.name,
     'alias': epg.attributes.nameAlias | default(''),
-    'description': epg.attributes.descr | default(''),
+    'description': epg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'bridge_domain': [epg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | flatten | selectattr('fvRsBd', 'defined')

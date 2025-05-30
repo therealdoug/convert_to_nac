@@ -1,26 +1,26 @@
 {% import 'macro_handler.j2' as helper %}
-{% set node_profiles =  %}
-{% set npns = namespace(np=[]) %}
+{%- set node_profiles =  %}
+{%- set npns = namespace(np=[]) %}
 {% for np in [l3o]
   | selectattr('children', 'defined') | map(attribute='children') | flatten | list
   | selectattr('l3extLNodeP', 'defined') | map(attribute='l3extLNodeP')
   | list | default([]) if np %}
-  {% set bgpns = namespace(bgp={}) %}
-  {% set nodens = namespace(nodes=[]) %}
-  {% set peersns = namespace(peers=[]) -%}
+  {%- set bgpns = namespace(bgp={}) %}
+  {%- set nodens = namespace(nodes=[]) %}
+  {%- set peersns = namespace(peers=[]) -%}
 
   {% for bgp in [np]
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('bgpProtP', 'defined') | map(attribute='bgpProtP')
     | default('') %}
-      {% set _= bgpns.bgp.__setitem__('name', (bgp.attributes.name)) %}
-      {% set _= bgpns.bgp.__setitem__('timer_policy', ([bgp]
+      {%- set _= bgpns.bgp.__setitem__('name', (bgp.attributes.name)) %}
+      {%- set _= bgpns.bgp.__setitem__('timer_policy', ([bgp]
         | selectattr('children', 'defined')
         | map(attribute='children') | flatten
         | selectattr('bgpRsBgpNodeCtxPol', 'defined')
         | map(attribute='bgpRsBgpNodeCtxPol.attributes.tnBgpCtxPolName')
         | first | default('')))%}
-      {% set _= bgpns.bgp.__setitem__('as_path_policy', ([bgp]
+      {%- set _= bgpns.bgp.__setitem__('as_path_policy', ([bgp]
         | selectattr('children', 'defined')
         | map(attribute='children') | flatten
         | selectattr('bgpRsBestPathCtrlPol', 'defined')
@@ -33,8 +33,8 @@
     | selectattr('l3extRsNodeL3OutAtt', 'defined')
     | map(attribute='l3extRsNodeL3OutAtt')
     | default([]) %}
-    {% set srns = namespace(static_routes=[]) %}
-    {% set nhns = namespace(next_hops=[]) %}
+    {%- set srns = namespace(static_routes=[]) %}
+    {%- set nhns = namespace(next_hops=[]) %}
       {% for sr in [node] | selectattr('children', 'defined') | map(attribute='children')
           | flatten | list | selectattr('ipRouteP', 'defined')
           | map(attribute='ipRouteP') | default([])
@@ -44,7 +44,7 @@
               | selectattr('ipNexthopP', 'defined')
               | map(attribute='ipNexthopP') | default([])
               | sort(attribute='attributes.nhAddr') %}
-            {% set nhns.next_hops = nhns.next_hops + [{
+            {%- set nhns.next_hops = nhns.next_hops + [{
               'ip': nh.attributes.nhAddr,
               'description': nh.attributes.descr,
               'preference': nh.attributes.pref
@@ -53,7 +53,7 @@
                 | replace('prefix', ''),
             }]%}
           {% endfor %}
-        {% set srns.static_routes = srns.static_routes + [{
+        {%- set srns.static_routes = srns.static_routes + [{
           'prefix': sr.attributes.ip,
           'description': sr.attributes.descr,
           'preference': sr.attributes.pref
@@ -67,7 +67,7 @@
     {% for np in [np]
       | selectattr('children', 'defined') | map(attribute='children')| flatten
       | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP') %}
-      {% set peerns.peers = peerns.peers + [{
+      {%- set peerns.peers = peerns.peers + [{
         'ip': np.attributes.addr,
         'description': np.attributes.descr,
         'alias': np.attributes.nameAlias,
@@ -135,17 +135,17 @@
           | replace('3', ''),
       }] %}
     {% endfor %}
-    {% set intprofns = namespace(int_profs=[]) %}
+    {%- set intprofns = namespace(int_profs=[]) %}
     {% for int_prof in [np]
       | selectattr('children', 'defined') | map(attribute='children') | flatten | list
       | selectattr('l3extLIfP', 'defined') | map(attribute='l3extLIfP')
       | default([]) | sort(attribute='attributes.name') %}
-      {% set dhcplabelsns = namespace(labels=[]) %}
+      {%- set dhcplabelsns = namespace(labels=[]) %}
       {% for label in [int_prof] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | list
         | selectattr('dhcpLbl', 'defined') | map(attribute='dhcpLbl')
         | default([]) %}
-        {% set dhcplabelsns.labels = dhcplabelsns.labels + [{
+        {%- set dhcplabelsns.labels = dhcplabelsns.labels + [{
           'dhcp_relay_policy': label.attributes.name,
           'scope': label.attributes.owner,
           'dhcp_option_policy': [label] | selectattr('children', 'defined')
@@ -155,14 +155,14 @@
             | first | default(''),
           }] %}
       {% endfor %}
-      {% set interfacesns = namespace() %}
-      {% set interfacesns.interfaces = [] %}
+      {%- set interfacesns = namespace() %}
+      {%- set interfacesns.interfaces = [] %}
       {% for intf in [int_prof] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | list
         | selectattr('l3extRsPathL3OutAtt', 'defined')
         | map(attribute='l3extRsPathL3OutAtt')
         | default([]) %}
-        {% set interfacesns.interfaces = interfacesns.interfaces + [{
+        {%- set interfacesns.interfaces = interfacesns.interfaces + [{
           'ip': intf.attributes.addr | replace('0.0.0.0', ''),
           'svi': 'true' if intf.attributes.ifInstT == 'ext-svi' else ''
             | default(''),
@@ -238,7 +238,7 @@
           'bgp_peers': ['@@'],
         }] | reject('==', '') %}
       {% endfor %}
-      {% set intprofns.int_profs = intprofns.int_profs + [{
+      {%- set intprofns.int_profs = intprofns.int_profs + [{
         'name': int_prof.attributes.name,
         'description': int_prof.attributes.descr,
         'alias': int_prof.attributes.nameAlias,
@@ -325,7 +325,7 @@
       }]  %}
     {% endfor -%}
 
-    {% set nodens.nodes = nodens.nodes + [{
+    {%- set nodens.nodes = nodens.nodes + [{
       'node_id': node.attributes.tDn
         | regex_replace('^topology/[^/]+/node-([0-9]+)$', '\\1'),
       'pod_id': node.attributes.tDn
@@ -343,10 +343,10 @@
     }] %}
   {% endfor -%}
 
-  {% set npns.np = npns.np + [{
+  {%- set npns.np = npns.np + [{
     'name': np.attributes.name,
     'alias': np.attributes.nameAlias | default(''),
-    'description': np.attributes.descr | default(''),
+    'description': np.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'bgp': bgpns.bgp | default(''),
     'bgp_peers': peersns.peers | default([]),
     'nodes': nodens.nodes | default([]),

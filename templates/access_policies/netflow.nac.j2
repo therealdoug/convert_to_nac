@@ -1,9 +1,9 @@
-{% set nfexpns = namespace(netflow_exporters=[]) %}
+{%- set nfexpns = namespace(netflow_exporters=[]) %}
 {% for exp in infra_children | selectattr('netflowExporterPol', 'defined')
   | map(attribute='netflowExporterPol') | list %}
-  {% set nfexpns.netflow_exporters = nfexpns.netflow_exporters + [{
+  {%- set nfexpns.netflow_exporters = nfexpns.netflow_exporters + [{
     'name': exp.attributes.name,
-    'description': exp.attributes.descr | default(''),
+    'description': exp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'dscp': exp.attributes.dscp | default('') | replace('CS2', ''),
     'destination_ip': exp.attributes.dstAddr | default('')
       | replace('0.0.0.0', ''),
@@ -64,14 +64,14 @@
       | default('') | regex_replace('^.*\/ctx-(.*)$', '\\1'),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('netflow_exporters', nfexpns.netflow_exporters) %}
+{%- set _=accintpolns.interface_policies.__setitem__('netflow_exporters', nfexpns.netflow_exporters) %}
 
-{% set nfmonns = namespace(netflow_monitors=[]) %}
+{%- set nfmonns = namespace(netflow_monitors=[]) %}
 {% for mon in infra_children | selectattr('netflowMonitorPol', 'defined')
   | map(attribute='netflowMonitorPol') %}
-  {% set nfmonns.netflow_monitors = nfmonns.netflow_monitors + [{
+  {%- set nfmonns.netflow_monitors = nfmonns.netflow_monitors + [{
     'name': mon.attributes.name,
-    'description': mon.attributes.descr | default(''),
+    'description': mon.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'flow_record': [mon] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('netflowRsMonitorToRecord', 'defined')
@@ -84,18 +84,18 @@
       | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('netflow_monitors', nfmonns.netflow_monitors) %}
+{%- set _=accintpolns.interface_policies.__setitem__('netflow_monitors', nfmonns.netflow_monitors) %}
 
-{% set nfrecns = namespace(netflow_records=[]) %}
+{%- set nfrecns = namespace(netflow_records=[]) %}
 {% for rec in infra_children | selectattr('netflowRecordPol', 'defined')
   | map(attribute='netflowRecordPol') %}
-  {% set nfrecns.netflow_records = nfrecns.netflow_records + [{
+  {%- set nfrecns.netflow_records = nfrecns.netflow_records + [{
     'name': rec.attributes.name,
-    'description': rec.attributes.descr | default(''),
+    'description': rec.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'match_parameters': rec.attributes.match | split(',') | default('')
       if rec.attributes.match != '' else '',
     'collect_parameters': rec.attributes.collect | split(',') | default('')
-      if rec.attributes.collect != '' else '',,
+      if rec.attributes.collect != '' else '',
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('netflow_records', nfrecns.netflow_records) %}
+{%- set _=accintpolns.interface_policies.__setitem__('netflow_records', nfrecns.netflow_records) %}

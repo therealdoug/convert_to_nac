@@ -1,35 +1,35 @@
-{% set accintpolns = namespace(interface_policies={}) %}
+{%- set accintpolns = namespace(interface_policies={}) -%}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('cdpIfPol', 'defined')
   | map(attribute='cdpIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'admin_state': 'true' if pol.attributes.adminSt == 'enabled' else ''
+    'admin_state': 'true' if pol.attributes.adminSt == 'enabled' else 'false'
       | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('cdp_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('cdp_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
-{% for pol in infra_children | selectattr('lldpIfPol', 'defined')
+{%- for pol in infra_children | selectattr('lldpIfPol', 'defined')
   | map(attribute='lldpIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'admin_rx_state': 'true' if pol.attributes.adminRxSt == 'enabled' else ''
+    'admin_rx_state': 'true' if pol.attributes.adminRxSt == 'enabled' else 'false'
       | default(''),
-    'admin_tx_state': 'true' if pol.attributes.adminTxSt == 'enabled' else ''
+    'admin_tx_state': 'true' if pol.attributes.adminTxSt == 'enabled' else 'false'
       | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('lldp_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('lldp_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('l2IfPol', 'defined')
   | map(attribute='l2IfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
     'vlan_scope': pol.attributes.vlanScope | default('')
       | replace('global', ''),
@@ -39,13 +39,13 @@
       | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('l2_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('l2_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('fabricHIfPol', 'defined')
   | map(attribute='fabricHIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
     'speed': pol.attributes.speed | default('')
       | replace('inherit', ''),
@@ -55,16 +55,16 @@
     'physical_media_type': pol.attributes.portPhyMediaType | default('')
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('link_level_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('link_level_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('lacpLagPol', 'defined')
   | map(attribute='lacpLagPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
     'mode': pol.attributes.mode,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'min_links': pol.attributes.minLinks | default('')
       | regex_replace('^1$', ''),
     'max_links': pol.attributes.maxLinks | default('')
@@ -85,7 +85,7 @@
           | map(attribute='hashFields') | first | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('port_channel_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('port_channel_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
@@ -94,9 +94,9 @@
   | map(attribute='children') | flatten
   | selectattr('macsecParamPol', 'defined')
   | map(attribute='macsecParamPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'cipher_suite': pol.attributes.cipherSuite | default('')
       | replace('gcm-aes-xpn-256', ''),
     'confidentiality_offset': pol.attributes.confOffset | default('')
@@ -111,7 +111,7 @@
     | replace('should-secure', ''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('macsec_parameters_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('macsec_parameters_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
@@ -121,35 +121,35 @@
   | selectattr('macsecKeyChainPol', 'defined')
   | map(attribute='macsecKeyChainPol') | list
   | sort(attribute='attributes.name') %}
-  {% set kpns = namespace(key_policies=[]) %}
+  {%- set kpns = namespace(key_policies=[]) %}
   {% for kp in [pol] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('macsecKeyPol', 'defined')
     | map(attribute='macsecKeyPol')
     | sort(attribute='attributes.name') | default('') %}
-    {% set kpns.key_policies = kpns.key_policies +[{
+    {%- set kpns.key_policies = kpns.key_policies +[{
       'name': kp.attributes.name | default(''),
-      'description': kp.attributes.descr | default(''),
+      'description': kp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'key_name': kp.attributes.keyName | default(''),
       'pre_shared_key': kp.attributes.preSharedKey
         | default('!!--ENCRYPTED. PLEASE UPDATE MANUALLY--!!'),
     }] %}
   {% endfor %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'key_policies': kpns.key_policies | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('macsec_keychain_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('macsec_keychain_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('macsecIfPol', 'defined')
   | map(attribute='macsecIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'admin_state': 'false' if pol.attributes.adminSt == 'disabled' else ''
       | default(''),
     'macsec_parameters_policy': [pol] | selectattr('children', 'defined')
@@ -166,57 +166,57 @@
       | regex_replace('^uni/infra/macsecpcont/keychainp-', ''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('macsec_interfaces_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('macsec_interfaces_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('lacpIfPol', 'defined')
   | map(attribute='lacpIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'rate': pol.attributes.txRate | default('')
       | replace('normal', ''),
     'priority': pol.attributes.prio | default('')
       | regex_replace('^32768$', ''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('port_channel_member_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('port_channel_member_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('mcpIfPol', 'defined')
   | map(attribute='mcpIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
     'admin_state': 'false' if pol.attributes.adminSt == 'disabled'
       | default('') else '',
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('mcp_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('mcp_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('stpIfPol', 'defined')
   | map(attribute='stpIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'bpdu_guard': 'true' if 'bpdu-guard' in pol.attributes.ctrl else ''
       | default(''),
     'bpdu_filter': 'true' if 'bpdu-filter' in pol.attributes.ctrl else ''
       | default(''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('spanning_tree_policies',
+{%- set _=accintpolns.interface_policies.__setitem__('spanning_tree_policies',
   ifpol.policies | default('')) %}
 
 {%- set ifpol = namespace(policies=[]) -%}
 {% for pol in infra_children | selectattr('stormctrlIfPol', 'defined')
   | map(attribute='stormctrlIfPol') | list | sort(attribute='attributes.name') %}
-  {% set ifpol.policies = ifpol.policies + [{
+  {%- set ifpol.policies = ifpol.policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.descr | default(''),
+    'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'alias': pol.attributes.nameAlias | default(''),
     'broadcast_burst_pps': pol.attributes.bcBurstPps | default('')
       | replace('unspecified', ''),
@@ -254,8 +254,8 @@
       | replace('unspecified', ''),
   }] %}
 {% endfor %}
-{% set _=accintpolns.interface_policies.__setitem__('storm_control_policies',
-  ifpol.policies | default('')) %}
+{%- set _=accintpolns.interface_policies.__setitem__('storm_control_policies',
+  ifpol.policies | default('')) -%}
 
 {% include 'access_policies/netflow.nac.j2' %}
 {% include 'access_policies/switch_policies.nac.j2' %}

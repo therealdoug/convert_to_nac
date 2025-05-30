@@ -13,7 +13,7 @@
   | sort(attribute='attributes.name') %}
   {% set fabradiusns.radius_providers = fabradiusns.radius_providers + [{
     'hostname_ip': prov.attributes.name,
-    'description': prov.attributes.descr | default(''),
+    'description': prov.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'protocol': prov.attributes.authProtocol | default('') | replace('pap',''),
     'key': prov.attributes.key | default(''),
     'port': prov.attributes.port | default('') | replace('49', ''),

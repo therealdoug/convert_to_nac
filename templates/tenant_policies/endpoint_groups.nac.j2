@@ -8,7 +8,7 @@
     | flatten | selectattr('fvRsDomAtt', 'defined')
     | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/phys-')
     | map(attribute='fvRsDomAtt.attributes.tDn') | default('') %}
-    {%- set physdomns.physical_domains = physdomns.physical_domains + 
+    {%- set physdomns.physical_domains = physdomns.physical_domains +
       [dom | replace('uni/phys-', '')] -%}
   {%- endfor %}
 
@@ -85,7 +85,7 @@
       | default('') %}
       {%- set poolns.pools = poolns.pools + [{
         'name': pool.attributes.name,
-        'description': pool.attributes.descr | default(''),
+        'description': pool.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'start_ip': pool.attributes.startIp | default('')
           | replace('0.0.0.0', ''),
         'end_ip': pool.attributes.endIp | default('')
@@ -100,7 +100,7 @@
     {%- set subnetns.subnets = subnetns.subnets + [{
       'ip': sub.attributes.ip | default(''),
       'alias': sub.attributes.nameAlias | default(''),
-      'description': sub.attributes.descr | default(''),
+      'description': sub.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'public': 'true' if 'public' in sub.attributes.scope else ''
         | default(''),
       'shared': 'true' if 'shared' in sub.attributes.scope else ''
@@ -153,7 +153,7 @@
     | list | default('') | sort(attribute='attributes.addr') %}
     {%- set virtipns.l4l7_virtual_ips = virtipns.l4l7_virtual_ips + [{
       'ip': vip.attributes.addr,
-      'description': vip.attributes.descr | default(''),
+      'description': vip.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     }] -%}
   {%- endfor -%}
 
@@ -164,7 +164,7 @@
     | list | default('') | sort(attribute='attributes.name') %}
     {%- set addrpoolns.l4l7_address_pools = addrpoolns.l4l7_address_pools + [{
       'name': vip.attributes.name,
-      'description': vip.attributes.descr | default(''),
+      'description': vip.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'gateway_address': vip.attributes.addr,
       'from': [vip] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
@@ -198,7 +198,7 @@
         | replace('immediate', ''),
     }] -%}
   {%- endfor -%}
-  
+
   {%- set portns = namespace(static_ports=[]) -%}
   {%- for port in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
@@ -260,7 +260,7 @@
       'deployment_immediacy': port.attributes.instrImedcy | default('')
         | replace('lazy', ''),
       'mode': port.attributes.mode | default('') | replace('regular', ''),
-      'description': port.attributes.descr | default(''),
+      'description': port.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'ptp': ptpns.ptp | default(''),
     }] -%}
   {%- endfor -%}
@@ -303,15 +303,15 @@
 
   {%- set staticepns = namespace(static_endpoints=[]) -%}
   {% for ep in [epg] | selectattr('children', 'defined')
-    | map(attribute='children') | flatten 
-    | selectattr('fvStCEp', 'defined') | map(attribute='fvStCEp') 
+    | map(attribute='children') | flatten
+    | selectattr('fvStCEp', 'defined') | map(attribute='fvStCEp')
     | sort(attribute='attributes.ip') %}
 
     {%- set staticepns.static_endpoints = staticepns.static_endpoints + [{
       'ip': ep.attributes.ip | default('') | replace('0.0.0.0', ''),
       'mac': ep.attributes.mac | default(''),
       'name': ep.attributes.name | default(''),
-      'description': ep.attributes.descr | default(''),
+      'description': ep.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'alias': ep.attributes.nameAlias | default(''),
       'type': ep.attributes.type | default(''),
       'pod_id': port.attributes.tDn | default('')
@@ -342,8 +342,8 @@
         '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
           '\\6'),
       'additional_ips': [ep] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
-        | selectattr('fvStIp', 'defined') | map(attribute='fvStIp.attributes.addr') 
+        | map(attribute='children') | flatten
+        | selectattr('fvStIp', 'defined') | map(attribute='fvStIp.attributes.addr')
         | sort | default(''),
     }] -%}
   {% endfor %}
@@ -351,7 +351,7 @@
   {%- set epgns.endpoint_groups = epgns.endpoint_groups + [{
     'name': epg.attributes.name,
     'alias': epg.attributes.nameAlias | default(''),
-    'description': epg.attributes.descr | default(''),
+    'description': epg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'bridge_domain': [epg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | flatten | selectattr('fvRsBd', 'defined')

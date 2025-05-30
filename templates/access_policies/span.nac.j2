@@ -1,14 +1,14 @@
-{% set spanns = namespace(span={}) %}
+{%- set spanns = namespace(span={}) %}
 
 {%- set spandestns = namespace(destination_groups=[]) -%}
 {% for grp in infra_children | selectattr('spanDestGrp', 'defined')
-  | map(attribute='spanDestGrp') 
+  | map(attribute='spanDestGrp')
   | default('') %}
-  {% set spandestns.destination_groups = spandestns.destination_groups + [{
+  {%- set spandestns.destination_groups = spandestns.destination_groups + [{
     'name': grp.attributes.name,
-    'description': grp.attributes.descr | default(''),
+    'description': grp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'pod_id': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
@@ -16,14 +16,14 @@
       | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[eth(\d)\/(\d+)\/?(\d+)?\]$', '\\1')
       | regex_replace('^1$',''),
     'node_id': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
       | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('')
       | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[eth(\d)\/(\d+)\/?(\d+)?\]$', '\\2'),
     'module': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
@@ -31,33 +31,33 @@
       | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[eth(\d)\/(\d+)\/?(\d+)?\]$', '\\3')
       | regex_replace('^1$',''),
     'port': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
       | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('')
       | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[eth(\d)\/(\d+)\/?(\d+)?\]$', '\\4')
       if 'eth' in [grp] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
+        | map(attribute='children') | flatten
         | selectattr('spanDest', 'defined') | map(attribute='spanDest')
         | selectattr('children', 'defined')
         | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
         | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('') else '',
     'sub_port': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
       | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('')
       | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[eth(\d)\/(\d+)\/?(\d+)?\]$', '\\5')
       if 'eth' in [grp] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
+        | map(attribute='children') | flatten
         | selectattr('spanDest', 'defined') | map(attribute='spanDest')
         | selectattr('children', 'defined')
         | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
         | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('') else '',
     'mtu': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
@@ -65,87 +65,87 @@
       | regex_replace('^1518$', '')
       or
       [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.mtu') | first | default('')
       | regex_replace('^1518$', ''),
     'channel': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
       | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('')
       | regex_replace('^topology\/pod-(\d+)\/paths-(\d+)\/pathep-\[(.*)]$', '\\3')
       if 'eth' not in [grp] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
+        | map(attribute='children') | flatten
         | selectattr('spanDest', 'defined') | map(attribute='spanDest')
         | selectattr('children', 'defined')
         | map(attribute='children') | flatten | selectattr('spanRsDestPathEp', 'defined')
         | map(attribute='spanRsDestPathEp.attributes.tDn') | first | default('') else '',
     'ip': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.ip') | first | default(''),
     'source_prefix': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.srcIpPrefix') | first | default(''),
     'dscp': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.dscp') | first | default('')
       | replace('unspecified', ''),
     'flow_id': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.flowId') | first | default('')
       | regex_replace('^1$', ''),
     'ttl': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.ttl') | first | default('')
       | regex_replace('^64$', ''),
     'version': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.ver') | first | default('')
       | replace('ver2', '') | regex_replace('^ver$', ''),
     'enforce_version': 'true' if [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.ver') | first | default('') == 'yes' else '',
     'tenant': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.tDn') | first | default('')
       | regex_replace('^uni\/tn-(.*?)\/ap-(.*?)\/epg-(.*?)$', '\\1'),
     'application_profile': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
       | map(attribute='spanRsDestEpg.attributes.tDn') | first | default('')
       | regex_replace('^uni\/tn-(.*?)\/ap-(.*?)\/epg-(.*?)$', '\\2'),
     'endpoint_group': [grp] | selectattr('children', 'defined')
-      | map(attribute='children') | flatten 
+      | map(attribute='children') | flatten
       | selectattr('spanDest', 'defined') | map(attribute='spanDest')
       | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('spanRsDestEpg', 'defined')
@@ -158,14 +158,14 @@
 {%- set spanfltns = namespace(filter_groups=[]) -%}
 {% for fltr in infra_children | selectattr('spanFilterGrp', 'defined')
   | map(attribute='spanFilterGrp') | sort(attribute='attributes.name') %}
-  {% set entryns = namespace(entries=[]) %}
+  {%- set entryns = namespace(entries=[]) %}
   {% for entry in [fltr] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('spanFilterEntry', 'defined')
     | map(attribute='spanFilterEntry') | default('') %}
-    {% set entryns.entries = entryns.entries + [{
+    {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name | default(''),
-      'description': entry.attributes.descr | default(''),
+      'description': entry.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'source_ip': entry.attributes.srcAddr,
       'source_from_port': entry.attributes.srcPortFrom | default('')
         | replace('unspecified', ''),
@@ -177,10 +177,10 @@
       'ip_protocol': entry.attributes.ipProto | default('')
         | replace('unspecified', ''),
     }] %}
-  {% endfor %}  
-  {% set spanfltns.filter_groups = spanfltns.filter_groups + [{
+  {% endfor %}
+  {%- set spanfltns.filter_groups = spanfltns.filter_groups + [{
     'name': fltr.attributes.name,
-    'description': fltr.attributes.descr | default(''),
+    'description': fltr.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'entries': entryns.entries | default(''),
   }] %}
 {% endfor %}
@@ -189,20 +189,20 @@
 {%- set spansrcns = namespace(source_groups=[]) -%}
 {% for grp in infra_children | selectattr('spanSrcGrp', 'defined')
   | map(attribute='spanSrcGrp') | sort(attribute='attributes.name') %}
-  
-  {% set srcns = namespace(sources=[]) %}
+
+  {%- set srcns = namespace(sources=[]) %}
   {% for src in [grp] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('spanSrc', 'defined')
     | map(attribute='spanSrc') | sort(attribute='attributes.name') %}
-    
-    {% set pathsns = namespace(paths=[]) %}
+
+    {%- set pathsns = namespace(paths=[]) %}
     {% for path in [src] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('spanRsSrcToPathEp', 'defined')
       | map(attribute='spanRsSrcToPathEp')
       | sort(attribute='attributes.tDn') %}
-      {% set pathsns.paths = pathsns.paths + [{
+      {%- set pathsns.paths = pathsns.paths + [{
         'pod_id': path.attributes.tDn | default('')
           | regex_replace(
           '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
@@ -236,10 +236,10 @@
           '\\7'),
       }] %}
     {% endfor %}
-    
-    {% set srcns.sources = srcns.sources + [{
+
+    {%- set srcns.sources = srcns.sources + [{
       'name': src.attributes.name,
-      'description': src.attributes.descr | default(''),
+      'description': src.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'direction': src.attributes.dir | default('') | replace('both', ''),
       'span_drop': 'true' if src.attributes.spanOnDrop == 'yes' else ''
         | default(''),
@@ -279,10 +279,10 @@
       'access_paths': pathsns.paths | default(''),
     }] %}
   {% endfor %}
-  
-  {% set spansrcns.source_groups = spansrcns.source_groups + [{
+
+  {%- set spansrcns.source_groups = spansrcns.source_groups + [{
     'name': grp.attributes.name,
-    'description': grp.attributes.descr | default(''),
+    'description': grp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'admin_state': 'false' if grp.attributes.adminSt == 'disabled' else ''
       | default(''),
     'filter_group': [grp] | selectattr('children', 'defined')

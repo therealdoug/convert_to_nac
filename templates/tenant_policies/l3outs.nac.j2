@@ -1,4 +1,3 @@
-{%- import 'macro_handler.j2' as helper -%}
 {%- set l3outns = namespace(l3outs=[]) -%}
 {#- ACI <5.0 doesn't have mplsEnabled attribute -#}
 {%- for l3o in [this_tenant]
@@ -96,7 +95,7 @@
       {%- set eepgsubnetns.subnets = eepgsubnetns.subnets + [{
         'prefix': subnet.attributes.ip,
         'name': subnet.attributes.name | default(''),
-        'description': subnet.attributes.descr | default(''),
+        'description': subnet.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'alias': subnet.attributes.alias | default(''),
         'import_security': 'false' if 'import-security' not
             in subnet.attributes.scope else '',
@@ -155,7 +154,7 @@
       | list | default('')) %}
     {%- set eepgns.eepgs = eepgns.eepgs + [{
       'name': eepg.attributes.name,
-      'description': eepg.attributes.descr | default(''),
+      'description': eepg.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'alias': eepg.attributes.alias | default(''),
       'preferred_group': 'true' if eepg.attributes.prefGrMemb == 'include'
         else '' | default(''),
@@ -387,7 +386,7 @@
           {%- set interfacepeers.peers = interfacepeers.peers + [{
             'ip': peer.attributes.addr | regex_replace('::$', '::0'),
             'alias': peer.attributes.nameAlias | default(''),
-            'description': peer.attributes.descr | default(''),
+            'description': peer.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
             'remote_as': [peer] | selectattr('children', 'defined')
               | map(attribute='children') | flatten
               | selectattr('bgpAsP', 'defined')
@@ -460,7 +459,11 @@
             | first | default('') else '',
           'description': intf.attributes.descr,
           'vlan': intf.attributes.encap
-            | regex_replace('^vlan-(\d+)$', '\\1') | default(''),
+            | regex_replace('^vlan-(\d+)$', '\\1')
+              if (
+                intf.attributes.ifInstT == 'ext-svi' or
+                intf.attributes.ifInstT == 'sub-interface'
+              ) else '' | default(''),
           'autostate': 'true' if intf.attributes.autostate == 'enabled' else '' | default(''),
           'mac': intf.attributes.mac | default('') | replace('00:22:BD:F8:19:FF', ''),
           'mode': intf.attributes.mode | replace('regular', ''),
@@ -640,7 +643,7 @@
     {%- set npns.np = npns.np + [{
       'name': np.attributes.name,
       'alias': np.attributes.nameAlias | default(''),
-      'description': np.attributes.descr | default(''),
+      'description': np.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'bgp': bgpns.bgp | default(''),
       'bgp_peers': peersns.peers | default([]),
       'nodes': nodens.nodes | default([]),
@@ -660,7 +663,7 @@
       | flatten | selectattr('l3extRsL3DomAtt', 'defined')
       | map(attribute='l3extRsL3DomAtt.attributes.tDn')
       | flatten | first | default('') | replace('uni/l3dom-', ''),
-    'description': l3o.attributes.descr | default(''),
+    'description': l3o.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'alias': l3o.attributes.alias | default(''),
     'import_route_control_enforcement': 'true' if 'import' in l3o.attributes.enforceRtctrl else ''
       | default(''),

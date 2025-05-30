@@ -17,7 +17,7 @@
       {%- set pfxdestsns.dests = pfxdestsns.dests + [{
         'tenant': dest.attributes.tenantName,
         'vrf': dest.attributes.ctxName,
-        'description': dest.attributes.descr | default(''),
+        'description': dest.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'public': 'true' if dest.attributes.scope == 'public' or
           'false' if dest.attributes.scope == 'private'
           else '' | default('') | replace('inherit', ''),
@@ -46,7 +46,7 @@
       {%- set pfxdestsns.dests = pfxdestsns.dests + [{
         'tenant': dest.attributes.tenantName,
         'vrf': dest.attributes.ctxName,
-        'description': dest.attributes.descr | default(''),
+        'description': dest.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
         'public': 'true' if dest.attributes.scope == 'public' or
           'false' if dest.attributes.scope == 'private'
           else '' | default('') | replace('inherit', ''),
@@ -205,7 +205,7 @@
       {%- set igmpxlatens.policies = igmpxlatens.policies + [{
         'group_prefix': pol.attributes.grpPfx,
         'source_address': pol.attributes.srcAddr,
-        'description': pol.attributes.descr | default(''),
+        'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       }] %}
     {% endfor %}
     {%- set intervrfpolns = namespace(policies=[]) %}
@@ -356,7 +356,7 @@
 
     {%- set vrfrtsumpolicysns.rt_sum = vrfrtsumpolicysns.rt_sum + [{
       'name': pol.attributes.name,
-      'description': pol.attributes.descr | default(''),
+      'description': pol.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
       'nodes': nodesns.nodes | default([]),
       'subnets': subnetsns.subnets | default([]),
     }] -%}
@@ -365,13 +365,13 @@
   {%- set vrfsns.vrfs = vrfsns.vrfs + [{
     'name': vrf.attributes.name,
     'alias': vrf.attributes.nameAlias | default(''),
-    'description': vrf.attributes.descr | default(''),
+    'description': vrf.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'data_plane_learning': 'false' if vrf.attributes.ipDataPlaneLearning == 'disabled'
       else '' | default(''),
     'enforcement_direction': vrf.attributes.pcEnfDir | default('')
       | replace('ingress',''),
     'enforcement_preference': vrf.attributes.pcEnfPref | default('')
-      | replace('enforced',''),
+      | regex_replace('^enforced$',''),
     'preferred_group': 'true' if vrf.children | selectattr('vzAny', 'defined')
       | map(attribute='vzAny') | selectattr('attributes', 'defined')
       | map(attribute='attributes') | map(attribute='prefGrMemb')

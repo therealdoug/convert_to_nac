@@ -1,7 +1,7 @@
-{% set aaepns = namespace(aaeps=[]) %}
+{%- set aaepns = namespace(aaeps=[]) %}
 {% for aaep in infra_children | selectattr('infraAttEntityP', 'defined')
   | map(attribute='infraAttEntityP') | sort(attribute='attributes.name') %}
-  {% set epgns = namespace(endpoint_groups=[]) %}
+  {%- set epgns = namespace(endpoint_groups=[]) %}
   {% for epg in [aaep] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('infraGeneric', 'defined')
@@ -10,7 +10,7 @@
     | selectattr('infraRsFuncToEpg', 'defined')
     | map(attribute='infraRsFuncToEpg') | map(attribute='attributes')
     | sort(attribute='tDn') %}
-    {% set epgns.endpoint_groups = epgns.endpoint_groups + [{
+    {%- set epgns.endpoint_groups = epgns.endpoint_groups + [{
       'endpoint_group': epg.tDn
         | regex_replace('^uni\/tn-(.*?)\/ap-(.*?)\/epg-(.*?)$', '\\3'),
       'tenant': epg.tDn
@@ -29,42 +29,42 @@
         | default('') else '' | regex_replace('^vlan-', ''),
     }] %}
   {% endfor %}
-  {% set physdomns = namespace(physical_domains=[]) %}
+  {%- set physdomns = namespace(physical_domains=[]) %}
   {% for dom in [aaep] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/phys-')
     | default('') %}
-    {% set physdomns.physical_domains = physdomns.physical_domains + [
+    {%- set physdomns.physical_domains = physdomns.physical_domains + [
       dom.attributes.tDn | replace('uni/phys-', '')
     ] %}
   {% endfor %}
-  {% set rtdomns = namespace(routed_domains=[]) %}
+  {%- set rtdomns = namespace(routed_domains=[]) %}
   {% for dom in [aaep] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/l3dom-')
     | default('') %}
-    {% set physdomns.physical_domains = physdomns.physical_domains + [
+    {%- set physdomns.physical_domains = physdomns.physical_domains + [
       dom.attributes.tDn | replace('uni/l3dom-', '')
     ] %}
   {% endfor %}
-  {% set vmmdomns = namespace(vmware_vmm_domains=[]) %}
+  {%- set vmmdomns = namespace(vmware_vmm_domains=[]) %}
   {% for dom in [aaep] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/vmmp-VMware/dom-')
     | default('') %}
-    {% set physdomns.physical_domains = physdomns.physical_domains + [
+    {%- set physdomns.physical_domains = physdomns.physical_domains + [
       dom.attributes.tDn | replace('uni/vmmp-VMware/dom-', '')
     ] %}
   {% endfor %}
-  {% set aaepns.aaeps = aaepns.aaeps + [{
+  {%- set aaepns.aaeps = aaepns.aaeps + [{
     'name': aaep.attributes.name,
-    'description': aaep.attributes.descr | default(''),
+    'description': aaep.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'infra_vlan': 'true' if [aaep] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('infraProvAcc', 'defined') else '' | default(''),
@@ -74,4 +74,4 @@
     'endpoint_groups': epgns.endpoint_groups | default(''),
   }] %}
 {% endfor %}
-{% set _=accpolns.access_policies.__setitem__('aaeps', aaepns.aaeps) %}
+{%- set _=accpolns.access_policies.__setitem__('aaeps', aaepns.aaeps) %}

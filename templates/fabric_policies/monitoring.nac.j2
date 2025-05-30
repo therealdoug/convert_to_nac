@@ -22,7 +22,7 @@
   {% endfor %}
   {%- set snmpns.snmp_traps = snmpns.snmp_traps + [{
     'name': snmptrap.attributes.name,
-    'description': snmptrap.attributes.descr | default(''),
+    'description': snmptrap.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'destinations': destns.destinations | default(''),
   }] %}
 {% endfor %}
@@ -55,7 +55,7 @@
 
   {%- set syslogns.syslogs = syslogns.syslogs + [{
     'name': syslog.attributes.name,
-    'description': syslog.attributes.descr | default(''),
+    'description': syslog.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
     'format': syslog.attributes.format | default('') | replace('aci', '')
       | replace('rfc5424-ts', 'enhanced-log'),
     'show_millisecond': 'true' if 'yes' in syslog.attributes.includeMilliSeconds
