@@ -13,7 +13,9 @@ apic:
   | map(attribute='infraAccBndlGrp') | list %}
 {% set accport = infra_funcp | selectattr('infraAccPortGrp', 'defined')
   | map(attribute='infraAccPortGrp') | list %}
-{% set portgroups = accbndl + accport %}
+{% set brkoutport = infra_funcp | selectattr('infraBrkoutPortGrp', 'defined')
+  | map(attribute='infraBrkoutPortGrp') | list %}
+{% set portgroups = accbndl + accport + brkoutport %}
 {% set lipolgroupns = namespace(leaf_interface_policy_groups=[])%}
 {% for port in portgroups | sort(attribute='attributes.name')%}
   {% set netflowns = namespace(netflow_monitor_policies=[]) %}
@@ -34,7 +36,10 @@ apic:
       'name': port.attributes.name,
       'description': port.attributes.descr | default(''),
       'type': port.attributes.lagT | default('') | replace('node', 'vpc')
-        | replace('link', 'pc') | replace('not-aggregated', ''),
+        | replace('link', 'pc') | replace('not-aggregated', '')
+        if port.attributes.lagT is defined
+          else 'breakout' if port.attributes.brkoutMap is defined
+            else 'access',
       'map': port.attributes.brkoutMap | default(''),
       'link_level_policy': port.children
         | selectattr('infraRsHIfPol', 'defined')
