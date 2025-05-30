@@ -31,7 +31,7 @@
         | selectattr('fvRsNdPfxPol', 'defined')
         | map(attribute='fvRsNdPfxPol.attributes.tnNdPfxPolName')
         | first | default(''),
-      'ip_dataplane_learning': 'false' if 
+      'ip_dataplane_learning': 'false' if
         subnet.attributes.ipDPLearning | default('') == 'disabled'
          else '',
     }] -%}
@@ -80,7 +80,7 @@
       | default('')  else '',
     'multicast_arp_drop': 'true' if 'yes' in bd.attributes.mcastARPDrop
       | default('')  else '',
-    'pim_source_filter': [bd] 
+    'pim_source_filter': [bd]
       | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('pimBDP', 'defined') | map(attribute='pimBDP')
       | selectattr('children', 'defined') | map(attribute='children') | flatten
@@ -91,7 +91,7 @@
       | selectattr('rtdmcRsFilterToRtMapPol', 'defined')
       | map(attribute='rtdmcRsFilterToRtMapPol.attributes.tDn')
       | first | default('') | regex_replace('^.*rtmap-(.*?)$', '\\1'),
-    'pim_destination_filter': [bd] 
+    'pim_destination_filter': [bd]
       | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('pimBDP', 'defined') | map(attribute='pimBDP')
       | selectattr('children', 'defined') | map(attribute='children') | flatten

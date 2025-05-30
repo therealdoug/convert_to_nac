@@ -2,7 +2,7 @@
 ---
 apic:
   access_policies:
-{%- import 'macro_handler.j2' as helper -%}
+{% import 'macro_handler.j2' as helper %}
 {% set pgaccpolns = namespace(access_policies={}) %}
 {% set infra_children = polUni | selectattr('infraInfra', 'defined')
   | map(attribute='infraInfra') | selectattr('children', 'defined')
@@ -24,7 +24,7 @@ apic:
     | selectattr('infraRsNetflowMonitorPol', 'defined')
     | map(attribute='infraRsNetflowMonitorPol')
     | sort(attribute='attributes.tnNetflowMonitorPolName')%}
-    {% set netflowns.netflow_monitor_policies = 
+    {% set netflowns.netflow_monitor_policies =
       netflowns.netflow_monitor_policies + [{
         'name': netflow_monitor_policy.attributes.tnNetflowMonitorPolName,
         'ip_filter_type': netflow_monitor_policy.attributes.fltType

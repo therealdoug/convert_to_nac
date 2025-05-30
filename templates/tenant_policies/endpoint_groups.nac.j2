@@ -8,7 +8,7 @@
     | flatten | selectattr('fvRsDomAtt', 'defined')
     | selectattr('fvRsDomAtt.attributes.tDn', 'search', '^uni/phys-')
     | map(attribute='fvRsDomAtt.attributes.tDn') | default('') %}
-    {%- set physdomns.physical_domains = physdomns.physical_domains + 
+    {%- set physdomns.physical_domains = physdomns.physical_domains +
       [dom | replace('uni/phys-', '')] -%}
   {%- endfor %}
 
@@ -198,7 +198,7 @@
         | replace('immediate', ''),
     }] -%}
   {%- endfor -%}
-  
+
   {%- set portns = namespace(static_ports=[]) -%}
   {%- for port in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
@@ -303,8 +303,8 @@
 
   {%- set staticepns = namespace(static_endpoints=[]) -%}
   {% for ep in [epg] | selectattr('children', 'defined')
-    | map(attribute='children') | flatten 
-    | selectattr('fvStCEp', 'defined') | map(attribute='fvStCEp') 
+    | map(attribute='children') | flatten
+    | selectattr('fvStCEp', 'defined') | map(attribute='fvStCEp')
     | sort(attribute='attributes.ip') %}
 
     {%- set staticepns.static_endpoints = staticepns.static_endpoints + [{
@@ -342,8 +342,8 @@
         '^.*topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
           '\\6'),
       'additional_ips': [ep] | selectattr('children', 'defined')
-        | map(attribute='children') | flatten 
-        | selectattr('fvStIp', 'defined') | map(attribute='fvStIp.attributes.addr') 
+        | map(attribute='children') | flatten
+        | selectattr('fvStIp', 'defined') | map(attribute='fvStIp.attributes.addr')
         | sort | default(''),
     }] -%}
   {% endfor %}
@@ -351,7 +351,7 @@
   {%- set epgns.endpoint_groups = epgns.endpoint_groups + [{
     'name': epg.attributes.name,
     'alias': epg.attributes.nameAlias | default(''),
-    'description': epg.attributes.descr | default(''),
+    'description': epg.attributes.descr | default('') | regex_replace('^((?:.*\:.*))$', '"\\1"'),
     'bridge_domain': [epg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | flatten | selectattr('fvRsBd', 'defined')

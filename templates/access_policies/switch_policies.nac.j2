@@ -1,11 +1,11 @@
 {%- set spns = namespace(switch_policies={}) -%}
 
 {%- set fspns = namespace(forwarding_scale_policies=[]) -%}
-{%- for pol in infra_children 
+{%- for pol in infra_children
   | selectattr('topoctrlFwdScaleProfilePol', 'defined')
   | map(attribute='topoctrlFwdScaleProfilePol') | list
   | sort(attribute='attributes.name') | default('') %}
-  {% set fspns.forwarding_scale_policies = 
+  {% set fspns.forwarding_scale_policies =
     fspns.forwarding_scale_policies + [{
       'name': pol.attributes.name,
       'profile': pol.attributes.profType | default('')
@@ -16,7 +16,7 @@
     fspns.forwarding_scale_policies) -%}
 
 {% set bfd4ns = namespace(bfd_ipv4_policies=[]) %}
-{% for pol in  infra_children | selectattr('bfdIpv4InstPol', 'defined') 
+{% for pol in  infra_children | selectattr('bfdIpv4InstPol', 'defined')
   | map(attribute='bfdIpv4InstPol') | list | default('')
   | sort(attribute='attributes.name') %}
   {% set bfd4ns.bfd_ipv4_policies = bfd4ns.bfd_ipv4_policies + [{
@@ -41,7 +41,7 @@
     bfd4ns.bfd_ipv4_policies) -%}
 
 {% set bfd6ns = namespace(bfd_ipv6_policies=[]) %}
-{% for pol in  infra_children | selectattr('bfdIpv6InstPol', 'defined') 
+{% for pol in  infra_children | selectattr('bfdIpv6InstPol', 'defined')
   | map(attribute='bfdIpv6InstPol') | list | default('')
   | sort(attribute='attributes.name') %}
   {% set bfd6ns.bfd_ipv6_policies = bfd6ns.bfd_ipv6_policies + [{
@@ -66,7 +66,7 @@
     bfd6ns.bfd_ipv6_policies) -%}
 
 {% set mstns = namespace(mst_policies=[]) %}
-{% for pol in infra_children | selectattr('stpInstPol', 'defined') 
+{% for pol in infra_children | selectattr('stpInstPol', 'defined')
   | map(attribute='stpInstPol')
   | selectattr('children', 'defined') | map(attribute='children') | flatten
   | selectattr('stpMstRegionPol', 'defined') | map(attribute='stpMstRegionPol')

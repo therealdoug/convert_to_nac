@@ -218,7 +218,7 @@
   {%- set ipstmtns = namespace(ip_statements=[]) %}
   {% for stmnt in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
-    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fvIpAttr', 'defined') | map(attribute='fvIpAttr')
     | default('') | sort(attribute='attributes.name') %}
@@ -232,7 +232,7 @@
   {%- set macstmtns = namespace(mac_statements=[]) %}
   {% for stmnt in [epg] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
-    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn') 
+    | selectattr('fvCrtrn', 'defined') | map(attribute='fvCrtrn')
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fvMacAttr', 'defined') | map(attribute='fvMacAttr')
     | default('') | sort(attribute='attributes.name') %}

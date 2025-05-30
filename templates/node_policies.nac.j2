@@ -5,7 +5,7 @@ apic:
 {% import 'macro_handler.j2' as helper %}
 {%- set nodepolns = namespace(node_policies={}) -%}
 {%- set nodens = namespace(nodes=[]) -%}
-{%- set _= nodepolns.node_policies.__setitem__('inb_endpoint_group', 
+{%- set _= nodepolns.node_policies.__setitem__('inb_endpoint_group',
   polUni | selectattr('fvTenant', 'defined')
     | selectattr('fvTenant.attributes.name', 'equalto', 'mgmt')
     | map(attribute='fvTenant') | selectattr('children', 'defined')
@@ -15,7 +15,7 @@ apic:
     | map(attribute='children') | flatten
     | selectattr('mgmtInB', 'defined')
     | map(attribute='mgmtInB.attributes.name') | first | default('') ) -%}
-{%- set _= nodepolns.node_policies.__setitem__('oob_endpoint_group', 
+{%- set _= nodepolns.node_policies.__setitem__('oob_endpoint_group',
   polUni | selectattr('fvTenant', 'defined')
     | selectattr('fvTenant.attributes.name', 'equalto', 'mgmt')
     | map(attribute='fvTenant') | selectattr('children', 'defined')
@@ -46,7 +46,7 @@ apic:
         | selectattr('fabricNodePEp', 'defined')
         | map(attribute='fabricNodePEp.attributes.id')
         | last | default(''),
-      'policy': [group] 
+      'policy': [group]
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('fabricRsVpcInstPol', 'defined')
         | map(attribute='fabricRsVpcInstPol.attributes.tnVpcInstPolName')
@@ -84,7 +84,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtInB', 'defined') | map(attribute='mgmtInB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsInBStNode.attributes.addr')
         | first | default(''),
       'inb_gateway': polUni | selectattr('fvTenant', 'defined')
@@ -95,7 +95,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtInB', 'defined') | map(attribute='mgmtInB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsInBStNode.attributes.gw')
         | first | default(''),
       'inb_v6_address': polUni | selectattr('fvTenant', 'defined')
@@ -106,7 +106,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtInB', 'defined') | map(attribute='mgmtInB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsInBStNode.attributes.v6Addr')
         | first | default('')| replace('::', ''),
       'inb_v6_gateway': polUni | selectattr('fvTenant', 'defined')
@@ -117,7 +117,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtInB', 'defined') | map(attribute='mgmtInB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsInBStNode', 'defined') | selectattr('mgmtRsInBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsInBStNode.attributes.v6Gw')
         | first | default('') | replace('::', ''),
       'oob_address': polUni | selectattr('fvTenant', 'defined')
@@ -128,7 +128,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtOoB', 'defined') | map(attribute='mgmtOoB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsOoBStNode.attributes.addr')
         | first | default(''),
       'oob_address': polUni | selectattr('fvTenant', 'defined')
@@ -139,7 +139,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtOoB', 'defined') | map(attribute='mgmtOoB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsOoBStNode.attributes.gw')
         | first | default(''),
       'oob_v6_address': polUni | selectattr('fvTenant', 'defined')
@@ -150,7 +150,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtOoB', 'defined') | map(attribute='mgmtOoB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsOoBStNode.attributes.v6Addr')
         | first | default('') | replace('::', ''),
       'oob_v6_address': polUni | selectattr('fvTenant', 'defined')
@@ -161,7 +161,7 @@ apic:
         | selectattr('children', 'defined') | map(attribute='children') | flatten
         | selectattr('mgmtOoB', 'defined') | map(attribute='mgmtOoB')
         | selectattr('children', 'defined') | map(attribute='children') | flatten
-        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId)) 
+        | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsOoBStNode.attributes.v6Gw')
         | first | default('') | replace('::', ''),
     }] %}
