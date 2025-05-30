@@ -670,7 +670,7 @@
     'dead_interval': pol.attributes.deadIntvl | default('')
       | regex_replace('^40$', ''),
     'network_type': pol.attributes.nwT | default('')
-      | regex_replace('^p2p$', ''),
+      | regex_replace('^(bcast|unspecified)$', ''),
     'priority': pol.attributes.prio | default('')
       | regex_replace('^1$', ''),
     'lsa_retransmit_interval': pol.attributes.rexmitIntvl | default('')
