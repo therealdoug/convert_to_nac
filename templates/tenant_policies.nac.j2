@@ -11,9 +11,161 @@
 {%- set _=tenantns.tenant_policies.__setitem__('alias', this_tenant.attributes.nameAlias | default('') ) -%}
 {%- set _=tenantns.tenant_policies.__setitem__('security_domains', this_tenant.children | selectattr('aaaDomainRef', 'defined')
   | map(attribute='aaaDomainRef.attributes.name') | flatten | sort | default('')) -%}
+
 {%- include "tenant_policies/vrfs.nac.j2" %}
 {%- include "tenant_policies/bridge_domains.nac.j2" %}
 {%- include "tenant_policies/contracts.nac.j2" %}
+
+{%- set impctns = namespace(imported_contracts=[]) -%}
+{%- for con in this_tenant.children | selectattr('vzCPIf', 'defined')
+  | map(attribute='vzCPIf') | default('') | sort(attribute='attributes.name') %}
+  {%- set impctns.imported_contracts = impctns.imported_contracts + [{
+    'name': con.attributes.name,
+    'tenant': [con] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vzRsIf', 'defined')
+      | map(attribute='vzRsIf.attributes.tDn')
+      | first | default('') | regex_replace('^uni\/tn-(.*)\/brc-(.*)$', '\\1'),
+    'contract': [con] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vzRsIf', 'defined')
+      | map(attribute='vzRsIf.attributes.tDn')
+      | first | default('') | regex_replace('^uni\/tn-(.*)\/brc-(.*)$', '\\2'),
+  }] %}
+{% endfor %}
+{%- set _=tenantns.tenant_policies.__setitem__('imported_contracts', impctns.imported_contracts
+  | default('') ) if impctns.imported_contracts -%}
+
+{%- set inbepgns = namespace(inb_endpoint_groups=[]) -%}
+{%- for epg in this_tenant.children | selectattr('mgmtMgmtP', 'defined')
+  | map(attribute='mgmtMgmtP')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('mgmtInB', 'defined') | map(attribute='mgmtInB')
+  | default('') | sort(attribute='attributes.name') %}
+  {%- set contractns = namespace(contracts={}) -%}
+  {%- set _= contractns.contracts.__setitem__('consumers',
+    [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsCons', 'defined')
+    | map(attribute='fvRsCons.attributes.tnVzBrCPName')
+    | default('')) -%}
+  {%- set _= contractns.contracts.__setitem__('providers',
+    [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsProv', 'defined')
+    | map(attribute='fvRsProv.attributes.tnVzBrCPName')
+    | default('')) -%}
+  {%- set _= contractns.contracts.__setitem__('imported_consumers',
+    [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('fvRsConsIf', 'defined')
+    | map(attribute='fvRsConsIf.attributes.tnVzCPIfName')
+    | default('')) -%}
+  {%- set inbepgns.inb_endpoint_groups = inbepgns.inb_endpoint_groups + [{
+    'name': epg.attributes.name,
+    'vlan': epg.attributes.encap | default('') | replace('vlan-', ''),
+    'bridge_domain': [epg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('mgmtRsMgmtBD', 'defined')
+      | map(attribute='mgmtRsMgmtBD.attributes.tnFvBDName')
+      | first | default(''),
+    'static_routes': [epg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('mgmtStaticRoute', 'defined')
+      | map(attribute='mgmtStaticRoute.attributes.prefix')
+      | default(''),
+    'contracts': contractns.contracts if contractns.contracts | default(''),
+  }] %}
+{% endfor %}
+{%- set _=tenantns.tenant_policies.__setitem__('inb_endpoint_groups', inbepgns.inb_endpoint_groups
+  | default('') ) if inbepgns.inb_endpoint_groups -%}
+
+{%- set oobepgns = namespace(oob_endpoint_groups=[]) -%}
+{%- for epg in this_tenant.children | selectattr('mgmtMgmtP', 'defined')
+  | map(attribute='mgmtMgmtP')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('mgmtOoB', 'defined') | map(attribute='mgmtOoB')
+  | default('') | sort(attribute='attributes.name') %}
+  {%- set contractns = namespace(contracts={}) -%}
+  {%- set _= contractns.contracts.__setitem__('providers',
+    [epg] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('mgmtRsOoBProv', 'defined')
+    | map(attribute='mgmtRsOoBProv.attributes.tnVzOOBBrCPName')
+    | default('')) -%}
+  {%- set oobepgns.oob_endpoint_groups = oobepgns.oob_endpoint_groups + [{
+    'name': epg.attributes.name,
+    'static_routes': [epg] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('mgmtStaticRoute', 'defined')
+      | map(attribute='mgmtStaticRoute.attributes.prefix')
+      | default(''),
+    'oob_contracts': contractns.contracts if contractns.contracts | default(''),
+  }] %}
+{% endfor %}
+{%- set _=tenantns.tenant_policies.__setitem__('oob_endpoint_groups', oobepgns.oob_endpoint_groups
+  | default('') ) if oobepgns.oob_endpoint_groups -%}
+
+{%- set oobctns = namespace(oob_contracts=[]) -%}
+{% for con in this_tenant.children | selectattr('mgmtMgmtP', 'defined')
+  | map(attribute='mgmtMgmtP')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('vzOOBBrCP', 'defined') | map(attribute='vzOOBBrCP')
+  | default('') | sort(attribute='attributes.name') %}
+  {%- set oobsubjns = namespace(subjects=[]) -%}
+  {% for subj in [con] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vzSubj', 'defined') | map(attribute='vzSubj')
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set oobsubjns.subjects = oobsubjns.subjects [{
+      'name': subj.attributes.name,
+      'alias': subj.attributes.nameAlias | default(''),
+      'description': subj.attributes.description | default(''),
+      'filters': [subj] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vzRsSubjFiltAtt', 'defined')
+        | map(attribute='vzRsSubjFiltAtt.attributes.tnVzFilterName')
+        | default(''),
+    }] -%}
+  {% endfor%}
+  {% set oobctns.oob_contracts = oobctns.oob_contracts + [{
+    'name': con.attributes.name,
+    'alias': con.attributes.nameAlias | default(''),
+    'description': con.attributes.description | default(''),
+    'scope': con.attributes.scope | default('') | replace('context', ''),
+    'subjects': oobsubjns.subjects | default(''),
+  }] %}
+{% endfor %}
+{%- set _=tenantns.tenant_policies.__setitem__('oob_contracts', oobctns.oob_contracts
+  | default('') ) if oobctns.oob_contracts -%}
+
+{%- set extmgmtns = namespace(ext_mgmt_instances=[]) -%}
+{% for inst in this_tenant.children
+  | selectattr('mgmtExtMgmtEntity', 'defined') | map(attribute='mgmtExtMgmtEntity')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('mgmtInstP', 'defined') | map(attribute='mgmtInstP')
+  | default('') | sort(attribute='attributes.name') %}
+  {%- set oobconns = namespace(oob_contracts={}) -%}
+  {%- set _= oobconns.oob_contracts.__setitem__('consumers', 
+    [inst] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('mgmtRsOoBCons', 'defined')
+    | map(attribute='mgmtRsOoBCons.attributes.tnVzOOBBrCPName')
+    | default('')
+    | sort(attribute='attributes.tnVzOOBBrCPName')) -%}
+  {%- set extmgmtns.ext_mgmt_instances = extmgmtns.ext_mgmt_instances + [{
+    'name': inst.attributes.name,
+    'subnets': [inst] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('mgmtSubnet', 'defined')
+      | map(attribute='mgmtSubnet.attributes.ip')
+      | default('') | sort,
+    'oob_contracts': oobconns.oob_contracts if oobconns.oob_contracts | default('')
+  }] -%}
+{% endfor %}
+{%- set _=tenantns.tenant_policies.__setitem__('ext_mgmt_instances', extmgmtns.ext_mgmt_instances
+  | default('') ) if extmgmtns.ext_mgmt_instances -%}
+
 {%- include "tenant_policies/filters.nac.j2" %}
 {%- include "tenant_policies/application_profiles.nac.j2" %}
 {%- include "tenant_policies/l3outs.nac.j2" %}
