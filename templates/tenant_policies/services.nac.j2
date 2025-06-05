@@ -1,0 +1,812 @@
+{%- import 'macro_handler.j2' as helper -%}
+{%- set tnsvcsns = namespace(services={}) -%}
+
+{#- tenant.services.device_selection_policies -#}
+{%- set svcdspns = namespace(device_selection_policies=[]) -%}
+{%- for dsp in this_tenant.children | selectattr('vnsLDevCtx', 'defined')
+  | map(attribute='vnsLDevCtx') | default('')
+  | sort(attribute='attributes.name') -%}
+  {%- set svcdspns.device_selection_policies = svcdspns.device_selection_policies + [{
+    'contract': dsp.attributes.ctrctNameOrLbl | default(''),
+    'service_graph_template': dsp.attributes.graphNameOrLbl | default(''),
+    'node_name': dsp.attributes.nodeNameOrLbl | default(''),
+    'device_name': [dsp] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsRsLDevCtxToLDev', 'defined')
+      | map(attribute='vnsRsLDevCtxToLDev.attributes.tDn')
+      | first | default('')
+      | regex_replace('^.*\/lDevVip-(.*)$', '\\1'),
+    'consumer': {
+      'l3_destination': 'false' if [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+        | map(attribute='vnsLIfCtx')
+        | first | default('') == 'no' else '',
+      'permit_logging': 'true' if [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+        | map(attribute='vnsLIfCtx')
+        | first | default('') == 'yes' else '' | default('') ,
+      'logical_interface': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToLIf', 'defined')
+        | map(attribute='vnsRsLIfCtxToLIf.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/lIf-(.*)$', '\\1'),
+      'service_epg_policy': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToSvcEPgPol', 'defined')
+        | map(attribute='vnsRsLIfCtxToSvcEPgPol.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/svcEPgPol-(.*)$', '\\1'),
+      'custom_qos_policy': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToCustQosPol', 'defined')
+        | map(attribute='vnsRsLIfCtxToCustQosPol.attributes.tnQosCustomPolName')
+        | first | default(''),
+      'redirect_policy': {
+        'name': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToSvcRedirectPol', 'defined')
+          | map(attribute='vnsRsLIfCtxToSvcRedirectPol.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/.*\/svcRedirectPol-(.*)$', '\\2'),
+        'tenant': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToSvcRedirectPol', 'defined')
+          | map(attribute='vnsRsLIfCtxToSvcRedirectPol.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/.*\/svcRedirectPol-(.*)$', '\\1'),
+      } | default(''),
+      'bridge_domain': {
+        'name': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToBD', 'defined')
+          | map(attribute='vnsRsLIfCtxToBD.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/BD-(.*)$', '\\2'),
+        'tenant': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToBD', 'defined')
+          | map(attribute='vnsRsLIfCtxToBD.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/BD-(.*)$', '\\1'),
+      } | default(''),
+      'external_endpoint_group': {
+        'name': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToInstP', 'defined')
+          | map(attribute='vnsRsLIfCtxToInstP.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/out-(.*?)\/instP-(.*?)$', '\\3'),
+        'l3out': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToInstP', 'defined')
+          | map(attribute='vnsRsLIfCtxToInstP.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/out-(.*?)\/instP-(.*?)$', '\\2'),
+        'tenant': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToInstP', 'defined')
+          | map(attribute='vnsRsLIfCtxToInstP.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/out-(.*?)\/instP-(.*?)$', '\\1'),
+        'redistribute': {
+          'bgp': 'true' if 'bgp' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '' | default(''),
+          'ospf': 'true' if 'ospf' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '' | default(''),
+          'connected': 'true' if 'connected' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '' | default(''),
+          'static': 'true' if 'static' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'consumer')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '' | default(''),
+        } | default(),
+      } | default(),
+    } | default(),
+    'provider': {
+      'l3_destination': 'false' if [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+        | map(attribute='vnsLIfCtx')
+        | first | default('') == 'no' else '',
+      'permit_logging': 'true' if [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+        | map(attribute='vnsLIfCtx')
+        | first | default('') == 'yes' else '' | default('') ,
+      'logical_interface': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToLIf', 'defined')
+        | map(attribute='vnsRsLIfCtxToLIf.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/lIf-(.*)$', '\\1'),
+      'service_epg_policy': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToSvcEPgPol', 'defined')
+        | map(attribute='vnsRsLIfCtxToSvcEPgPol.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/svcEPgPol-(.*)$', '\\1'),
+      'custom_qos_policy': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToCustQosPol', 'defined')
+        | map(attribute='vnsRsLIfCtxToCustQosPol.attributes.tnQosCustomPolName')
+        | first | default(''),
+      'redirect_policy': {
+        'name': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToSvcRedirectPol', 'defined')
+          | map(attribute='vnsRsLIfCtxToSvcRedirectPol.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/.*\/svcRedirectPol-(.*)$', '\\2'),
+        'tenant': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToSvcRedirectPol', 'defined')
+          | map(attribute='vnsRsLIfCtxToSvcRedirectPol.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/.*\/svcRedirectPol-(.*)$', '\\1'),
+      } | default(''),
+      'bridge_domain': {
+        'name': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToBD', 'defined')
+          | map(attribute='vnsRsLIfCtxToBD.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/BD-(.*)$', '\\2'),
+        'tenant': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToBD', 'defined')
+          | map(attribute='vnsRsLIfCtxToBD.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/BD-(.*)$', '\\1'),
+      } | default(''),
+      'external_endpoint_group': {
+        'name': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToInstP', 'defined')
+          | map(attribute='vnsRsLIfCtxToInstP.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/out-(.*?)\/instP-(.*?)$', '\\3'),
+        'l3out': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToInstP', 'defined')
+          | map(attribute='vnsRsLIfCtxToInstP.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/out-(.*?)\/instP-(.*?)$', '\\2'),
+        'tenant': [dsp] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsLIfCtx', 'defined')
+          | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+          | map(attribute='vnsLIfCtx')
+          | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsLIfCtxToInstP', 'defined')
+          | map(attribute='vnsRsLIfCtxToInstP.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/out-(.*?)\/instP-(.*?)$', '\\1'),
+        'redistribute': {
+          'bgp': 'true' if 'bgp' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '',
+          'ospf': 'true' if 'ospf' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '',
+          'connected': 'true' if 'connected' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '',
+          'static': 'true' if 'static' in [dsp] | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsLIfCtx', 'defined')
+            | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'provider')
+            | map(attribute='vnsLIfCtx')
+            | selectattr('children', 'defined')
+            | map(attribute='children') | flatten
+            | selectattr('vnsRsLIfCtxToInstP', 'defined')
+            | map(attribute='vnsRsLIfCtxToInstP.attributes.redistribute')
+            | first | default('') else '',
+        } | default(''),
+      } | default(''),
+    } | default(''),
+    'copy_service': {
+      'l3_destination': 'false' if [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'copy')
+        | map(attribute='vnsLIfCtx')
+        | first | default('') == 'no' else '',
+      'permit_logging': 'true' if [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'copy')
+        | map(attribute='vnsLIfCtx')
+        | first | default('') == 'yes' else '' | default('') ,
+      'logical_interface': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'copy')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToLIf', 'defined')
+        | map(attribute='vnsRsLIfCtxToLIf.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/lIf-(.*)$', '\\1'),
+      'service_epg_policy': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'copy')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToSvcEPgPol', 'defined')
+        | map(attribute='vnsRsLIfCtxToSvcEPgPol.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/svcEPgPol-(.*)$', '\\1'),
+      'custom_qos_policy': [dsp] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsLIfCtx', 'defined')
+        | selectattr('vnsLIfCtx.attributes.connNameOrLbl', 'equalto', 'copy')
+        | map(attribute='vnsLIfCtx')
+        | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsLIfCtxToCustQosPol', 'defined')
+        | map(attribute='vnsRsLIfCtxToCustQosPol.attributes.tnQosCustomPolName')
+        | first | default(''),
+    } | default(''),
+  }] -%}
+{%- endfor -%}
+{%- set _= tnsvcsns.services.__setitem__('device_selection_policies',
+  svcdspns.device_selection_policies | default('') ) -%}
+
+{#- tenant.services.imported_l4l7_devices -#}
+{%- set svcimpl4l7ns = namespace(imported_l4l7_devices=[]) -%}
+{% for dsp in this_tenant.children | selectattr('vnsLDevIf', 'defined')
+  | map(attribute='vnsLDevIf') | default('')
+  | sort(attribute='attributes.name') %}
+  {%- set svcdspns.imported_l4l7_devices = svcimpl4l7ns.imported_l4l7_devices + [{
+    'name': dsp.attributes.ldev | default('')
+      | regex_replace('^uni\/tn-().*)\/lDevVip-(.*?)$', '\\2'),
+    'tenant': dsp.attributes.ldev | default('')
+      | regex_replace('^uni\/tn-().*)\/lDevVip-(.*?)$', '\\1'),
+    'description': dsp.attributes.description | default(''),
+  }] -%}
+{% endfor%}
+{%- set _= tnsvcsns.services.__setitem__('imported_l4l7_devices',
+  svcimpl4l7ns.imported_l4l7_devices if svcimpl4l7ns.imported_l4l7_devices) -%}
+
+{#- tenant.services.l4l7_devices -#}
+{%- set svcl4l7devns = namespace(l4l7_devices=[]) -%}
+{% for dev in this_tenant.children | selectattr('vnsLDevVip', 'defined')
+  | map(attribute='vnsLDevVip') | default('')
+  | sort(attribute='attributes.name') %}
+  {%- set cdev = namespace(concrete_devices=[]) -%}
+  {% for cd in [dev] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vnsCDev', 'defined')
+    | map(attribute='vnsCDev') 
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set cdevintfns = namespace(interfaces=[]) -%}
+    {% for intf in [cd] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsCIf', 'defined')
+      | map(attribute='vnsCIf') 
+      | default('') | sort(attribute='attributes.name') %}
+      {%- set cdevintfns.interfaces = cdevintfns.interfaces + [{
+        'name': intf.attributes.name,
+        'alias': intf.attributes.nameAlias | default(''),
+        'vnic_name': intf.attributes.vnicName | default(''),
+        'pod_id': [intf] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsCIfPathAtt', 'defined')
+          | map(attribute='vnsRsCIfPathAtt.attributes.tDn') | first | default('')
+          | regex_replace(
+          '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '\\1')
+          | regex_replace('^1$', ''),
+        'node_id': [intf] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsCIfPathAtt', 'defined')
+          | map(attribute='vnsRsCIfPathAtt.attributes.tDn') | first | default('')
+          | regex_replace(
+          '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '\\2'),
+        'node2_id': [intf] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsCIfPathAtt', 'defined')
+          | map(attribute='vnsRsCIfPathAtt.attributes.tDn') | first | default('')
+          | regex_replace(
+          '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '\\3'),
+        'channel': [intf] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsCIfPathAtt', 'defined')
+          | map(attribute='vnsRsCIfPathAtt.attributes.tDn') | first | default('')
+          | regex_replace(
+          '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '\\4')
+          | regex_replace('^eth.*', ''),
+        'module': [intf] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsCIfPathAtt', 'defined')
+          | map(attribute='vnsRsCIfPathAtt.attributes.tDn') | first | default('')
+          | regex_replace(
+          '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '\\5')
+          | regex_replace('^1$', ''),
+        'port': [intf] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsCIfPathAtt', 'defined')
+          | map(attribute='vnsRsCIfPathAtt.attributes.tDn') | first | default('')
+          | regex_replace(
+          '^topology\/pod-(\d+)\/(?:prot)?paths-(\d+)(?:-(\d+))?\/pathep-\[((?:eth)(\d)\/(\d+)(?:\/(\d)+)?|.*)]$',
+            '\\6'),
+        'vlan': intf.attributes.encap | default('')
+          | regex_replace('^vlan-(\d+)$', '\\1') | replace('unknown', ''),
+      }] -%}
+    {% endfor %}
+    {%- set cdev.concrete_devices = cdev.concrete_devices + [{
+      'name': cd.attributes.name,
+      'alias': cd.attributes.nameAlias | default(''),
+      'vcenter_name': cd.attributes.vcenterName | default(''),
+      'vm_name': cd.attributes.vmName | default(''),
+      'interfaces': cdevintfns.interfaces if cdevintfns.interfaces else ''
+        | default(''),
+    }] -%}
+  {% endfor %}
+  
+  {%- set logintfns = namespace(logical_interfaces=[]) -%}
+  {% for intf in [dev] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vnsLIf', 'defined')
+    | map(attribute='vnsLIf') 
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set cifns = namespace(concrete_interfaces=[]) -%}
+    {% for conintf in [intf] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsRsCIfAttN', 'defined')
+      | map(attribute='vnsRsCIfAttN.attributes.tDn')
+      | default('') | sort %}
+      {%- set cifns.concrete_interfaces = cifns.concrete_interfaces + [{
+        'device': conintf | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)\/cDev-(.*)\/cIf-\[(.*)\]$', '\\3'),
+        'interface_name': conintf | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)\/cDev-(.*)\/cIf-\[(.*)\]$', '\\4'),
+      }] -%}
+    {% endfor %}
+    {%- set logintfns.logical_interfaces = logintfns.logical_interfaces + [{
+      'name': intf.attributes.name,
+      'alias': intf.attributes.nameAlias | default(''),
+      'vlan': intf.attributes.encap | default('')
+        | regex_replace('^vlan-(\d+)$', '\\1') | replace('unknown', ''),
+      'concrete_interfaces': cifns.concrete_interfaces | default(''),
+    }] -%}
+  {% endfor %}
+  
+  {%- set svcl4l7devns.l4l7_devices = svcl4l7devns.l4l7_devices + [{
+    'name': dev.attributes.name,
+    'alias': dev.attributes.nameAlias | default(''),
+    'context_aware': dev.attributes.contextAware | default('')
+      | replace('single-Context', ''),
+    'type': dev.attributes.devtype | default('')
+      | replace('PHYSICAL', ''),
+    'function': dev.attributes.funcType | default('')
+      | replace('GoTo', ''),
+    'copy_device': 'true' if dev.attributes.isCopy == 'yes' else '' | default(''),
+    'managed': 'true' if dev.attributes.managed == 'yes' else '' | default(''),
+    'promiscuous_mode': 'true' if dev.attributes.promMode == 'yes' else '' | default(''),
+    'service_type': dev.attributes.svcType | default('')
+      | replace('FW', ''),
+    'trunking': 'true' if dev.attributes.trunking == 'yes' else '' | default(''),
+    'physical_domain': [dev] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsRsALDevToPhysDomP', 'defined')
+      | map(attribute='vnsRsALDevToPhysDomP.attributes.tDn')
+      | first | default('')
+      | regex_replace('^uni\/phys-(.*)$', '\\1'),
+    'vmware_vmm_domain': [dev] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsRsALDevToDomP', 'defined')
+      | map(attribute='vnsRsALDevToDomP.attributes.tDn')
+      | first | default('')
+      | regex_replace('^uni\/phys-(.*)$', '\\1'),
+    'active_active': 'true' if dev.attributes.activeActive | default('') == 'yes' else '',
+    'concrete_devices': cdev.concrete_devices if cdev.concrete_devices else ''
+      | default(''),
+    'logical_interfaces': logintfns.logical_interfaces
+      if logintfns.logical_interfaces else '' | default(''),
+  }] -%}
+{% endfor%}
+{%- set _= tnsvcsns.services.__setitem__('l4l7_devices',
+  svcl4l7devns.l4l7_devices if svcl4l7devns.l4l7_devices) -%}
+
+{#- tenant.services.redirect_backup_policies -#}
+{%- set rdpns = namespace(redirect_backup_policies=[]) -%}
+{% for pol in this_tenant.children | selectattr('vnsBackupPol', 'defined')
+  | map(attribute='vnsBackupPol') | default('')
+  | sort(attribute='attributes.name') %}
+  {%- set l3dstns = namespace(l3_destinations=[]) -%}
+  {% for l3dst in [pol] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vnsRedirectDest', 'defined')
+    | map(attribute='vnsRedirectDest') 
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set l3dstns.l3_destinations = l3dstns.l3_destinations + [{
+      'ip': l3dst.attributes.ip,
+      'ip_2': l3dst.attributes.ip | default('') | replace('0.0.0.0', ''),
+      'description': l3dst.attributes.description | default(''),
+      'mac': l3dst.attributes.mac | default(''),
+      'redirect_health_group': [l3dst] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsRedirectHealthGroup', 'defined')
+        | map(attribute='vnsRsRedirectHealthGroup.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/redirectHealthGroup-(.*)$', '\\1'),
+    }] -%}
+  {% endfor %}
+  {%- set rdpns.redirect_backup_policies = rdpns.redirect_backup_policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.description | default(''),
+    'l3_destinations': l3dstns.l3_destinations if l3dstns.l3_destinations else '' | default(''),
+  }] -%}
+{% endfor%}
+{%- set _= tnsvcsns.services.__setitem__('redirect_backup_policies',
+  rdpns.redirect_backup_policies if rdpns.redirect_backup_policies) -%}
+
+{#- tenant.services.redirect_health_groups -#}
+{%- set rhgns = namespace(redirect_health_groups=[]) -%}
+{% for pol in this_tenant.children | selectattr('vnsRedirectHealthGroup', 'defined')
+  | map(attribute='vnsRedirectHealthGroup') | default('')
+  | sort(attribute='attributes.name') %}
+  {%- set rhgns.redirect_health_groups = rhgns.redirect_health_groups + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.description | default(''),
+  }] -%}
+{% endfor%}
+{%- set _= tnsvcsns.services.__setitem__('redirect_health_groups',
+  rhgns.redirect_health_groups if rhgns.redirect_health_groups) -%}
+
+{#- tenant.services.redirect_policies -#}
+{%- set redirns = namespace(redirect_policies=[]) -%}
+{% for pol in this_tenant.children | selectattr('vnsSvcCont', 'defined')
+  | map(attribute='vnsSvcCont')
+  | selectattr('children', 'defined') | map(attribute='children') | flatten
+  | selectattr('vnsSvcRedirectPol', 'defined')
+  | map(attribute='vnsSvcRedirectPol') | default('')
+  | sort(attribute='attributes.name') %}
+
+  {%- set l1l2ns = namespace(l1l2_destinations=[]) -%}
+  {% for l1l2dst in [pol] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vnsL1L2RedirectDest', 'defined')
+    | map(attribute='vnsL1L2RedirectDest') 
+    | default('') | sort(attribute='attributes.destName') %}
+    {%- set l1l2ns.l1l2_destinations = l1l2ns.l1l2_destinations + [{
+      'name': l1l2dst.attributes.destName,
+      'description': l1l2dst.attributes.description | default(''),
+      'mac': l1l2dst.attributes.mac | default(''),
+      'weight': l1l2dst.attributes.weight | default(''),
+      'pod': l1l2dst.attributes.podId | default('') | regex_replace('^1$', ''),
+      'redirect_health_group': [l1l2dst] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsL1L2RedirectHealthGroup', 'defined')
+        | map(attribute='vnsRsL1L2RedirectHealthGroup.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/redirectHealthGroup-(.*)$', '\\1'),
+      'concrete_interface': {
+        'l4l7_device': [l1l2dst] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsToCIf', 'defined')
+          | map(attribute='vnsRsToCIf.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)\/cDev-(.*)\/cIf-\[(.*)\]$', '\\2'),
+        'concrete_device': [l1l2dst] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsToCIf', 'defined')
+          | map(attribute='vnsRsToCIf.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)\/cDev-(.*)\/cIf-\[(.*)\]$', '\\3'),
+        'interface': [l1l2dst] | selectattr('children', 'defined')
+          | map(attribute='children') | flatten
+          | selectattr('vnsRsToCIf', 'defined')
+          | map(attribute='vnsRsToCIf.attributes.tDn')
+          | first | default('')
+          | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)\/cDev-(.*)\/cIf-\[(.*)\]$', '\\4'),
+      } | default(''),
+    }] -%}
+  {% endfor %}
+
+  {%- set l3dstns = namespace(l3_destinations=[]) -%}
+  {% for l3dst in [pol] | selectattr('children', 'defined')
+    | map(attribute='children') | flatten
+    | selectattr('vnsRedirectDest', 'defined')
+    | map(attribute='vnsRedirectDest') 
+    | default('') | sort(attribute='attributes.name') %}
+    {%- set l3dstns.l3_destinations = l3dstns.l3_destinations + [{
+      'name': l3dst.attributes.destName | default(''),
+      'description': l3dst.attributes.descr | default(''),
+      'ip': l3dst.attributes.ip,
+      'ip_2': l3dst.attributes.ip2 | default('') | replace('0.0.0.0', ''),
+      'mac': l3dst.attributes.mac | default('') | replace('00:00:00:00:00:00', ''),
+      'pod': l3dst.attributes.podId | default('') | regex_replace('^1$', ''),
+      'redirect_health_group': [l3dst] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsRsRedirectHealthGroup', 'defined')
+        | map(attribute='vnsRsRedirectHealthGroup.attributes.tDn')
+        | first | default('')
+        | regex_replace('^.*\/redirectHealthGroup-(.*)$', '\\1')
+    }] -%}
+  {% endfor %}
+
+  {%- set redirns.redirect_policies = redirns.redirect_policies + [{
+    'name': pol.attributes.name,
+    'alias': pol.attributes.nameAlias | default(''),
+    'description': pol.attributes.description | default(''),
+    'anycast': 'true' if pol.attributes.AnycastEnabled | default('') == 'yes' else '',
+    'type': pol.attributes.destType | default('')
+      | replace('L3', ''),
+    'hashing': pol.attributes.hashingAlgorithm | default('')
+      | replace('sip-dip-prototype', ''),
+    'threshold': 'true' if pol.attributes.thresholdEnable | default('') == 'yes' else '',
+    'max_threshold': pol.attributes.maxThresholdPercent | default('') | regex_replace('^0$', ''),
+    'min_threshold': pol.attributes.minThresholdPercent | default('') | regex_replace('^0$', ''),
+    'threshold_down_action': pol.attributes.thresholdDownAction | default('')
+      | replace('permit', ''),
+    'pod_aware': 'true' if pol.attributes.programLocalPodOnly | default('') == 'yes' else '',
+    'resilient_hashing': 'true' if pol.attributes.resilientHashEnabled | default('') == 'yes' else '',
+    'redirect_backup_policy': [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsRsBackupPol', 'defined')
+      | map(attribute='vnsRsBackupPol.attributes.tDn')
+      | first | default('')
+      | regex_replace('^.*\/backupPol-(.*)$', '\\1'),
+    'rewrite_source_mac': 'true' if pol.attributes.srcMacRewriteEnabled | default('') == 'yes' else '',
+    'ip_sla_policy': [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsRsIPSLAMonitoringPol', 'defined')
+      | map(attribute='vnsRsIPSLAMonitoringPol.attributes.tDn')
+      | first | default('')
+      | regex_replace('^.*\/ipslaMonitoringPol-(.*)$', '\\1'),
+    'l1l2_destinations': l1l2ns.l1l2_destinations if l1l2ns.l1l2_destinations else '' | default(''),
+    'l3_destinations': l3dstns.l3_destinations if l3dstns.l3_destinations else '' | default(''),
+  }] -%}
+{% endfor%}
+{%- set _= tnsvcsns.services.__setitem__('redirect_policies',
+  redirns.redirect_policies if redirns.redirect_policies) -%}
+
+{#- tenant.services.service_epg_policies -#}
+{%- set svcepgns = namespace(service_epg_policies=[]) -%}
+{% for pol in this_tenant.children | selectattr('igmpSnoopPol', 'defined')
+  | map(attribute='igmpSnoopPol') | default('')
+  | sort(attribute='attributes.name') %}
+  {%- set svcepgns.service_epg_policies = svcepgns.service_epg_policies + [{
+    'name': pol.attributes.name,
+    'description': pol.attributes.descr | default(''),
+    'preferred_group': 'true' if pol.attributes.preferredGroup | default('') == 'include' else '',
+  }] -%}
+{% endfor%}
+{%- set _= tnsvcsns.services.__setitem__('service_epg_policies',
+  svcepgns.service_epg_policies if svcepgns.service_epg_policies) -%}
+
+{#- tenant.services.service_graph_templates -#}
+{%- set sgtns = namespace(service_graph_templates=[]) -%}
+{% for pol in this_tenant.children | selectattr('vnsAbsGraph', 'defined')
+  | map(attribute='vnsAbsGraph') | default('')
+  | sort(attribute='attributes.name') %}
+  {%- set sgtns.service_graph_templates = sgtns.service_graph_templates + [{
+    'name': pol.attributes.name,
+    'alias': pol.attributes.nameAlias | default(''),
+    'description': pol.attributes.description | default(''),
+    'template_type': [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsAbsNode', 'defined')
+      | map(attribute='vnsAbsNode.attributes.funcTemplateType')
+      | first | default('') | replace('FW_ROUTED', ''),
+    'redirect': 'true' if [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsAbsNode', 'defined')
+      | map(attribute='vnsAbsNode.attributes.routingMode')
+      | first | default('') == 'Redirect' else '',
+    'share_encapsulation': 'true' if [pol] | selectattr('children', 'defined')
+      | map(attribute='children') | flatten
+      | selectattr('vnsAbsNode', 'defined')
+      | map(attribute='vnsAbsNode.attributes.shareEncap')
+      | first | default('') == 'yes' else '',
+    'device': {
+      'name': [pol] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsAbsNode', 'defined') | map(attribute='vnsAbsNode')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('vnsRsNodeToLDev', 'defined')
+        | map(attribute='vnsRsNodeToLDev.attributes.tDn')
+        | first | default('')
+        | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)$', '\\2'),
+      'tenant': [pol] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsAbsNode', 'defined') | map(attribute='vnsAbsNode')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('vnsRsNodeToLDev', 'defined')
+        | map(attribute='vnsRsNodeToLDev.attributes.tDn')
+        | first | default('')
+        | regex_replace('^uni\/tn-(.*?)\/lDevVip-(.*)$', '\\1'),
+      'node_name': [pol] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsAbsNode', 'defined')
+        | map(attribute='vnsAbsNode.attributes.name')
+        | first | default(''),
+    } | default(''),
+    'consumer': {
+      'direct_connect': 'true' if [pol] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsAbsNode', 'defined') | map(attribute='vnsAbsNode')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('vnsAbsConnection', 'defined')
+        | selectattr('vnsAbsConnection.attributes.name', 'equalto', 'C1')
+        | map(attribute='vnsAbsConnection.attributes.directConnect')
+        | first | default('') == 'yes' else '',
+    } | default(''),
+    'provider': {
+      'direct_connect': 'true' if [pol] | selectattr('children', 'defined')
+        | map(attribute='children') | flatten
+        | selectattr('vnsAbsNode', 'defined') | map(attribute='vnsAbsNode')
+        | selectattr('children', 'defined') | map(attribute='children') | flatten
+        | selectattr('vnsAbsConnection', 'defined')
+        | selectattr('vnsAbsConnection.attributes.name', 'equalto', 'C2')
+        | map(attribute='vnsAbsConnection.attributes.directConnect')
+        | first | default('') == 'yes' else '',
+    } | default(''),
+
+  }] -%}
+{% endfor %}
+{%- set _= tnsvcsns.services.__setitem__('service_graph_templates',
+  sgtns.service_graph_templates if sgtns.service_graph_templates) -%}
+
+{%- set _= tenantns.tenant_policies.__setitem__('services', tnsvcsns.services | default('') ) -%}

@@ -51,7 +51,7 @@
         | selectattr('fvRsVmmVSwitchEnhancedLagPol', 'defined')
         | map(attribute='fvRsVmmVSwitchEnhancedLagPol.attributes.tDn')
         | first | default('') | regex_replace('^.*enlacplagp-', ''),
-      'active_uplinks': [domain] | selectattr('children', 'defined')
+      'active_uplinks_order': [domain] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
         | selectattr('fvUplinkOrderCont', 'defined')
         | map(attribute='fvUplinkOrderCont.attributes.active')
