@@ -105,9 +105,9 @@
     'unicast_routing': 'false' if 'no' in bd.attributes.unicastRoute
       | default('') else '',
     'multi_destination_flooding': bd.attributes.multiDstPktAct | default('')
-      | replace('bd-flood', ''),
+      | regex_replace('^bd-flood$', ''),
     'unknown_unicast': bd.attributes.unkMacUcastAct | default('')
-      | replace('proxy', ''),
+      | replace('flood', ''),
     'unknown_ipv4_multicast': bd.attributes.unkMcastAct | default('')
       | regex_replace('^flood$', ''),
     'unknown_ipv6_multicast': bd.attributes.v6unkMcastAct | default('')
