@@ -419,7 +419,7 @@
       | regex_replace('^uni\/tn-().*)\/lDevVip-(.*?)$', '\\2'),
     'tenant': dsp.attributes.ldev | default('')
       | regex_replace('^uni\/tn-().*)\/lDevVip-(.*?)$', '\\1'),
-    'description': dsp.attributes.description | default(''),
+    'description': dsp.attributes.descr | default(''),
   }] -%}
 {% endfor%}
 {%- set _= tnsvcsns.services.__setitem__('imported_l4l7_devices',
@@ -582,7 +582,7 @@
     {%- set l3dstns.l3_destinations = l3dstns.l3_destinations + [{
       'ip': l3dst.attributes.ip,
       'ip_2': l3dst.attributes.ip | default('') | replace('0.0.0.0', ''),
-      'description': l3dst.attributes.description | default(''),
+      'description': l3dst.attributes.descr | default(''),
       'mac': l3dst.attributes.mac | default(''),
       'redirect_health_group': [l3dst] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
@@ -594,7 +594,7 @@
   {% endfor %}
   {%- set rdpns.redirect_backup_policies = rdpns.redirect_backup_policies + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.description | default(''),
+    'description': pol.attributes.descr | default(''),
     'l3_destinations': l3dstns.l3_destinations if l3dstns.l3_destinations else '' | default(''),
   }] -%}
 {% endfor%}
@@ -608,7 +608,7 @@
   | sort(attribute='attributes.name') %}
   {%- set rhgns.redirect_health_groups = rhgns.redirect_health_groups + [{
     'name': pol.attributes.name,
-    'description': pol.attributes.description | default(''),
+    'description': pol.attributes.descr | default(''),
   }] -%}
 {% endfor%}
 {%- set _= tnsvcsns.services.__setitem__('redirect_health_groups',
@@ -631,7 +631,7 @@
     | default('') | sort(attribute='attributes.destName') %}
     {%- set l1l2ns.l1l2_destinations = l1l2ns.l1l2_destinations + [{
       'name': l1l2dst.attributes.destName,
-      'description': l1l2dst.attributes.description | default(''),
+      'description': l1l2dst.attributes.descr | default(''),
       'mac': l1l2dst.attributes.mac | default(''),
       'weight': l1l2dst.attributes.weight | default(''),
       'pod': l1l2dst.attributes.podId | default('') | regex_replace('^1$', ''),
@@ -689,7 +689,7 @@
   {%- set redirns.redirect_policies = redirns.redirect_policies + [{
     'name': pol.attributes.name,
     'alias': pol.attributes.nameAlias | default(''),
-    'description': pol.attributes.description | default(''),
+    'description': pol.attributes.descr | default(''),
     'anycast': 'true' if pol.attributes.AnycastEnabled | default('') == 'yes' else '',
     'type': pol.attributes.destType | default('')
       | replace('L3', ''),
@@ -744,7 +744,7 @@
   {%- set sgtns.service_graph_templates = sgtns.service_graph_templates + [{
     'name': pol.attributes.name,
     'alias': pol.attributes.nameAlias | default(''),
-    'description': pol.attributes.description | default(''),
+    'description': pol.attributes.descr | default(''),
     'template_type': [pol] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('vnsAbsNode', 'defined')

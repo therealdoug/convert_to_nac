@@ -35,4 +35,4 @@
     'entries': entryns.entries | default([]),
   }] %}
 {%- endfor -%}
-{%- set _ = this_tenant.attributes.__setitem__('filters', filterns.filters) -%}
+{%- set _ = tenantns.tenant_policies.__setitem__('filters', filterns.filters) -%}
