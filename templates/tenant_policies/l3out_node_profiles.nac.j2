@@ -64,75 +64,75 @@
         }] %}
       {% endfor -%}
 
-    {% for np in [np]
+    {% for peer in [np]
       | selectattr('children', 'defined') | map(attribute='children')| flatten
       | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP')
       | sort(attribute='attributes.addr') %}
       {%- set peerns.peers = peerns.peers + [{
-        'ip': np.attributes.addr,
-        'description': np.attributes.descr,
-        'alias': np.attributes.nameAlias,
-        'remote_as': [np]| selectattr('children', 'defined')
+        'ip': peer.attributes.addr,
+        'description': peer.attributes.descr,
+        'alias': peer.attributes.nameAlias,
+        'remote_as': [peer] | selectattr('children', 'defined')
           | map(attribute='children') | flatten | list
           | selectattr('bgpAsP', 'defined')
           | map(attribute='bgpAsP.attributes.asn')
           | first | default(''),
-        'allow_self_as': 'true' if 'allow-self-as' in np.attributes.ctrl else '',
-        'as_override': 'true' if 'as-override' in np.attributes.ctrl else '',
+        'allow_self_as': 'true' if 'allow-self-as' in peer.attributes.ctrl else '',
+        'as_override': 'true' if 'as-override' in peer.attributes.ctrl else '',
         'disable_peer_as_check': 'true' if 'dis-peer-as-check'
-          in np.attributes.ctrl else '',
-        'next_hop_self': 'true' if 'nh-self' in np.attributes.ctrl else '',
-        'send_community': 'true' if 'send-com' in np.attributes.ctrl else '',
-        'send_ext_community': 'true' if 'send-ext-com' in np.attributes.ctrl else '',
-        'password': np.attributes.password | default(''),
-        'bfd': 'true' if 'bfd' in np.attributes.peerCtrl else '',
+          in peer.attributes.ctrl else '',
+        'next_hop_self': 'true' if 'nh-self' in peer.attributes.ctrl else '',
+        'send_community': 'true' if 'send-com' in peer.attributes.ctrl else '',
+        'send_ext_community': 'true' if 'send-ext-com' in peer.attributes.ctrl else '',
+        'password': peer.attributes.password | default(''),
+        'bfd': 'true' if 'bfd' in peer.attributes.peerCtrl else '',
         'disable_connected_check': 'true' if 'dis-conn-check'
-          in np.attributes.peerCtrl else '',
-        'ttl': np.attributes.ttl | regex_replace('^1$', ''),
-        'weight': np.attributes.weight
+          in peer.attributes.peerCtrl else '',
+        'ttl': peer.attributes.ttl | regex_replace('^1$', ''),
+        'weight': peer.attributes.weight
           | replace('0', ''),
         'remove_all_private_as': 'true' if 'remove-all'
-          in np.attributes.privateASctrl else '',
+          in peer.attributes.privateASctrl else '',
         'remove_private_as': 'true' if 'remove-exclusive'
-          in np.attributes.privateASctrl else '',
+          in peer.attributes.privateASctrl else '',
         'replace_private_as_with_local_as': 'true'if 'replace-as'
-          in np.attributes.privateASctrl else '',
+          in peer.attributes.privateASctrl else '',
         'unicast_address_family': 'false' if 'af-ucast'
-          not in np.attributes.addrTCtrl else '',
+          not in peer.attributes.addrTCtrl else '',
         'multicast_address_family': 'false' if 'af-mcast'
-          not in np.attributes.addrTCtrl else '',
-        'local_as': [np] | selectattr('children', 'defined')
+          not in peer.attributes.addrTCtrl else '',
+        'local_as': [peer] | selectattr('children', 'defined')
           | map(attribute='children') | flatten | list
           | selectattr('bgpLocalAsnP', 'defined')
           | map(attribute='bgpLocalAsnP.attributes.localAsn')
           | first | default(''),
-        'as_propagate': [np] | selectattr('children', 'defined')
+        'as_propagate': [peer] | selectattr('children', 'defined')
           | map(attribute='children') | flatten | list
           | selectattr('bgpLocalAsnP', 'defined')
           | map(attribute='bgpLocalAsnP.attributes.asnPropagate')
           | first | default('') | replace('none', ''),
-        'peer_prefix_policy': [np] | selectattr('children', 'defined')
+        'peer_prefix_policy': [peer] | selectattr('children', 'defined')
           | map(attribute='children') | flatten | list
           | selectattr('bgpRsPeerPfxPol', 'defined')
           | map(attribute='bgpRsPeerPfxPol.attributes.tnBgpPeerPfxPolName')
           | first | default(''),
-        'export_route_control': [np] | selectattr('children', 'defined')
+        'export_route_control': [peer] | selectattr('children', 'defined')
           | map(attribute='children') | flatten | list
           | selectattr('bgpRsPeerToProfile', 'defined')
           | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'export')
           | map(attribute='bgpRsPeerToProfile.attributes.tDn')
           | first | default('')
           | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
-        'import_route_control': [np] | selectattr('children', 'defined')
+        'import_route_control': [peer] | selectattr('children', 'defined')
           | map(attribute='children') | flatten | list
           | selectattr('bgpRsPeerToProfile', 'defined')
           | selectattr('bgpRsPeerToProfile.attributes.direction', 'match', 'import')
           | map(attribute='bgpRsPeerToProfile.attributes.tDn')
           | first | default('')
           | regex_replace('^uni/tn-.*/prof-(.*?)$', '\\1'),
-        'admin_state': 'false' if np.attributes.adminSt == 'disabled' else ''
+        'admin_state': 'false' if peer.attributes.adminSt == 'disabled' else ''
           | default(''),
-        'allowed_self_as_count': np.attributes.allowedSelfAsCnt
+        'allowed_self_as_count': peer.attributes.allowedSelfAsCnt
           | replace('3', ''),
       }] %}
     {% endfor %}
