@@ -353,7 +353,7 @@
       %}
       {#- Floating SVI Interface -#}
       {#- Physical Interface -#}
-      {% for intf in interface_profiles | sort(attribute='attributes.ip') %}
+      {% for intf in interface_profiles | sort(attribute='attributes.addr') %}
         {#- Set Interface Paths -#}
         {%- set interfacepathsns = namespace(paths=[]) %}
         {% for path in [intf] | selectattr('children', 'defined')

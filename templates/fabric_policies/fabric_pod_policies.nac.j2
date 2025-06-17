@@ -10,7 +10,7 @@
     | map(attribute='children') | flatten
     | selectattr('datetimeNtpProv', 'defined')
     | map(attribute='datetimeNtpProv') 
-    | sort(attribute='attributes.hostname_ip') | default([]) %}
+    | sort(attribute='attributes.name') | default([]) %}
     {% set ntpserversns.ntp_servers = ntpserversns.ntp_servers + [{
       'hostname_ip': server.attributes.name,
       'auth_key_id': server.attributes.keyId | default('')

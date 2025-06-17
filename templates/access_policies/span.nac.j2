@@ -163,7 +163,7 @@
     | map(attribute='children') | flatten
     | selectattr('spanFilterEntry', 'defined')
     | map(attribute='spanFilterEntry') | default('') 
-    | sort(attribute='attributes.name,attributes.source_ip') %}
+    | sort(attribute='attributes.name,attributes.srcAddr') %}
     {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name | default(''),
       'description': entry.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),

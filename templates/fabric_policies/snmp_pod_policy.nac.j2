@@ -21,7 +21,7 @@
   {% for fwdr in [policy] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('snmpTrapFwdServerP', 'defined')
-    | map(attribute='snmpTrapFwdServerP') | sort(attribute='attributes.ip') %}
+    | map(attribute='snmpTrapFwdServerP') | sort(attribute='attributes.addr') %}
     {% set trapfwdns.trap_forwarders = trapfwdns.trap_forwarders + [{
       'ip': fwdr.attributes.addr | default(''),
       'port': fwdr.attributes.port | default('') | regex_replace('^162$', ''),

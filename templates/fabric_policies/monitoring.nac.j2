@@ -7,7 +7,7 @@
     | map(attribute='children') | flatten
     | selectattr('snmpTrapDest', 'defined')
     | map(attribute='snmpTrapDest') 
-    | sort(attribute='attributes.hostname_ip') | default([]) %}
+    | sort(attribute='attributes.host') | default([]) %}
     {% set destns.destinations = destns.destinations + [{
       'hostname_ip': dest.attributes.host,
       'port': dest.attributes.port | default('') | regex_replace('^162$', ''),
@@ -36,7 +36,7 @@
     | map(attribute='children') | flatten
     | selectattr('syslogRemoteDest', 'defined')
     | map(attribute='syslogRemoteDest') 
-    | sort(attribute='attributes.hostname_ip') | default([]) %}
+    | sort(attribute='attributes.host') | default([]) %}
     {% set destns.destinations = destns.destinations + [{
       'hostname_ip': dest.attributes.host,
       'name': dest.attributes.name | default(''),
