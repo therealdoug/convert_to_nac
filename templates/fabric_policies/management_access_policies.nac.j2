@@ -1,6 +1,6 @@
 {% set fabmgmtaccns = namespace(management_access_policies=[]) -%}
 {% for policy in fabricInst_children | selectattr('commPol', 'defined')
-  | map(attribute='commPol') | default([]) %}
+  | map(attribute='commPol') | sort(attribute='attributes.name') | default([]) %}
   {% set fabmgmtaccns.management_access_policies = fabmgmtaccns.management_access_policies + [{
     'name': policy.attributes.name,
     'description': policy.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
