@@ -194,7 +194,8 @@
   {% for prov in [pol] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('dhcpRsProv', 'defined') | map(attribute='dhcpRsProv')
-    | list | default('') %}
+    | list | default('')
+    | sort(attribute='attributes.addr') %}
     {%- set provns.providers = provns.providers + [{
       'ip': prov.attributes.addr,
       'type': 'external_epg' if '/out-' in prov.attributes.tDn else 'epg',
