@@ -4,7 +4,7 @@
 {% for np in [l3o]
   | selectattr('children', 'defined') | map(attribute='children') | flatten | list
   | selectattr('l3extLNodeP', 'defined') | map(attribute='l3extLNodeP')
-  | list | default([]) if np %}
+  | list | sort(attribute='attributes.name') | default([]) if np %}
   {%- set bgpns = namespace(bgp={}) %}
   {%- set nodens = namespace(nodes=[]) %}
   {%- set peersns = namespace(peers=[]) -%}
@@ -66,7 +66,8 @@
 
     {% for np in [np]
       | selectattr('children', 'defined') | map(attribute='children')| flatten
-      | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP') %}
+      | selectattr('bgpPeerP', 'defined') | map(attribute='bgpPeerP')
+      | sort(attribute='attributes.addr') %}
       {%- set peerns.peers = peerns.peers + [{
         'ip': np.attributes.addr,
         'description': np.attributes.descr,
@@ -144,7 +145,7 @@
       {% for label in [int_prof] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | list
         | selectattr('dhcpLbl', 'defined') | map(attribute='dhcpLbl')
-        | default([]) %}
+        | sort(attribute='attributes.name') | default([]) %}
         {%- set dhcplabelsns.labels = dhcplabelsns.labels + [{
           'dhcp_relay_policy': label.attributes.name,
           'scope': label.attributes.owner,
@@ -161,13 +162,13 @@
         | map(attribute='children') | flatten | list
         | selectattr('l3extRsPathL3OutAtt', 'defined')
         | map(attribute='l3extRsPathL3OutAtt')
-        | default([]) %}
+        | sort(attribute='attributes.addr') | default([]) %}
         {%- set interfacesns.interfaces = interfacesns.interfaces + [{
           'ip': intf.attributes.addr | replace('0.0.0.0', ''),
           'svi': 'true' if intf.attributes.ifInstT == 'ext-svi' else ''
             | default(''),
           'floating_svi': none,
-          'description': intf.attributes.descr,
+          'description': intf.attributes.descr | default(''),
           'vlan': intf.attributes.encap
             | regex_replace('^vlan-(\d+)$', '\\1') | default(''),
           'autostate': 'true' if intf.attributes.autostate == 'enabled' else '' | default(''),

@@ -1,6 +1,6 @@
 {%- set nfexpns = namespace(netflow_exporters=[]) %}
 {% for exp in infra_children | selectattr('netflowExporterPol', 'defined')
-  | map(attribute='netflowExporterPol') | list %}
+  | map(attribute='netflowExporterPol') | list | sort(attribute='attributes.name') %}
   {%- set nfexpns.netflow_exporters = nfexpns.netflow_exporters + [{
     'name': exp.attributes.name,
     'description': exp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
@@ -68,7 +68,7 @@
 
 {%- set nfmonns = namespace(netflow_monitors=[]) %}
 {% for mon in infra_children | selectattr('netflowMonitorPol', 'defined')
-  | map(attribute='netflowMonitorPol') %}
+  | map(attribute='netflowMonitorPol') | sort(attribute='attributes.name') %}
   {%- set nfmonns.netflow_monitors = nfmonns.netflow_monitors + [{
     'name': mon.attributes.name,
     'description': mon.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
@@ -88,7 +88,7 @@
 
 {%- set nfrecns = namespace(netflow_records=[]) %}
 {% for rec in infra_children | selectattr('netflowRecordPol', 'defined')
-  | map(attribute='netflowRecordPol') %}
+  | map(attribute='netflowRecordPol') | sort(attribute='attributes.name') %}
   {%- set nfrecns.netflow_records = nfrecns.netflow_records + [{
     'name': rec.attributes.name,
     'description': rec.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),

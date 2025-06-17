@@ -1,12 +1,13 @@
 {% set fabmonns = namespace(monitoring={}) -%}
 {% set snmpns = namespace(snmp_traps=[]) %}
 {% for snmptrap in fabricInst_children | selectattr('snmpGroup', 'defined')
-  | map(attribute='snmpGroup') %}
+  | map(attribute='snmpGroup') | sort(attribute='attributes.name') | default([]) %}
   {%- set destns = namespace(destinations=[]) %}
   {% for dest in [snmptrap] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('snmpTrapDest', 'defined')
-    | map(attribute='snmpTrapDest') | default([]) %}
+    | map(attribute='snmpTrapDest') 
+    | sort(attribute='attributes.host') | default([]) %}
     {% set destns.destinations = destns.destinations + [{
       'hostname_ip': dest.attributes.host,
       'port': dest.attributes.port | default('') | regex_replace('^162$', ''),
@@ -29,12 +30,13 @@
 
 {% set syslogns = namespace(syslogs=[]) %}
 {% for syslog in fabricInst_children | selectattr('syslogGroup', 'defined')
-  | map(attribute='syslogGroup') %}
+  | map(attribute='syslogGroup') | sort(attribute='attributes.name') %}
   {%- set destns = namespace(destinations=[]) %}
   {% for dest in [syslog] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('syslogRemoteDest', 'defined')
-    | map(attribute='syslogRemoteDest') | default([]) %}
+    | map(attribute='syslogRemoteDest') 
+    | sort(attribute='attributes.host') | default([]) %}
     {% set destns.destinations = destns.destinations + [{
       'hostname_ip': dest.attributes.host,
       'name': dest.attributes.name | default(''),

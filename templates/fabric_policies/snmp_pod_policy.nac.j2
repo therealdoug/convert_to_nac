@@ -1,10 +1,11 @@
 {%- set snmpns = namespace(snmp_policies=[]) %}
 {%- for policy in fabricInst_children | selectattr('snmpPol', 'defined')
-  | map(attribute='snmpPol') %}
+  | map(attribute='snmpPol') | sort(attribute='attributes.name') %}
   {% set userns = namespace(users=[]) %}
   {%- for user in [policy] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
-    | selectattr('snmpUserP', 'defined') | map(attribute='snmpUserP') %}
+    | selectattr('snmpUserP', 'defined') | map(attribute='snmpUserP') 
+    | sort(attribute='attributes.name') %}
     {% set userns.users = userns.users + [{
       'name': user.attributes.name,
       'description': user.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
@@ -20,7 +21,7 @@
   {% for fwdr in [policy] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('snmpTrapFwdServerP', 'defined')
-    | map(attribute='snmpTrapFwdServerP') %}
+    | map(attribute='snmpTrapFwdServerP') | sort(attribute='attributes.addr') %}
     {% set trapfwdns.trap_forwarders = trapfwdns.trap_forwarders + [{
       'ip': fwdr.attributes.addr | default(''),
       'port': fwdr.attributes.port | default('') | regex_replace('^162$', ''),
@@ -30,11 +31,11 @@
   {% for client in [policy] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('snmpClientGrpP', 'defined')
-    | map(attribute='snmpClientGrpP')%}
+    | map(attribute='snmpClientGrpP') | sort(attribute='attributes.name')%}
     {% set entryns = namespace(entries=[]) %}
     {% for entry in [client] | selectattr('children', 'defined')
       | map(attribute='children') | flatten | selectattr('snmpClientP', 'defined')
-      | map(attribute='snmpClientP') %}
+      | map(attribute='snmpClientP') | sort(attribute='attributes.name,attributes.addr')%}
       {% set entryns.entries = entryns.entries + [{
         'name': entry.attributes.name,
         'ip': entry.attributes.addr,

@@ -1,16 +1,18 @@
 {% set aaausersns = namespace(users=[]) %}
 {% for user in aaaUserEp | selectattr('aaaUser', 'defined')
-  | map(attribute='aaaUser') %}
+  | map(attribute='aaaUser') | sort(attribute='attributes.name') %}
   {% set domainns = namespace(domains=[]) %}
   {% for domain in [user] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('aaaUserDomain', 'defined')
-    | map(attribute='aaaUserDomain') | default('') %}
+    | map(attribute='aaaUserDomain') | default('')
+    | sort(attribute='attributes.name') %}
     {% set rolesns = namespace(roles=[]) %}
     {% for role in [domain] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
       | selectattr('aaaUserRole', 'defined')
-      | map(attribute='aaaUserRole') %}
+      | map(attribute='aaaUserRole') 
+      | sort(attribute='attributes.name') %}
       {% set rolesns.roles = rolesns.roles + [{
         'name': role.attributes.name,
         'privilege_type': role.attributes.privType | default('')
@@ -26,7 +28,8 @@
   {% for cert in [user] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('aaaUserCert', 'defined')
-    | map(attribute='aaaUserCert') | default('') %}
+    | map(attribute='aaaUserCert') | default('') 
+    | sort(attribute='attributes.name') %}
     {% set certsns.certificates = certsns.certificates + [{
       'name': cert.attributes.name,
       'data': cert.attributes.data,
@@ -36,7 +39,8 @@
   {% for key in [user] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('aaaSshAuth', 'defined')
-    | map(attribute='aaaSshAuth') | default('') %}
+    | map(attribute='aaaSshAuth') | default('') 
+    | sort(attribute='attributes.name') %}
     {% set certsns.certificates = certsns.certificates + [{
       'name': key.attributes.name,
       'data': key.attributes.data,

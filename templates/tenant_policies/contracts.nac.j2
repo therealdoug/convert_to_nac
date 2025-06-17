@@ -8,12 +8,12 @@
   {% for subject in [con]
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('vzSubj','defined') | map(attribute='vzSubj')
-    | list | default([]) %}
+    | list | default([]) | sort(attribute='attributes.name') %}
     {% set filterns = namespace(filters=[]) %}
     {% for filter in [subject]
       | selectattr('children', 'defined') | map(attribute='children') | flatten
       | selectattr('vzRsSubjFiltAtt','defined') | map(attribute='vzRsSubjFiltAtt')
-      | list | default([]) %}
+      | list | sort(attribute='attributes.tnVzFilterName') | default([]) %}
       {% set filterns.filters = filterns.filters +
         [{
           'filter': filter.attributes.tnVzFilterName,

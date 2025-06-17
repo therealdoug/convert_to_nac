@@ -116,7 +116,7 @@
           | map(attribute='children' ) | flatten
           | selectattr('l3extRsDynPathAtt', 'defined')
           | map(attribute='l3extRsDynPathAtt')
-          | list | default('') %}
+          | list | default('') | sort(attribute='attributes.floatingAddr') %}
           {%- set interfacepathsns.paths = interfacepathsns.paths + [{
             'floating_ip': path.attributes.floatingAddr,
             'physical_domain': path.attributes.tDn
@@ -345,7 +345,7 @@
   {% for eepg in [l3o] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('l3extInstP', 'defined') | map(attribute='l3extInstP')
-    | default('') %}
+    | default('') | sort(attribute='attributes.name') %}
     {%- set eepgsubnetns = namespace(subnets=[])%}
     {% for subnet in [eepg] | selectattr('children', 'defined')
       | map(attribute='children') | flatten
@@ -410,7 +410,7 @@
       | selectattr('l3extRsLblToInstP', 'defined')
       | map(attribute='l3extRsLblToInstP')
       | map(attribute='attributes.tDn')
-      | default([]) %}
+      | sort | default([]) %}
       {%- set srmpl3_infra_eepgns.eepgs = srmpl3_infra_eepgns.eepgs + [
         infra_eepg | regex_replace('^(.*?)\/instP-(.*)$', '\\2')
       ] %}

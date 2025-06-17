@@ -131,7 +131,7 @@ apic:
         | selectattr('mgmtRsOoBStNode', 'defined') | selectattr('mgmtRsOoBStNode.attributes.tDn', 'search', 'node-{}$'.format(node.attributes.nodeId))
         | map(attribute='mgmtRsOoBStNode.attributes.addr')
         | first | default(''),
-      'oob_address': polUni | selectattr('fvTenant', 'defined')
+      'oob_gateway': polUni | selectattr('fvTenant', 'defined')
         | selectattr('fvTenant.attributes.name', 'equalto', 'mgmt')
         | map(attribute='fvTenant') | selectattr('children', 'defined')
         | map(attribute='children') | flatten

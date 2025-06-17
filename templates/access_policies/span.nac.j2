@@ -3,7 +3,7 @@
 {%- set spandestns = namespace(destination_groups=[]) -%}
 {% for grp in infra_children | selectattr('spanDestGrp', 'defined')
   | map(attribute='spanDestGrp')
-  | default('') %}
+  | default('') | sort(attribute='attributes.name') %}
   {%- set spandestns.destination_groups = spandestns.destination_groups + [{
     'name': grp.attributes.name,
     'description': grp.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),
@@ -162,7 +162,8 @@
   {% for entry in [fltr] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('spanFilterEntry', 'defined')
-    | map(attribute='spanFilterEntry') | default('') %}
+    | map(attribute='spanFilterEntry') | default('') 
+    | sort(attribute='attributes.name,attributes.srcAddr') %}
     {%- set entryns.entries = entryns.entries + [{
       'name': entry.attributes.name | default(''),
       'description': entry.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),

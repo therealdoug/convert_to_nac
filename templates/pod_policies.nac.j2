@@ -18,7 +18,7 @@ apic:
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fabricExtRoutablePodSubnet', 'defined')
     | map(attribute='fabricExtRoutablePodSubnet')
-    | flatten | list | default([]) %}
+    | flatten | list | sort(attribute='attributes.pool') | default([]) %}
     {% set extteppoolsns.pools = extteppoolsns.pools + [{
       'prefix': pool.attributes.pool | default(''),
       'reserved_address_count': pool.attributes.reserveAddressCount
@@ -31,7 +31,7 @@ apic:
     | selectattr('children', 'defined') | map(attribute='children') | flatten
     | selectattr('fabricExtSetupP', 'defined')
     | map(attribute='fabricExtSetupP')
-    | flatten | list | default([]) %}
+    | flatten | list | sort(attribute='attributes.extPoolId') | default([]) %}
     {% set remotepoolsns.pools = remotepoolsns.pools + [{
       'id': pool.attributes.extPoolId | default(''),
       'remote_pool': pool.attributes.tepPool

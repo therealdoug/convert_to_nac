@@ -5,7 +5,7 @@
       | sort(attribute='attributes.name') %}
   {%- set subnetns = namespace(subnets=[]) -%}
   {% for subnet in bd.children | selectattr('fvSubnet', 'defined')
-    | map(attribute='fvSubnet') %}
+    | map(attribute='fvSubnet') | sort(attribute='attributes.ip') %}
     {%- set subnetns.subnets = subnetns.subnets + [{
       'ip': subnet.attributes.ip,
       'description': subnet.attributes.descr | default('') | regex_replace('^(.*[:*].*)$', '"\\1"'),

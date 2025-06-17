@@ -2,7 +2,8 @@
 {% for remote in polUni
   | selectattr('fabricInst', 'defined') | map(attribute='fabricInst')
   | selectattr('children', 'defined') | map(attribute='children') | flatten
-  | selectattr('fileRemotePath', 'defined') | map(attribute='fileRemotePath') %}
+  | selectattr('fileRemotePath', 'defined') | map(attribute='fileRemotePath')
+  | sort(attribute='attributes.name') %}
   {% set fabremotens.remote_locations = fabremotens.remote_locations + [{
     'name': remote.attributes.name,
     'hostname_ip': remote.attributes.host,

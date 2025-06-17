@@ -96,12 +96,13 @@ apic:
 {#- Fabric Scheduler -#}
 {% set schedulerns = namespace(schedulers=[]) %}
 {% for schedule in fabricInst_children | selectattr('trigSchedP', 'defined')
-  | map(attribute='trigSchedP') %}
+  | map(attribute='trigSchedP') | sort(attribute='attributes.name') %}
   {% set recurns = namespace(recurring_windows=[]) %}
   {% for window in [schedule] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('trigRecurrWindowP', 'defined')
     | map(attribute='trigRecurrWindowP')
+    | sort(attribute='attributes.name')
   %}
   {% set recurns.recurring_windows = recurns.recurring_windows + [{
     'name': window.attributes.name,
@@ -375,7 +376,7 @@ apic:
 {% set fabl2mtuns = namespace(l2_mtu_policies=[]) %}
 {% for policy in fabricInst_children | selectattr('l2InstPol', 'defined')
     | rejectattr('l2InstPol.attributes.name', 'match', 'default')
-    | map(attribute='l2InstPol')%}
+    | map(attribute='l2InstPol') | sort(attribute='attributes.name') %}
     {% set fabl2mtuns.l2_mtu_policies = fabl2mtuns.l2_mtu_policies + [{
       'name': policy.attributes.name,
       'port_mtu_size': policy.attributes.fabricMtu | default('')

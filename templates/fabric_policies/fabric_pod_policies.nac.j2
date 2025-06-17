@@ -9,7 +9,8 @@
   {% for server in [pol] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('datetimeNtpProv', 'defined')
-    | map(attribute='datetimeNtpProv') | default([]) %}
+    | map(attribute='datetimeNtpProv') 
+    | sort(attribute='attributes.name') | default([]) %}
     {% set ntpserversns.ntp_servers = ntpserversns.ntp_servers + [{
       'hostname_ip': server.attributes.name,
       'auth_key_id': server.attributes.keyId | default('')
@@ -29,7 +30,8 @@
   {% for key in [pol] | selectattr('children', 'defined')
     | map(attribute='children') | flatten
     | selectattr('datetimeNtpAuthKey', 'defined')
-    | map(attribute='datetimeNtpAuthKey') | default([])
+    | map(attribute='datetimeNtpAuthKey')
+    | sort(attribute='attributes.id') | default([])
   %}
     {% set ntpkeysns.ntp_keys = ntpkeysns.ntp_keys + [{
       'id': key.attributes.id,
