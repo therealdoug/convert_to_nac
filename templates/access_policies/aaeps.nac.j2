@@ -35,7 +35,7 @@
     | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/phys-')
-    | default('') %}
+    | default('') | sort %}
     {%- set physdomns.physical_domains = physdomns.physical_domains + [
       dom.attributes.tDn | replace('uni/phys-', '')
     ] %}
@@ -46,7 +46,7 @@
     | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/l3dom-')
-    | default('') %}
+    | default('') | sort %}
     {%- set physdomns.physical_domains = physdomns.physical_domains + [
       dom.attributes.tDn | replace('uni/l3dom-', '')
     ] %}
@@ -57,7 +57,7 @@
     | selectattr('infraRsDomP', 'defined')
     | map(attribute='infraRsDomP')
     | selectattr('attributes.tDn', 'search', '^uni/vmmp-VMware/dom-')
-    | default('') %}
+    | default('') | sort %}
     {%- set physdomns.physical_domains = physdomns.physical_domains + [
       dom.attributes.tDn | replace('uni/vmmp-VMware/dom-', '')
     ] %}
