@@ -171,7 +171,7 @@
   {% for np in [l3o]
     | selectattr('children', 'defined') | map(attribute='children') | flatten | list
     | selectattr('l3extLNodeP', 'defined') | map(attribute='l3extLNodeP')
-    | list | default([]) if np %}
+    | list | sort(attribute='attributes.name') | default([]) if np %}
     {%- set bgpns = namespace(bgp={}) %}
     {%- set nodens = namespace(nodes=[]) %}
     {%- set peersns = namespace(peers=[]) -%}
@@ -328,7 +328,7 @@
       {% for label in [int_prof] | selectattr('children', 'defined')
         | map(attribute='children') | flatten | list
         | selectattr('dhcpLbl', 'defined') | map(attribute='dhcpLbl')
-        | default([]) %}
+        | sort(attribute='attributes.name') | default([]) %}
         {%- set dhcplabelsns.labels = dhcplabelsns.labels + [{
           'dhcp_relay_policy': label.attributes.name,
           'scope': label.attributes.owner,
@@ -353,14 +353,14 @@
       %}
       {#- Floating SVI Interface -#}
       {#- Physical Interface -#}
-      {% for intf in interface_profiles %}
+      {% for intf in interface_profiles | sort(attribute='attributes.ip') %}
         {#- Set Interface Paths -#}
         {%- set interfacepathsns = namespace(paths=[]) %}
         {% for path in [intf] | selectattr('children', 'defined')
           | map(attribute='children' ) | flatten
           | selectattr('l3extRsDynPathAtt', 'defined')
           | map(attribute='l3extRsDynPathAtt')
-          | list | default('') %}
+          | list | sort(attribute='attributes.floatingAddr') | default('') %}
           {%- set interfacepathsns.paths = interfacepathsns.paths + [{
             'floating_ip': path.attributes.floatingAddr,
             'physical_domain': path.attributes.tDn
