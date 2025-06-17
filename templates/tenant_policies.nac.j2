@@ -7,7 +7,7 @@
   | map(attribute='aaaDomainRef') | flatten | list -%}
 ---
 {%- set _=tenantns.tenant_policies.__setitem__('name', this_tenant.attributes.name) -%}
-{%- set _=tenantns.tenant_policies.__setitem__('description', this_tenant.attributes.description | default('')) -%}
+{%- set _=tenantns.tenant_policies.__setitem__('description', this_tenant.attributes.descr | default('')) -%}
 {%- set _=tenantns.tenant_policies.__setitem__('alias', this_tenant.attributes.nameAlias | default('') ) -%}
 {%- set _=tenantns.tenant_policies.__setitem__('security_domains', this_tenant.children | selectattr('aaaDomainRef', 'defined')
   | map(attribute='aaaDomainRef.attributes.name') | flatten | sort | default('')) -%}
@@ -120,7 +120,7 @@
     {%- set oobsubjns.subjects = oobsubjns.subjects [{
       'name': subj.attributes.name,
       'alias': subj.attributes.nameAlias | default(''),
-      'description': subj.attributes.description | default(''),
+      'description': subj.attributes.descr | default(''),
       'filters': [subj] | selectattr('children', 'defined')
         | map(attribute='children') | flatten
         | selectattr('vzRsSubjFiltAtt', 'defined')
@@ -131,7 +131,7 @@
   {% set oobctns.oob_contracts = oobctns.oob_contracts + [{
     'name': con.attributes.name,
     'alias': con.attributes.nameAlias | default(''),
-    'description': con.attributes.description | default(''),
+    'description': con.attributes.descr | default(''),
     'scope': con.attributes.scope | default('') | replace('context', ''),
     'subjects': oobsubjns.subjects | default(''),
   }] %}
