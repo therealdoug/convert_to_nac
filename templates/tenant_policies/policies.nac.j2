@@ -87,10 +87,10 @@
 {% endfor %}
 {%- set _ = tnpolns.policies.__setitem__('bgp_best_path_policies', bgpbestp.bgp_best_path_policies) -%}
 
-{#- tenant.policies.bfd_multihop_node_policies -#}
+{#- tenant.policies.bgp_peer_prefix_policies -#}
 {%- set bgppfxpol = namespace(bgp_peer_prefix_policies=[]) -%}
-{% for pol in this_tenant.children | selectattr('bfdMhNodePol', 'defined')
-  | map(attribute='bfdMhNodePol') | default('')
+{% for pol in this_tenant.children | selectattr('bgpPeerPfxPol', 'defined')
+  | map(attribute='bgpPeerPfxPol') | default('')
   | sort(attribute='attributes.name') %}
   {%- set bgppfxpol.bgp_peer_prefix_policies = bgppfxpol.bgp_peer_prefix_policies + [{
     'name': pol.attributes.name,
